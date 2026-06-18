@@ -301,6 +301,7 @@ const topBarStyles = StyleSheet.create({
 
 import AuthNavigator from './AuthNavigator';
 import ProjectStackNavigator from './ProjectStackNavigator';
+import NotificationListener from '../components/common/NotificationListener';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import ProjectsScreen from '../screens/projects/ProjectsScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
@@ -444,8 +445,12 @@ const MainWebDrawer = () => {
   );
 };
 
-// Sidebar handles branding; TopBar is rendered per-screen inside the content area
-const MainWebNavigator = () => <MainWebDrawer />;
+const MainWebNavigator = () => (
+  <>
+    <NotificationListener />
+    <MainWebDrawer />
+  </>
+);
 
 const AppNavigator = () => {
   const dispatch = useDispatch();

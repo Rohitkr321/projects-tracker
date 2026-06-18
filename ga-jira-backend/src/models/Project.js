@@ -15,6 +15,7 @@ const Project = sequelize.define('Project', {
   startDate: { type: DataTypes.DATEONLY },
   endDate: { type: DataTypes.DATEONLY },
   issueCounter: { type: DataTypes.INTEGER, defaultValue: 0 },
+  color: { type: DataTypes.STRING(20), defaultValue: '#0F2557' },
   isPrivate: { type: DataTypes.BOOLEAN, defaultValue: false },
   settings: { type: DataTypes.JSON, defaultValue: {} },
 }, {

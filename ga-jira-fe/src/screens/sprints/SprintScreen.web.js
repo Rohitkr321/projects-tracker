@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import React, { useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import {
   Text, useTheme, Button, Surface, Portal, Dialog, Divider,
 } from 'react-native-paper';
@@ -8,27 +8,10 @@ import { useGetSprintsQuery, useStartSprintMutation, useCompleteSprintMutation }
 import { useGetIssuesQuery } from '../../api/issueApi';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingScreen from '../../components/common/LoadingScreen';
+import AppToast from '../../components/common/AppToast';
 import { formatDate, getDaysRemaining, getSprintProgress } from '../../utils/dateUtils';
 
 const SPRINT_MANAGER_ROLES = ['super_admin', 'org_admin', 'project_manager'];
-
-// Top-right toast — replaces bottom Snackbar on web
-const Toast = ({ message, onDone }) => {
-  const [opacity] = useState(new Animated.Value(0));
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(2600),
-      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => onDone?.());
-  }, []);
-  return (
-    <Animated.View style={[styles.toast, { opacity }]}>
-      <MaterialCommunityIcons name="check-circle" size={16} color="#fff" style={{ marginRight: 8 }} />
-      <Text style={{ color: '#fff', fontSize: 14 }}>{message}</Text>
-    </Animated.View>
-  );
-};
 
 const PRIORITY_COLORS = {
   highest: '#DE350B', high: '#FF8B00', medium: '#0052CC', low: '#00875A', lowest: '#8993A4',
@@ -54,6 +37,7 @@ const SprintScreen = ({ route, navigation }) => {
   const [completeDialog, setCompleteDialog] = useState(null);
   const [startDialog, setStartDialog]       = useState(null);
   const [toast, setToast]                   = useState('');
+  const [toastType, setToastType]           = useState('success');
   const [showCompleted, setShowCompleted]   = useState(false);
 
   const { data: sprintsData, isLoading, refetch } = useGetSprintsQuery({ projectId });
@@ -82,10 +66,10 @@ const SprintScreen = ({ route, navigation }) => {
     try {
       await completeSprint({ id: completeDialog.id }).unwrap();
       setCompleteDialog(null);
-      setToast(`"${completeDialog.name}" completed!`);
+      setToastType('success'); setToast(`"${completeDialog.name}" completed!`);
       refetch();
     } catch (err) {
-      setToast(err?.data?.message || 'Failed to complete sprint');
+      setToastType('error'); setToast(err?.data?.message || 'Failed to complete sprint');
     }
   };
 
@@ -94,10 +78,10 @@ const SprintScreen = ({ route, navigation }) => {
     try {
       await startSprint({ id: startDialog.id }).unwrap();
       setStartDialog(null);
-      setToast(`"${startDialog.name}" started!`);
+      setToastType('success'); setToast(`"${startDialog.name}" started!`);
       refetch();
     } catch (err) {
-      setToast(err?.data?.message || 'Failed to start sprint');
+      setToastType('error'); setToast(err?.data?.message || 'Failed to start sprint');
     }
   };
 
@@ -570,8 +554,7 @@ const SprintScreen = ({ route, navigation }) => {
 
       </Portal>
 
-      {/* Top-right toast */}
-      {!!toast && <Toast message={toast} onDone={() => setToast('')} />}
+      {!!toast && <AppToast message={toast} type={toastType} onDone={() => setToast('')} />}
     </View>
   );
 };
@@ -688,16 +671,6 @@ const styles = StyleSheet.create({
     padding: 12, marginTop: 12,
   },
 
-  /* Top-right toast */
-  toast: {
-    position: 'absolute', top: 20, right: 24,
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderRadius: 10,
-    zIndex: 9999,
-    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
-  },
 });
 
 export default SprintScreen;

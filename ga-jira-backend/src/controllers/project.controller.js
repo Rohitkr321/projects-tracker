@@ -76,12 +76,13 @@ exports.getById = async (req, res, next) => {
 
 exports.create = async (req, res, next) => {
   try {
-    const { name, key, description, type, teamId, leadId, startDate, endDate, isPrivate } = req.body;
+    const { name, key, description, type, teamId, leadId, startDate, endDate, isPrivate, color } = req.body;
     const existingKey = await Project.findOne({ where: { organizationId: req.user.organizationId, key: key.toUpperCase() } });
     if (existingKey) return errorResponse(res, 'Project key already exists in this organization', 409);
 
     const project = await Project.create({
       name, key: key.toUpperCase(), description, type, teamId, leadId, startDate, endDate, isPrivate,
+      color: color || '#0F2557',
       organizationId: req.user.organizationId,
     });
 
@@ -114,10 +115,10 @@ exports.create = async (req, res, next) => {
 
 exports.update = async (req, res, next) => {
   try {
-    const { name, description, type, teamId, leadId, startDate, endDate, isPrivate, status, settings } = req.body;
+    const { name, description, type, teamId, leadId, startDate, endDate, isPrivate, status, settings, color } = req.body;
     const project = await Project.findByPk(req.params.projectId);
     if (!project) return errorResponse(res, 'Project not found', 404);
-    await project.update({ name, description, type, teamId, leadId, startDate, endDate, isPrivate, status, settings });
+    await project.update({ name, description, type, teamId, leadId, startDate, endDate, isPrivate, status, settings, color });
     if (req.file) await project.update({ avatar: `/uploads/${req.file.filename}` });
     successResponse(res, project);
   } catch (err) {

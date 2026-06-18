@@ -186,6 +186,7 @@ const ProjectsScreen = ({ navigation }) => {
   const queryParams = { search };
   if (!showArchived) queryParams.status = 'active';
 
+  const isDark = theme.dark;
   const { data, isLoading, refetch } = useGetProjectsQuery(queryParams);
   const [createProject, { isLoading: isCreating }] = useCreateProjectMutation();
   const [updateProject] = useUpdateProjectMutation();
@@ -383,20 +384,60 @@ const ProjectsScreen = ({ navigation }) => {
                       style={{ marginTop: 12 }}
                     />
 
-                    <Text style={[styles.colorLabel, { color: theme.colors.onSurface }]}>Project Colour</Text>
-                    <View style={styles.colorPicker}>
-                      {PROJECT_COLORS.map((color) => (
-                        <TouchableOpacity
-                          key={color}
-                          onPress={() => setSelectedColor(color)}
-                          style={[styles.colorSwatch, { backgroundColor: color },
-                            selectedColor === color && styles.selectedSwatch]}
-                        >
-                          {selectedColor === color && (
-                            <MaterialCommunityIcons name="check" size={16} color="#fff" />
-                          )}
-                        </TouchableOpacity>
-                      ))}
+                    {/* Color section */}
+                    <View style={[styles.colorSection, { backgroundColor: isDark ? '#1F2937' : '#F8FAFC', borderColor: theme.colors.outlineVariant }]}>
+                      <View style={styles.colorSectionHeader}>
+                        <View style={styles.colorSectionLabelRow}>
+                          <MaterialCommunityIcons name="palette-outline" size={15} color={selectedColor} />
+                          <Text style={[styles.colorLabel, { color: theme.colors.onSurface, margin: 0 }]}>Project Colour</Text>
+                        </View>
+                        <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11 }}>
+                          Sets the card banner colour
+                        </Text>
+                      </View>
+
+                      {/* Live preview */}
+                      <View style={[styles.colorPreviewCard, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }]}>
+                        <View style={[styles.colorPreviewBanner, { backgroundColor: selectedColor }]}>
+                          <View style={styles.colorPreviewBadge}>
+                            <Text style={styles.colorPreviewBadgeText}>
+                              {(values.key || 'PR').substring(0, 2)}
+                            </Text>
+                          </View>
+                          <View style={styles.colorPreviewSprintPill}>
+                            <View style={styles.colorPreviewSprintDot} />
+                            <Text style={styles.colorPreviewSprintText}>Active Sprint</Text>
+                          </View>
+                        </View>
+                        <View style={{ paddingHorizontal: 12, paddingVertical: 8 }}>
+                          <Text style={{ fontWeight: '700', fontSize: 13, color: theme.colors.onSurface }} numberOfLines={1}>
+                            {values.name || 'Project Name'}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
+                            {values.key || 'KEY'} · scrum · 0 issues
+                          </Text>
+                        </View>
+                      </View>
+
+                      {/* Swatches */}
+                      <View style={styles.colorPicker}>
+                        {PROJECT_COLORS.map((color) => {
+                          const selected = selectedColor === color;
+                          return (
+                            <TouchableOpacity
+                              key={color}
+                              onPress={() => setSelectedColor(color)}
+                              style={[styles.colorSwatch, {
+                                backgroundColor: color,
+                                boxShadow: selected ? `0 0 0 2.5px #fff, 0 0 0 4.5px ${color}` : 'none',
+                                transform: selected ? [{ scale: 1.12 }] : [{ scale: 1 }],
+                              }]}
+                            >
+                              {selected && <MaterialCommunityIcons name="check" size={15} color="#fff" />}
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
                     </View>
 
                     <View style={styles.dialogActions}>
@@ -545,11 +586,45 @@ const styles = StyleSheet.create({
   dialog: { maxWidth: 520, alignSelf: 'center', width: '100%', borderRadius: 12 },
   dialogTitle: { fontWeight: '800', fontSize: 17 },
   dialogForm: { gap: 2, paddingBottom: 8 },
-  colorLabel: { fontSize: 13, fontWeight: '600', marginTop: 20, marginBottom: 10 },
-  colorPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 12 },
-  colorSwatch: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
-  selectedSwatch: { borderWidth: 3, borderColor: 'rgba(0,0,0,0.25)' },
   dialogActions: { flexDirection: 'row', gap: 12, marginTop: 12, marginBottom: 4 },
+
+  /* Color section */
+  colorSection: {
+    marginTop: 16, borderRadius: 10, borderWidth: 1,
+    padding: 14, gap: 12,
+  },
+  colorSectionHeader: { gap: 2 },
+  colorSectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  colorLabel: { fontSize: 13, fontWeight: '700' },
+
+  /* Mini preview card */
+  colorPreviewCard: {
+    borderRadius: 8, borderWidth: 1, overflow: 'hidden',
+  },
+  colorPreviewBanner: {
+    height: 68, justifyContent: 'flex-end', padding: 10,
+    position: 'relative',
+  },
+  colorPreviewBadge: {
+    width: 34, height: 34, borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    justifyContent: 'center', alignItems: 'center',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.3)',
+  },
+  colorPreviewBadgeText: { color: '#fff', fontWeight: '900', fontSize: 13 },
+  colorPreviewSprintPill: {
+    position: 'absolute', top: 8, right: 8,
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12, paddingHorizontal: 7, paddingVertical: 3,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.25)',
+  },
+  colorPreviewSprintDot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: '#4ADE80' },
+  colorPreviewSprintText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+
+  /* Swatches */
+  colorPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  colorSwatch: { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
 });
 
 export default ProjectsScreen;

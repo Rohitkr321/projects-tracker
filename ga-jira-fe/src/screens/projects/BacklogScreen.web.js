@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, useTheme, Button, Chip, Surface, Portal, Dialog, ProgressBar } from 'react-native-paper';
+import { Text, useTheme, Button, Surface, Portal, Dialog, ProgressBar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetIssuesQuery, useCreateIssueMutation } from '../../api/issueApi';
 import { useGetSprintsQuery, useStartSprintMutation } from '../../api/sprintApi';
@@ -226,28 +226,42 @@ const BacklogScreen = ({ route, navigation }) => {
 
         <View style={styles.toolbarRight}>
           <Text style={[styles.filterLabel, { color: theme.colors.onSurfaceVariant }]}>Type:</Text>
-          {Object.entries(ISSUE_TYPE_LABELS).map(([value, label]) => (
-            <Chip
-              key={value}
-              selected={filterType === value}
-              onPress={() => setFilterType(filterType === value ? null : value)}
-              compact
-              style={[styles.filterChip, filterType === value && { backgroundColor: theme.colors.primaryContainer }]}
-              textStyle={{ fontSize: 11, color: filterType === value ? theme.colors.primary : theme.colors.onSurfaceVariant }}
-            >{label}</Chip>
-          ))}
+          {Object.entries(ISSUE_TYPE_LABELS).map(([value, label]) => {
+            const active = filterType === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                onPress={() => setFilterType(active ? null : value)}
+                style={[styles.filterBtn, {
+                  backgroundColor: active ? '#0F2557' : theme.colors.background,
+                  borderColor: active ? '#0F2557' : theme.colors.outlineVariant,
+                }]}
+              >
+                <Text style={[styles.filterBtnText, { color: active ? '#fff' : theme.colors.onSurfaceVariant }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
           <View style={[styles.sep, { backgroundColor: theme.colors.outlineVariant }]} />
           <Text style={[styles.filterLabel, { color: theme.colors.onSurfaceVariant }]}>Priority:</Text>
-          {Object.entries(PRIORITY_LABELS).slice(0, 3).map(([value, label]) => (
-            <Chip
-              key={value}
-              selected={filterPriority === value}
-              onPress={() => setFilterPriority(filterPriority === value ? null : value)}
-              compact
-              style={[styles.filterChip, filterPriority === value && { backgroundColor: theme.colors.primaryContainer }]}
-              textStyle={{ fontSize: 11, color: filterPriority === value ? theme.colors.primary : theme.colors.onSurfaceVariant }}
-            >{label}</Chip>
-          ))}
+          {Object.entries(PRIORITY_LABELS).slice(0, 3).map(([value, label]) => {
+            const active = filterPriority === value;
+            return (
+              <TouchableOpacity
+                key={value}
+                onPress={() => setFilterPriority(active ? null : value)}
+                style={[styles.filterBtn, {
+                  backgroundColor: active ? '#0F2557' : theme.colors.background,
+                  borderColor: active ? '#0F2557' : theme.colors.outlineVariant,
+                }]}
+              >
+                <Text style={[styles.filterBtnText, { color: active ? '#fff' : theme.colors.onSurfaceVariant }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
           <Button
             mode="contained" icon="plus" compact
             onPress={() => navigation.navigate('CreateIssue', { projectId })}
@@ -514,9 +528,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1,
     borderRadius: 8, paddingHorizontal: 10, height: 36, minWidth: 220,
   },
-  filterLabel: { fontSize: 11, fontWeight: '600' },
-  filterChip:  { borderRadius: 14, height: 26 },
-  sep:         { width: 1, height: 20 },
+  filterLabel:    { fontSize: 11, fontWeight: '600' },
+  filterBtn:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
+  filterBtnText:  { fontSize: 11, fontWeight: '600' },
+  sep:            { width: 1, height: 20 },
   createBtn:   { borderRadius: 6, marginLeft: 8 },
 
   /* Table head */

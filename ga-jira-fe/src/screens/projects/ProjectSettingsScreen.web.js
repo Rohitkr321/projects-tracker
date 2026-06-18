@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, useTheme, TextInput, Button, Menu, Divider, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import AppToast from '../../components/common/AppToast';
 import {
   useGetProjectQuery,
   useUpdateProjectMutation,
@@ -13,26 +14,13 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants';
 
-const Toast = ({ message, isError, onDone }) => {
-  const opacity = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(2800),
-      Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-    ]).start(() => onDone?.());
-  }, []);
-  return (
-    <Animated.View style={[toastS.wrap, { opacity, backgroundColor: isError ? '#DC2626' : '#16A34A' }]}>
-      <MaterialCommunityIcons name={isError ? 'alert-circle' : 'check-circle'} size={16} color="#fff" />
-      <Text style={toastS.text}>{message}</Text>
-    </Animated.View>
-  );
-};
-const toastS = StyleSheet.create({
-  wrap: { position: 'absolute', top: 16, right: 16, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 10, borderRadius: 10, zIndex: 999, maxWidth: 400 },
-  text: { color: '#fff', fontWeight: '600', fontSize: 14 },
-});
+const NAVY = '#0F2557';
+
+const PROJECT_COLORS = [
+  NAVY, '#B8860B', '#059669', '#D97706',
+  '#DC2626', '#2563EB', '#7C5EA7', '#5A9E71',
+  '#DB2777', '#0891B2', '#64748B', '#EA580C',
+];
 
 const NAV_SECTIONS = [
   { key: 'general',  label: 'General',        icon: 'tune' },
@@ -77,13 +65,15 @@ export default function ProjectSettingsScreen({ route, navigation }) {
   const canManage = ['super_admin', 'org_admin', 'project_manager'].includes(me?.role);
 
   // General form state
-  const [form, setForm]           = useState({ name: '', description: '', type: '', key: '' });
+  const [form, setForm]                 = useState({ name: '', description: '', type: '', key: '' });
+  const [selectedColor, setSelectedColor] = useState(NAVY);
   const [typeMenuOpen, setTypeMenuOpen] = useState(false);
-  const [dirty, setDirty]         = useState(false);
+  const [dirty, setDirty]               = useState(false);
 
   useEffect(() => {
     if (project) {
       setForm({ name: project.name || '', description: project.description || '', type: project.type || 'scrum', key: project.key || '' });
+      setSelectedColor(project.color || NAVY);
       setDirty(false);
     }
   }, [project]);
@@ -92,7 +82,7 @@ export default function ProjectSettingsScreen({ route, navigation }) {
 
   const handleSave = async () => {
     try {
-      await updateProject({ id: projectId, name: form.name, description: form.description, type: form.type }).unwrap();
+      await updateProject({ id: projectId, name: form.name, description: form.description, type: form.type, color: selectedColor }).unwrap();
       setDirty(false);
       showToast('Project settings saved');
     } catch (err) {
@@ -136,8 +126,9 @@ export default function ProjectSettingsScreen({ route, navigation }) {
   // Remove member confirmation dialog
   const [removeMemberDialog, setRemoveMemberDialog] = useState(null); // { userId, name }
 
-  const [toast, setToast] = useState(null);
-  const showToast = (msg, isError = false) => setToast({ msg, isError });
+  const [toast, setToast]         = useState('');
+  const [toastType, setToastType] = useState('success');
+  const showToast = (msg, isError = false) => { setToast(msg); setToastType(isError ? 'error' : 'success'); };
 
   // Danger zone
   const [deleteDialog, setDeleteDialog] = useState(false);
@@ -288,6 +279,65 @@ export default function ProjectSettingsScreen({ route, navigation }) {
                   outline: 'none', boxSizing: 'border-box',
                 }}
               />
+
+              {/* ── Project Colour ── */}
+              <View style={[styles.colorSection, { backgroundColor: theme.dark ? '#1F2937' : '#F8FAFC', borderColor: border }]}>
+                <View style={styles.colorSectionTop}>
+                  <View style={styles.colorSectionLabelRow}>
+                    <View style={[styles.colorDot, { backgroundColor: selectedColor }]} />
+                    <Text style={[styles.colorSectionTitle, { color: theme.colors.onSurface }]}>Project Colour</Text>
+                  </View>
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
+                    Sets the banner colour on the project card
+                  </Text>
+                </View>
+
+                {/* Mini live preview */}
+                <View style={[styles.colorPreviewCard, { borderColor: border, backgroundColor: theme.colors.surface }]}>
+                  <View style={[styles.colorPreviewBanner, { backgroundColor: selectedColor }]}>
+                    <View style={styles.colorPreviewBadge}>
+                      <Text style={styles.colorPreviewBadgeText}>
+                        {(form.key || 'PR').substring(0, 2)}
+                      </Text>
+                    </View>
+                    <View style={styles.colorPreviewSprintPill}>
+                      <View style={styles.colorPreviewSprintDot} />
+                      <Text style={styles.colorPreviewSprintText}>Active Sprint</Text>
+                    </View>
+                  </View>
+                  <View style={{ paddingHorizontal: 14, paddingVertical: 10 }}>
+                    <Text style={{ fontWeight: '700', fontSize: 14, color: theme.colors.onSurface }} numberOfLines={1}>
+                      {form.name || 'Project Name'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 }}>
+                      <View style={[styles.keyChipPreview, { backgroundColor: selectedColor + '18', borderColor: selectedColor + '40' }]}>
+                        <Text style={{ color: selectedColor, fontSize: 10, fontWeight: '800' }}>{form.key || 'KEY'}</Text>
+                      </View>
+                      <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>scrum · card preview</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Swatches grid */}
+                <View style={styles.colorPicker}>
+                  {PROJECT_COLORS.map((color) => {
+                    const selected = selectedColor === color;
+                    return (
+                      <TouchableOpacity
+                        key={color}
+                        onPress={() => { setSelectedColor(color); setDirty(true); }}
+                        style={[styles.colorSwatch, {
+                          backgroundColor: color,
+                          boxShadow: selected ? `0 0 0 2.5px #fff, 0 0 0 5px ${color}` : 'none',
+                          transform: selected ? [{ scale: 1.14 }] : [{ scale: 1 }],
+                        }]}
+                      >
+                        {selected && <MaterialCommunityIcons name="check" size={15} color="#fff" />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
 
               <View style={styles.saveRow}>
                 <Button
@@ -603,7 +653,7 @@ export default function ProjectSettingsScreen({ route, navigation }) {
         </Dialog>
       </Portal>
 
-      {!!toast && <Toast message={toast.msg} isError={toast.isError} onDone={() => setToast(null)} />}
+      {!!toast && <AppToast message={toast} type={toastType} onDone={() => setToast('')} />}
     </View>
   );
 }
@@ -668,4 +718,41 @@ const styles = StyleSheet.create({
   permRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
 
   dangerRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+
+  // Color picker
+  colorSection: {
+    borderRadius: 12, borderWidth: 1, padding: 18, marginTop: 20, marginBottom: 4,
+  },
+  colorSectionTop: { marginBottom: 14 },
+  colorSectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
+  colorDot: { width: 12, height: 12, borderRadius: 6 },
+  colorSectionTitle: { fontSize: 14, fontWeight: '700' },
+  colorPreviewCard: {
+    borderRadius: 10, borderWidth: 1, overflow: 'hidden', marginBottom: 16,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+  },
+  colorPreviewBanner: {
+    height: 52, flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, gap: 10,
+  },
+  colorPreviewBadge: {
+    width: 32, height: 32, borderRadius: 8, backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  colorPreviewBadgeText: { color: '#fff', fontWeight: '800', fontSize: 12 },
+  colorPreviewSprintPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  colorPreviewSprintDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  colorPreviewSprintText: { color: '#fff', fontSize: 10, fontWeight: '600' },
+  keyChipPreview: {
+    paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1,
+  },
+  colorPicker: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  colorSwatch: {
+    width: 32, height: 32, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center',
+  },
 });

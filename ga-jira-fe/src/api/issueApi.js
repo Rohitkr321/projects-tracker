@@ -32,15 +32,15 @@ export const issueApi = createApi({
       providesTags: (result, error, id) => [{ type: 'Issue', id }],
     }),
     createIssue: builder.mutation({
-      query: (data) => ({
+      query: ({ formData, projectId, sprintId }) => ({
         url: '/issues',
         method: 'POST',
-        body: data,
+        body: formData,           // send FormData directly — not JSON-wrapped
       }),
-      invalidatesTags: (result, error, data) => [
+      invalidatesTags: (result, error, { projectId, sprintId }) => [
         'Issue',
-        { type: 'Issue', id: `project-${data?.projectId}` },
-        data?.sprintId ? { type: 'Issue', id: `sprint-${data.sprintId}` } : null,
+        { type: 'Issue', id: `project-${projectId}` },
+        sprintId ? { type: 'Issue', id: `sprint-${sprintId}` } : null,
       ].filter(Boolean),
     }),
     updateIssue: builder.mutation({

@@ -17,7 +17,7 @@ const NotificationListener = () => {
   });
 
   useEffect(() => {
-    const count = countData?.data?.unreadCount ?? countData?.unreadCount ?? null;
+    const count = countData?.data?.count ?? countData?.data?.unreadCount ?? countData?.count ?? null;
     if (count !== null) {
       dispatch(setUnreadCount(count));
     }

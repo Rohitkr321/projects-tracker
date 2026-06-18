@@ -9,6 +9,7 @@ exports.getAll = async (req, res, next) => {
     const { page = 1, limit = 50 } = req.query;
     const { count, rows } = await Sprint.findAndCountAll({
       where: { projectId },
+      include: [{ model: Issue, as: 'issues', attributes: ['id'] }],
       order: [['order', 'ASC'], ['createdAt', 'ASC']],
       ...paginate(page, limit),
     });
