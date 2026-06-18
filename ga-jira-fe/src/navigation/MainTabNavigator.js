@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme, Badge } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -64,13 +64,13 @@ const MainTabNavigator = () => {
           borderBottomWidth: StyleSheet.hairlineWidth,
         },
         headerTintColor: theme.colors.onSurface,
-        headerTitleStyle: {
-          fontWeight: '700',
-          fontSize: 18,
-        },
-        headerLeft: () => (
+        headerTitleAlign: 'left',
+        headerTitle: () => (
           <View style={styles.headerBrand}>
-            <BrandLogo variant="mark" width={38} height={38} />
+            <BrandLogo variant="mark" width={34} height={34} />
+            <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.primary, letterSpacing: -0.3 }}>
+              GA Tracker
+            </Text>
           </View>
         ),
       })}
@@ -101,11 +101,10 @@ const MainTabNavigator = () => {
 
 const styles = StyleSheet.create({
   headerBrand: {
-    marginLeft: 12,
-    width: 42,
-    height: 42,
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    marginLeft: 4,
   },
   badge: {
     position: 'absolute',
