@@ -1,0 +1,37 @@
+{
+  "name": "ga-jira-backend",
+  "version": "1.0.0",
+  "description": "GA Jira - Complex internal task tracker API for General Aeronautics",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "db:sync": "node -e \"require('dotenv').config(); const { sequelize } = require('./src/models'); sequelize.sync({ force: true }).then(() => { console.log('DB synced'); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });\""
+  },
+  "keywords": ["jira", "task-tracker"],
+  "author": "General Aeronautics Software Team",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
+    "joi": "^18.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.11.0",
+    "multer": "^2.2.0",
+    "mysql2": "^3.22.5",
+    "nodemailer": "^9.0.0",
+    "sequelize": "^6.37.8",
+    "socket.io": "^4.8.3",
+    "uuid": "^14.0.0",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}

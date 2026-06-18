@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "General Aeronautics",
+    "slug": "ga-jira-fe",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "updates": {
+      "enabled": false
+    },
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F5F0D8",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "General Aeronautics",
+      "shortName": "GA Tracker",
+      "description": "General Aeronautics internal task tracker"
+    },
+    "plugins": []
+  }
+}
