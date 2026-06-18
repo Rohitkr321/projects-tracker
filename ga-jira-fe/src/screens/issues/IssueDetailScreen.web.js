@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   // Top bar
   topBar: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 12,
+    paddingHorizontal: 20, paddingVertical: 9,
     borderBottomWidth: 1, gap: 12,
   },
   backBtn:    { flexDirection: 'row', alignItems: 'center' },
@@ -665,7 +665,7 @@ const styles = StyleSheet.create({
   // Body
   body:        { flex: 1, flexDirection: 'row' },
   leftScroll:  { flex: 1 },
-  leftContent: { padding: 28, paddingBottom: 80, gap: 16 },
+  leftContent: { padding: 24, paddingBottom: 72, gap: 14 },
 
   // Cards
   card: {

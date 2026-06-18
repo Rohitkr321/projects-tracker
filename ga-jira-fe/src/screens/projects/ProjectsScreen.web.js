@@ -67,7 +67,7 @@ const ProjectsScreen = ({ navigation }) => {
       {/* Page header */}
       <View style={[styles.pageHeader, { borderBottomColor: theme.colors.outlineVariant }]}>
         <View>
-          <Text variant="headlineSmall" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>Projects</Text>
+          <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>Projects</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
             {projects.length} project{projects.length !== 1 ? 's' : ''}
           </Text>
@@ -274,19 +274,19 @@ const styles = StyleSheet.create({
 
   pageHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 40, paddingVertical: 20, borderBottomWidth: 1,
+    paddingHorizontal: 28, paddingVertical: 12, borderBottomWidth: 1,
   },
-  pageHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 16 },
+  pageHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   searchWrap: {
     flexDirection: 'row', alignItems: 'center',
     borderWidth: 1, borderRadius: 8,
-    paddingHorizontal: 12, height: 40, minWidth: 280,
+    paddingHorizontal: 12, height: 38, minWidth: 280,
   },
-  searchInput: { flex: 1, height: 40, backgroundColor: 'transparent', fontSize: 14 },
+  searchInput: { flex: 1, height: 38, backgroundColor: 'transparent', fontSize: 14 },
   createBtn: { borderRadius: 8 },
 
   scroll: { flex: 1 },
-  grid: { padding: 40, paddingTop: 28 },
+  grid: { padding: 28, paddingTop: 24 },
 
   cardGrid: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 20,

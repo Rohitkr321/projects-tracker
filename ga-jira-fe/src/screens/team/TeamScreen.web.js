@@ -198,7 +198,7 @@ export default function TeamScreen() {
       {/* ── Page header ── */}
       <View style={[styles.pageHeader, { backgroundColor: surf, borderBottomColor: theme.colors.outlineVariant }]}>
         <View>
-          <Text variant="headlineSmall" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>Team</Text>
+          <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>Team</Text>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
             {users.length} member{users.length !== 1 ? 's' : ''} · {totalOpen} open issues · {totalDone} resolved
           </Text>
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
 
   pageHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 40, paddingVertical: 20,
+    paddingHorizontal: 28, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },

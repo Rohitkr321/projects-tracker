@@ -68,7 +68,7 @@ const MainTabNavigator = () => {
         headerTitle: () => (
           <View style={styles.headerBrand}>
             <BrandLogo variant="mark" width={34} height={34} />
-            <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.primary, letterSpacing: -0.3 }}>
+            <Text style={{ fontSize: 14, fontWeight: '800', color: theme.colors.primary, letterSpacing: 0 }}>
               GA Tracker
             </Text>
           </View>

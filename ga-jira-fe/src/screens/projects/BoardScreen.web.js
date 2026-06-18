@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     gap: 16,
   },
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     gap: 8,
     flexWrap: 'wrap',
@@ -513,7 +513,7 @@ const styles = StyleSheet.create({
   /* ── Sprint bar ── */
   sprintBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 8,
+    paddingHorizontal: 20, paddingVertical: 6,
     borderBottomWidth: 1,
   },
   sprintBarLeft:  { flexDirection: 'row', alignItems: 'center', gap: 6 },
@@ -523,7 +523,7 @@ const styles = StyleSheet.create({
   progressFill:  { height: '100%', borderRadius: 3 },
   noSprintBanner: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 8,
+    paddingHorizontal: 20, paddingVertical: 6,
     borderBottomWidth: 1,
   },
 

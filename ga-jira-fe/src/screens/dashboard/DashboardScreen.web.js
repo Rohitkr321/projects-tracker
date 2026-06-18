@@ -307,13 +307,13 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   greetingRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 32, paddingTop: 20, paddingBottom: 4,
+    paddingHorizontal: 28, paddingTop: 14, paddingBottom: 2,
   },
   refreshBtn: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
 
   statsGrid: {
     flexDirection: 'row', flexWrap: 'wrap', gap: 14,
-    paddingHorizontal: 32, paddingTop: 16, paddingBottom: 8,
+    paddingHorizontal: 28, paddingTop: 14, paddingBottom: 8,
   },
   tile: {
     minWidth: 140, flex: 1, borderRadius: 8, padding: 18,
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   tileValue: { fontWeight: '800', lineHeight: 36 },
   tileLabel: { fontWeight: '600', fontSize: 13 },
 
-  twoCol: { flexDirection: 'row', paddingHorizontal: 32, paddingTop: 16, paddingBottom: 40, gap: 24 },
+  twoCol: { flexDirection: 'row', paddingHorizontal: 28, paddingTop: 14, paddingBottom: 40, gap: 20 },
   col: { flex: 3, gap: 0 },
   colNarrow: { flex: 2, gap: 0 },
 

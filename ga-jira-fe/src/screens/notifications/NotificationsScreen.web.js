@@ -63,7 +63,7 @@ export default function NotificationsScreen() {
       {/* ── Header ── */}
       <View style={[styles.header, { backgroundColor: surf, borderBottomColor: theme.colors.outlineVariant }]}>
         <View>
-          <Text variant="headlineSmall" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>
+          <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>
             Notifications
           </Text>
           {unreadCount > 0 && (
@@ -249,7 +249,7 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 40, paddingVertical: 20,
+    paddingHorizontal: 28, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },

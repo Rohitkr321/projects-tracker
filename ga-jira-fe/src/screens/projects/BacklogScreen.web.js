@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
 
   toolbar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, paddingVertical: 12,
+    paddingHorizontal: 20, paddingVertical: 8,
     borderBottomWidth: 1, gap: 16, flexWrap: 'wrap',
   },
   toolbarLeft:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -540,7 +540,7 @@ const styles = StyleSheet.create({
 
   tableHeader: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 8, borderBottomWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 7, borderBottomWidth: 1,
   },
   colHeader: { textTransform: 'uppercase', letterSpacing: 0, fontSize: 11, color: '#6B7280' },
 
@@ -548,7 +548,7 @@ const styles = StyleSheet.create({
 
   sprintHeader: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 11,
+    paddingHorizontal: 16, paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   sprintStatusBadge: {
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
 
   sectionHeader: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 10,
+    paddingHorizontal: 20, paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderTopWidth:    StyleSheet.hairlineWidth,
     marginTop: 8,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
 
   issueRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
     cursor: 'pointer',
   },

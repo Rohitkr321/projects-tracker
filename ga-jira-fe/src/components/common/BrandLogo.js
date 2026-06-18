@@ -1,16 +1,7 @@
 import React from 'react';
-import Svg, {
-  Defs,
-  LinearGradient,
-  Path,
-  Rect,
-  Stop,
-  Text as SvgText,
-} from 'react-native-svg';
+import { StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import colors from '../../theme/colors';
-
-const WORDMARK_VIEWBOX = '0 0 680 270';
-const MARK_VIEWBOX = '0 0 128 128';
 
 const BrandLogo = ({
   width = 220,
@@ -20,81 +11,130 @@ const BrandLogo = ({
   style,
 }) => {
   const isLight = tone === 'light';
-  const textColor = isLight ? '#FFFFFF' : colors.brand.navy;
-  const accent = colors.brand.gold;
-  const accentDark = isLight ? colors.brand.goldLight : colors.brand.goldDark;
+  const isOnDark = tone === 'onDark';
+  const textColor = isLight ? '#FFFFFF' : isOnDark ? '#0E3D8B' : colors.brand.navy;
+  const accent = isLight ? colors.brand.goldLight : colors.brand.gold;
+  const accentDark = isLight ? colors.brand.gold : colors.brand.goldDark;
 
   if (variant === 'mark') {
+    const size = Math.min(width, height);
     return (
-      <Svg width={width} height={height} viewBox={MARK_VIEWBOX} style={style}>
-        <Defs>
-          <LinearGradient id="mark-bg" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.brand.navy} />
-            <Stop offset="1" stopColor={colors.brand.sky} />
-          </LinearGradient>
-        </Defs>
-        <Rect x="8" y="8" width="112" height="112" rx="14" fill="url(#mark-bg)" />
-        <SvgText
-          x="26"
-          y="70"
-          fill="#FFFFFF"
-          fontSize="38"
-          fontWeight="800"
-          fontFamily="Arial"
+      <View style={[styles.mark, { width: size, height: size, borderRadius: Math.max(6, size * 0.2) }, style]}>
+        <Text
+          allowFontScaling={false}
+          style={[styles.markText, { fontSize: Math.max(13, size * 0.34) }]}
         >
           GA
-        </SvgText>
-        <Path
-          d="M18 84 H68 L74 39 L91 73 L116 84"
-          fill="none"
-          stroke={accent}
-          strokeWidth="6"
-          strokeLinecap="square"
-          strokeLinejoin="miter"
-        />
-      </Svg>
+        </Text>
+        <Svg width={size * 0.82} height={size * 0.38} viewBox="0 0 128 60" style={styles.markPlane}>
+          <Path
+            d="M4 46 H65 L72 8 L90 39 L124 47"
+            fill="none"
+            stroke={colors.brand.goldLight}
+            strokeWidth="7"
+            strokeLinecap="square"
+            strokeLinejoin="miter"
+          />
+        </Svg>
+      </View>
     );
   }
 
+  const generalSize = Math.max(18, height * 0.33);
+  const aeroSize = Math.max(20, height * 0.39);
+  const lineHeight = Math.max(18, height * 0.26);
+
   return (
-    <Svg width={width} height={height} viewBox={WORDMARK_VIEWBOX} style={style}>
-      <SvgText
-        x="0"
-        y="82"
-        fill={textColor}
-        fontSize="88"
-        fontWeight="800"
-        fontFamily="Arial"
+    <View style={[styles.wordmark, { width, height }, style]}>
+      <Text
+        allowFontScaling={false}
+        adjustsFontSizeToFit
+        minimumFontScale={0.58}
+        numberOfLines={1}
+        style={[
+          styles.word,
+          styles.generalWord,
+          { color: textColor, fontSize: generalSize, lineHeight: generalSize * 1.02 },
+        ]}
       >
         General
-      </SvgText>
-      <Path
-        d="M6 110 H370 L386 22 L416 30 L463 94 L674 112"
-        fill="none"
-        stroke={accent}
-        strokeWidth="11"
-        strokeLinecap="square"
-        strokeLinejoin="miter"
-      />
-      <Path
-        d="M372 111 H674"
-        fill="none"
-        stroke={accentDark}
-        strokeWidth="6"
-        strokeLinecap="square"
-      />
-      <SvgText
-        x="0"
-        y="225"
-        fill={textColor}
-        fontSize="96"
-        fontWeight="800"
-        fontFamily="Arial"
+      </Text>
+
+      <Svg width={width} height={lineHeight} viewBox="0 0 680 78" style={styles.aircraftLine}>
+        <Path
+          d="M2 51 H376 L392 7 L420 13 L470 44 L678 52"
+          fill="none"
+          stroke={accent}
+          strokeWidth="8"
+          strokeLinecap="square"
+          strokeLinejoin="miter"
+        />
+        <Path
+          d="M2 55 H678"
+          fill="none"
+          stroke={accentDark}
+          strokeWidth="3"
+          strokeLinecap="square"
+        />
+      </Svg>
+
+      <Text
+        allowFontScaling={false}
+        adjustsFontSizeToFit
+        minimumFontScale={0.5}
+        numberOfLines={1}
+        style={[
+          styles.word,
+          styles.aeroWord,
+          { color: textColor, fontSize: aeroSize, lineHeight: aeroSize * 1.02 },
+        ]}
       >
         Aeronautics
-      </SvgText>
-    </Svg>
+      </Text>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  wordmark: {
+    position: 'relative',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  word: {
+    fontFamily: 'System',
+    fontWeight: '900',
+    letterSpacing: 0,
+    includeFontPadding: false,
+  },
+  generalWord: {
+    marginBottom: 4,
+  },
+  aeroWord: {
+    marginTop: 8,
+  },
+  aircraftLine: {
+    marginVertical: -2,
+  },
+  mark: {
+    backgroundColor: colors.brand.navy,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.brand.gold,
+  },
+  markText: {
+    color: '#FFFFFF',
+    fontWeight: '900',
+    letterSpacing: 0,
+    marginBottom: 4,
+  },
+  markPlane: {
+    position: 'absolute',
+    bottom: 4,
+    left: '9%',
+  },
+});
 
 export default BrandLogo;

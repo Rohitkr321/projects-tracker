@@ -633,8 +633,8 @@ const styles = StyleSheet.create({
   navItem: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, marginBottom: 2 },
 
   main: { flex: 1 },
-  mainInner: { padding: 40, paddingBottom: 60 },
-  sectionHeader: { marginBottom: 28 },
+  mainInner: { padding: 28, paddingBottom: 56 },
+  sectionHeader: { marginBottom: 20 },
 
   card: {
     borderRadius: 14, padding: 24, marginBottom: 20,

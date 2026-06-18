@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   navItem: { flexDirection: 'row', alignItems: 'center', padding: 10, borderRadius: 8, marginBottom: 2 },
 
   content: { flex: 1 },
-  contentInner: { padding: 40, paddingBottom: 60 },
+  contentInner: { padding: 28, paddingBottom: 56 },
 
   card: {
     borderRadius: 14, padding: 24, marginBottom: 20,

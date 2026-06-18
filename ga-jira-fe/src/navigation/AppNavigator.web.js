@@ -260,22 +260,22 @@ const TopBar = ({ screenName = '' }) => {
 
 const topBarStyles = StyleSheet.create({
   bar: {
-    height: 52, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 10,
+    height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 10,
   },
   left:        { flexDirection: 'row', alignItems: 'center', gap: 10 },
   right:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconBtn:     { width: 36, height: 36, justifyContent: 'center', alignItems: 'center', borderRadius: 18, position: 'relative' },
+  iconBtn:     { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 16, position: 'relative' },
   badge:       { position: 'absolute', top: 0, right: 0 },
-  profileBtn:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10 },
-  avatar:      { width: 30, height: 30, borderRadius: 15, justifyContent: 'center', alignItems: 'center' },
+  profileBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  avatar:      { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   avatarText:  { color: '#fff', fontSize: 11, fontWeight: '800' },
   profileInfo: { alignItems: 'flex-start' },
   // Backdrop covers full screen to close dropdowns on outside tap
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 },
   // Profile dropdown
   profileDropdown: {
-    position: 'absolute', top: 52, right: 8, width: 248,
+    position: 'absolute', top: 44, right: 8, width: 248,
     borderRadius: 8, borderWidth: 1,
     shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24,
     elevation: 16, zIndex: 200, overflow: 'hidden',
@@ -287,7 +287,7 @@ const topBarStyles = StyleSheet.create({
   dropdownItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
   // Notification dropdown
   notifDropdown: {
-    position: 'absolute', top: 52, right: 8, width: 368,
+    position: 'absolute', top: 44, right: 8, width: 368,
     borderRadius: 8, borderWidth: 1,
     shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24,
     elevation: 16, zIndex: 200, overflow: 'hidden',

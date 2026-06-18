@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   /* ── Header ── */
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 24, paddingVertical: 12,
+    paddingHorizontal: 20, paddingVertical: 8,
     borderBottomWidth: 1, gap: 16,
   },
   backBtn:   { flexDirection: 'row', alignItems: 'center', gap: 2 },
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   /* ── Progress strip ── */
   progressStrip: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, paddingVertical: 10,
+    paddingHorizontal: 20, paddingVertical: 7,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   progressLeft:  { flex: 1 },
@@ -629,7 +629,7 @@ const styles = StyleSheet.create({
 
   issueRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 11,
+    paddingHorizontal: 16, paddingVertical: 9,
     borderBottomWidth: StyleSheet.hairlineWidth,
     cursor: 'pointer',
   },

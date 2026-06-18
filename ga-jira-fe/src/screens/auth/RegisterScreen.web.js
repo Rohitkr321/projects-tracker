@@ -63,9 +63,9 @@ const RegisterScreen = ({ navigation, route }) => {
   return (
     <View style={styles.root}>
       {/* Left branding panel */}
-      <View style={[styles.leftPanel, { backgroundColor: theme.colors.primary }]}>
+      <View style={styles.leftPanel}>
         <View style={styles.brandContent}>
-          <BrandLogo width={300} height={120} tone="light" />
+          <BrandLogo width={312} height={124} tone="onDark" />
           <Text variant="titleMedium" style={styles.brandTagline}>
             Create your General Aeronautics workspace account.
           </Text>
@@ -307,13 +307,14 @@ const styles = StyleSheet.create({
     width: 430,
     padding: 52,
     justifyContent: 'space-between',
+    backgroundColor: '#03060B',
   },
   brandContent: {
     flex: 1,
     justifyContent: 'center',
   },
   brandTagline: {
-    color: 'rgba(255,255,255,0.84)',
+    color: 'rgba(255,255,255,0.78)',
     marginTop: 24,
     marginBottom: 40,
     lineHeight: 28,
@@ -350,7 +351,7 @@ const styles = StyleSheet.create({
     padding: 40,
     borderWidth: 1,
     borderColor: '#E7EDF4',
-    boxShadow: '0px 14px 40px rgba(20,33,61,0.08)',
+    boxShadow: '0px 18px 44px rgba(20,33,61,0.10)',
   },
   backBtn: {
     flexDirection: 'row',

@@ -511,28 +511,28 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
 
   topBar: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 32, paddingVertical: 16,
-    borderBottomWidth: 1, gap: 14,
+    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 28, paddingVertical: 10,
+    borderBottomWidth: 1, gap: 12,
   },
-  projectAvatarBig: { width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  projectAvatarText: { color: '#fff', fontWeight: '800', fontSize: 16 },
+  projectAvatarBig: { width: 40, height: 40, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+  projectAvatarText: { color: '#fff', fontWeight: '800', fontSize: 15 },
   projectMeta: { flex: 1 },
   topBarRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   createBtn: { borderRadius: 6 },
   settingsBtn: { padding: 8, borderRadius: 8 },
 
   tabNav: {
-    flexDirection: 'row', paddingHorizontal: 32,
+    flexDirection: 'row', paddingHorizontal: 28,
     borderBottomWidth: 1, gap: 4,
   },
   tabItem: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 14, paddingHorizontal: 16,
+    paddingVertical: 10, paddingHorizontal: 14,
     marginBottom: -1,
   },
 
   content: { flex: 1 },
-  contentInner: { padding: 32, paddingBottom: 60 },
+  contentInner: { padding: 28, paddingTop: 24, paddingBottom: 56 },
 
   overviewGrid: { flexDirection: 'row', gap: 24, alignItems: 'flex-start' },
   leftCol: { flex: 3, gap: 20 },

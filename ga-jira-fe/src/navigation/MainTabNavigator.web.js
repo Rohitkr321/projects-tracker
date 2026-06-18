@@ -32,7 +32,7 @@ const WebSidebarContent = ({ state, navigation }) => {
   return (
     <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outline }]}>
       <View style={styles.sidebarHeader}>
-        <BrandLogo width={176} height={70} />
+        <BrandLogo width={176} height={64} />
       </View>
 
       <Divider />
@@ -117,12 +117,12 @@ const styles = StyleSheet.create({
   },
   sidebarHeader: {
     alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
   navSection: {
     flex: 1,
-    paddingTop: 12,
+    paddingTop: 10,
     paddingHorizontal: 12,
     gap: 4,
   },

@@ -576,7 +576,7 @@ const styles = StyleSheet.create({
 
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 24, paddingVertical: 14,
+    paddingHorizontal: 20, paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
     boxShadow: '0px 1px 4px rgba(0,0,0,0.05)',
   },
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
   body: { flex: 1, flexDirection: 'row' },
 
   mainPanel: { flex: 1 },
-  mainInner: { padding: 40, paddingTop: 32, maxWidth: 860 },
+  mainInner: { padding: 28, paddingTop: 24, maxWidth: 860 },
 
   typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 },
   typeChip: {
