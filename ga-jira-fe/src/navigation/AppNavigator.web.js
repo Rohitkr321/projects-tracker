@@ -429,7 +429,7 @@ const MainWebDrawer = () => {
         drawerType: 'permanent',
         drawerStyle: { width: 248 },
         headerShown: true,
-        header: (props) => <TopBar screenName={props.route.name} />,
+        header: () => <TopBar />,
         overlayColor: 'transparent',
       }}
     >

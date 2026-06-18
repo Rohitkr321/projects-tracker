@@ -1,28 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { Text, useTheme, Button, Menu, Divider, Portal, Dialog } from 'react-native-paper';
-
-const Toast = ({ message, onDone }) => {
-  const [opacity] = useState(new Animated.Value(0));
-  useEffect(() => {
-    Animated.sequence([
-      Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.delay(2600),
-      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => onDone?.());
-  }, []);
-  return (
-    <Animated.View style={{ position: 'absolute', top: 20, right: 24, backgroundColor: '#1E293B', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, zIndex: 9999, opacity }}>
-      <Text style={{ color: '#fff', fontSize: 14 }}>{message}</Text>
-    </Animated.View>
-  );
-};
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetOrgUsersQuery, useUpdateUserMutation } from '../../api/userApi';
 import { useGetProjectsQuery, useAddProjectMemberMutation, useGetProjectMembersQuery } from '../../api/projectApi';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants';
 import { formatDate } from '../../utils/dateUtils';
+import colors from '../../theme/colors';
+import AppToast from '../../components/common/AppToast';
 
 const ALL_ROLES = ['super_admin', 'org_admin', 'project_manager', 'team_lead', 'developer', 'reporter', 'viewer'];
 
@@ -36,31 +22,47 @@ const ROLE_COLOR = {
   viewer:          '#92400E',
 };
 
+/* ─── Avatar ─── */
 const avatarHue = (str) => {
   let h = 0;
   for (let i = 0; i < (str || '').length; i++) h = str.charCodeAt(i) * 37 + ((h << 5) - h);
   return Math.abs(h) % 360;
 };
-
-const UserAvatar = ({ user, size = 40 }) => {
-  const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`;
+const UserAvatar = ({ user, size = 38 }) => {
+  const initials = `${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`.toUpperCase();
   const hue = avatarHue(user?.email);
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: `hsl(${hue},52%,44%)`, justifyContent: 'center', alignItems: 'center' }}>
-      <Text style={{ color: '#fff', fontSize: size * 0.36, fontWeight: '800' }}>{initials.toUpperCase()}</Text>
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: `hsl(${hue},52%,42%)`,
+      justifyContent: 'center', alignItems: 'center',
+      borderWidth: 2, borderColor: `hsla(${hue},52%,42%,0.3)`,
+    }}>
+      <Text style={{ color: '#fff', fontSize: size * 0.34, fontWeight: '800' }}>{initials}</Text>
     </View>
   );
 };
 
-// Per-project row with its own membership check — hooks cannot be called inside loops
-// so each project gets its own component instance.
-const ProjectMemberRow = ({ project, userId, selectedRole, theme, onSuccess }) => {
-  const { data: membersData }               = useGetProjectMembersQuery(project.id);
-  const [addMember, { isLoading: adding }]  = useAddProjectMemberMutation();
-  const [justAdded, setJustAdded]           = useState(false);
+/* ─── Stat tile (sidebar) ─── */
+const StatTile = ({ label, value, icon, color, theme }) => (
+  <View style={[styles.statTile, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant, borderBottomColor: color }]}>
+    <View style={{ flex: 1 }}>
+      <Text style={[styles.statTileValue, { color: colors.brand.navy }]}>{value}</Text>
+      <Text style={[styles.statTileLabel, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
+    </View>
+    <View style={[styles.statTileIcon, { backgroundColor: color + '18' }]}>
+      <MaterialCommunityIcons name={icon} size={20} color={color} />
+    </View>
+  </View>
+);
 
+/* ─── Assign project dialog ─── */
+const ProjectMemberRow = ({ project, userId, selectedRole, theme, onSuccess }) => {
+  const { data: membersData } = useGetProjectMembersQuery(project.id);
+  const [addMember, { isLoading: adding }] = useAddProjectMemberMutation();
+  const [justAdded, setJustAdded] = useState(false);
   const rawMembers = membersData?.data || [];
-  const isMember   = justAdded || rawMembers.some(m => (m.userId ?? m.id) === userId);
+  const isMember = justAdded || rawMembers.some(m => (m.userId ?? m.id) === userId);
 
   const handleAdd = async () => {
     try {
@@ -73,113 +75,99 @@ const ProjectMemberRow = ({ project, userId, selectedRole, theme, onSuccess }) =
   };
 
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: theme.colors.outlineVariant }}>
+    <View style={[styles.projRow, { borderBottomColor: theme.colors.outlineVariant }]}>
+      <View style={[styles.projKey, { backgroundColor: colors.brand.navy }]}>
+        <Text style={styles.projKeyText}>{project.key?.substring(0, 2)}</Text>
+      </View>
       <View style={{ flex: 1 }}>
-        <Text variant="bodySmall" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>{project.name}</Text>
-        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>{project.key}</Text>
+        <Text style={[styles.projName, { color: theme.colors.onSurface }]}>{project.name}</Text>
+        <Text style={[styles.projSub, { color: theme.colors.onSurfaceVariant }]}>{project.key}</Text>
       </View>
       {isMember ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#ECFDF5' }}>
-          <MaterialCommunityIcons name="check-circle" size={14} color="#10B981" />
-          <Text style={{ color: '#10B981', fontSize: 12, fontWeight: '700' }}>Member</Text>
+        <View style={styles.memberBadge}>
+          <MaterialCommunityIcons name="check-circle" size={13} color="#10B981" />
+          <Text style={styles.memberBadgeText}>Member</Text>
         </View>
       ) : (
-        <Button compact mode="contained" onPress={handleAdd} loading={adding} style={{ borderRadius: 6 }}>
-          Add
-        </Button>
+        <Button compact mode="contained" onPress={handleAdd} loading={adding} style={{ borderRadius: 6 }}>Add</Button>
       )}
     </View>
   );
 };
 
-// Sub-component: shows which projects a user is in and lets admin add them to more
 const AssignProjectDialog = ({ user, onDismiss, theme }) => {
-  const { data: projectsData }      = useGetProjectsQuery({});
+  const { data: projectsData } = useGetProjectsQuery({});
   const [selectedRole, setSelectedRole] = useState('developer');
-  const [snack, setSnack]               = useState('');
-
+  const [snack, setSnack] = useState('');
   const allProjects = projectsData?.data?.data || [];
 
   return (
-  <>
-    <Dialog visible onDismiss={onDismiss} style={{ maxWidth: 520, alignSelf: 'center', width: '100%' }}>
-      <Dialog.Title>Assign {user.firstName} to Project</Dialog.Title>
-      <Dialog.ScrollArea style={{ maxHeight: 400 }}>
-        <ScrollView>
-          {/* Role picker */}
-          <View style={{ paddingVertical: 10, paddingHorizontal: 4 }}>
-            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 8, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0 }}>
-              Role to assign
-            </Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+    <>
+      <Dialog visible onDismiss={onDismiss} style={styles.dialog}>
+        <Dialog.Title style={styles.dialogTitle}>Assign {user.firstName} to Project</Dialog.Title>
+        <Dialog.ScrollArea style={{ maxHeight: 420 }}>
+          <ScrollView style={{ paddingHorizontal: 4 }}>
+            <Text style={[styles.dialogSectionLabel, { color: theme.colors.onSurfaceVariant }]}>Role to assign</Text>
+            <View style={styles.roleChips}>
               {['developer', 'reporter', 'team_lead', 'project_manager', 'viewer'].map(r => (
                 <TouchableOpacity
                   key={r}
                   onPress={() => setSelectedRole(r)}
-                  style={{
-                    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1,
-                    borderColor:     selectedRole === r ? theme.colors.primary : theme.colors.outlineVariant,
+                  style={[styles.roleChip, {
+                    borderColor: selectedRole === r ? theme.colors.primary : theme.colors.outlineVariant,
                     backgroundColor: selectedRole === r ? theme.colors.primaryContainer : 'transparent',
-                  }}
+                  }]}
                 >
-                  <Text style={{ fontSize: 12, color: selectedRole === r ? theme.colors.primary : theme.colors.onSurfaceVariant, fontWeight: selectedRole === r ? '700' : '400' }}>
-                    {ROLE_LABELS[r] || r}
-                  </Text>
+                  <Text style={[styles.roleChipText, {
+                    color: selectedRole === r ? theme.colors.primary : theme.colors.onSurfaceVariant,
+                    fontWeight: selectedRole === r ? '700' : '400',
+                  }]}>{ROLE_LABELS[r] || r}</Text>
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
-
-          <Divider style={{ marginVertical: 8 }} />
-
-          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0, paddingHorizontal: 4 }}>
-            Projects
-          </Text>
-
-          {allProjects.length === 0 && (
-            <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, padding: 16, textAlign: 'center' }}>
-              No projects found
-            </Text>
-          )}
-
-          {allProjects.map(p => (
-            <ProjectMemberRow
-              key={p.id}
-              project={p}
-              userId={user.id}
-              selectedRole={selectedRole}
-              theme={theme}
-              onSuccess={(msg, isErr) => setSnack(msg)}
-            />
-          ))}
-        </ScrollView>
-      </Dialog.ScrollArea>
-      <Dialog.Actions>
-        <Button onPress={onDismiss}>Close</Button>
-      </Dialog.Actions>
-    </Dialog>
-    {!!snack && <Toast message={snack} onDone={() => setSnack('')} />}
-  </>
+            <Divider style={{ marginVertical: 12 }} />
+            <Text style={[styles.dialogSectionLabel, { color: theme.colors.onSurfaceVariant }]}>Projects</Text>
+            {allProjects.length === 0 && (
+              <Text style={{ color: theme.colors.onSurfaceVariant, padding: 16, textAlign: 'center', fontSize: 13 }}>No projects found</Text>
+            )}
+            {allProjects.map(p => (
+              <ProjectMemberRow
+                key={p.id}
+                project={p}
+                userId={user.id}
+                selectedRole={selectedRole}
+                theme={theme}
+                onSuccess={(msg) => setSnack(msg)}
+              />
+            ))}
+          </ScrollView>
+        </Dialog.ScrollArea>
+        <Dialog.Actions>
+          <Button onPress={onDismiss}>Close</Button>
+        </Dialog.Actions>
+      </Dialog>
+      {!!snack && <AppToast message={snack} type="success" onDone={() => setSnack('')} />}
+    </>
   );
 };
 
+/* ─── Main screen ─── */
 export default function TeamScreen() {
   const theme = useTheme();
   const { user: me } = useAuth();
   const canManage = ['super_admin', 'org_admin'].includes(me?.role);
 
-  const [search, setSearch]                 = useState('');
-  const [roleFilter, setRoleFilter]         = useState('all');
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const [roleMenuForUser, setRoleMenuForUser] = useState(null);
-  const [assignTarget, setAssignTarget]     = useState(null); // user to assign
+  const [assignTarget, setAssignTarget] = useState(null);
 
   const { data, isLoading, refetch } = useGetOrgUsersQuery({ search, limit: 100 });
   const [updateUser] = useUpdateUserMutation();
 
   const users = data?.data?.data || [];
   const filtered = roleFilter === 'all' ? users : users.filter(u => u.role === roleFilter);
-
   const totalOpen = users.reduce((s, u) => s + (u.openIssues || 0), 0);
   const totalDone = users.reduce((s, u) => s + (u.doneIssues || 0), 0);
 
@@ -189,35 +177,38 @@ export default function TeamScreen() {
     refetch();
   };
 
-  const surf = theme.colors.surface;
-  const bg   = theme.colors.background;
-
   return (
-    <View style={[styles.root, { backgroundColor: bg }]}>
+    <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
 
       {/* ── Page header ── */}
-      <View style={[styles.pageHeader, { backgroundColor: surf, borderBottomColor: theme.colors.outlineVariant }]}>
-        <View>
-          <Text variant="titleLarge" style={{ color: theme.colors.onBackground, fontWeight: '800' }}>Team</Text>
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>
-            {users.length} member{users.length !== 1 ? 's' : ''} · {totalOpen} open issues · {totalDone} resolved
-          </Text>
+      <View style={[styles.pageHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
+        <View style={styles.pageHeaderLeft}>
+          <View style={styles.titleAccent} />
+          <View>
+            <Text style={[styles.pageTitle, { color: theme.colors.onSurface }]}>Team</Text>
+            <Text style={[styles.pageSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+              {users.length} member{users.length !== 1 ? 's' : ''} · {totalOpen} open · {totalDone} resolved
+            </Text>
+          </View>
         </View>
 
         <View style={styles.headerRight}>
-          {/* Search */}
-          <View style={[styles.searchBox, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outline }]}>
+          <View style={[styles.searchBox, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
             <MaterialCommunityIcons name="magnify" size={16} color={theme.colors.onSurfaceVariant} />
             <TextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="Search members..."
+              placeholder="Search members…"
               placeholderTextColor={theme.colors.onSurfaceVariant}
               style={[styles.searchInput, { color: theme.colors.onSurface, outlineStyle: 'none' }]}
             />
+            {!!search && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <MaterialCommunityIcons name="close-circle" size={14} color={theme.colors.onSurfaceVariant} />
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Role filter */}
           <Menu
             visible={filterMenuOpen}
             onDismiss={() => setFilterMenuOpen(false)}
@@ -227,7 +218,8 @@ export default function TeamScreen() {
                 icon="filter-variant"
                 onPress={() => setFilterMenuOpen(true)}
                 compact
-                style={{ borderColor: theme.colors.outline, borderRadius: 8 }}
+                style={[styles.filterBtn, { borderColor: theme.colors.outlineVariant }]}
+                labelStyle={styles.filterBtnLabel}
               >
                 {roleFilter === 'all' ? 'All roles' : ROLE_LABELS[roleFilter] || roleFilter}
               </Button>
@@ -236,12 +228,9 @@ export default function TeamScreen() {
             <Menu.Item title="All roles" leadingIcon={roleFilter === 'all' ? 'check' : 'account-multiple-outline'} onPress={() => { setRoleFilter('all'); setFilterMenuOpen(false); }} />
             <Divider />
             {ALL_ROLES.map(r => (
-              <Menu.Item
-                key={r}
-                title={ROLE_LABELS[r] || r}
+              <Menu.Item key={r} title={ROLE_LABELS[r] || r}
                 leadingIcon={roleFilter === r ? 'check' : 'shield-account-outline'}
-                onPress={() => { setRoleFilter(r); setFilterMenuOpen(false); }}
-              />
+                onPress={() => { setRoleFilter(r); setFilterMenuOpen(false); }} />
             ))}
           </Menu>
         </View>
@@ -249,151 +238,162 @@ export default function TeamScreen() {
 
       <View style={styles.body}>
 
-        {/* ── Member table ── */}
+        {/* ── Table ── */}
         <View style={styles.tableWrap}>
+
           {/* Table header */}
-          <View style={[styles.tableHead, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Text style={[styles.col, styles.colHead, { flex: 2.5 }]}>Member</Text>
-            <Text style={[styles.col, styles.colHead, { flex: 2 }]}>Email</Text>
-            <Text style={[styles.col, styles.colHead, { flex: 1 }]}>Role</Text>
-            <Text style={[styles.col, styles.colHead, { flex: 0.8, textAlign: 'center' }]}>Open</Text>
-            <Text style={[styles.col, styles.colHead, { flex: 0.8, textAlign: 'center' }]}>Done</Text>
-            <Text style={[styles.col, styles.colHead, { flex: 1, textAlign: 'center' }]}>Workload</Text>
-            <Text style={[styles.col, styles.colHead, { flex: 1 }]}>Joined</Text>
-            {canManage && <Text style={[styles.col, styles.colHead, { width: 180 }]}>Manage</Text>}
+          <View style={[styles.tableHead, { backgroundColor: colors.brand.navy }]}>
+            <Text style={[styles.colHead, { flex: 2.4 }]}>Member</Text>
+            <Text style={[styles.colHead, { flex: 1.8 }]}>Email</Text>
+            <Text style={[styles.colHead, { flex: 1.1 }]}>Role</Text>
+            <Text style={[styles.colHead, { flex: 0.7, textAlign: 'center' }]}>Open</Text>
+            <Text style={[styles.colHead, { flex: 0.7, textAlign: 'center' }]}>Done</Text>
+            <Text style={[styles.colHead, { flex: 1, textAlign: 'center' }]}>Workload</Text>
+            <Text style={[styles.colHead, { flex: 0.9 }]}>Joined</Text>
+            {canManage && <Text style={[styles.colHead, { width: 170 }]}>Actions</Text>}
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false}>
             {isLoading && (
-              <View style={styles.loadingRow}>
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Loading members…</Text>
+              <View style={styles.centeredRow}>
+                <Text style={[styles.mutedText, { color: theme.colors.onSurfaceVariant }]}>Loading members…</Text>
               </View>
             )}
             {!isLoading && filtered.length === 0 && (
-              <View style={styles.emptyRow}>
-                <MaterialCommunityIcons name="account-group-outline" size={40} color={theme.colors.onSurfaceVariant} />
-                <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 12 }}>No members match your filters</Text>
+              <View style={styles.centeredRow}>
+                <View style={[styles.emptyIconWrap, { backgroundColor: colors.brand.skyLight }]}>
+                  <MaterialCommunityIcons name="account-group-outline" size={28} color={colors.brand.navy} />
+                </View>
+                <Text style={[styles.mutedText, { color: theme.colors.onSurfaceVariant, marginTop: 10 }]}>
+                  No members match your filters
+                </Text>
               </View>
             )}
+
             {filtered.map((u, i) => {
               const total = (u.openIssues || 0) + (u.doneIssues || 0);
               const workloadPct = total > 0 ? Math.round((u.openIssues / total) * 100) : 0;
               const workloadColor = workloadPct > 70 ? '#EF4444' : workloadPct > 40 ? '#F59E0B' : '#10B981';
               const rc = ROLE_COLOR[u.role] || '#6B7280';
+              const isMe = u.id === me?.id;
+
               return (
                 <View
                   key={u.id}
-                  style={[styles.tableRow, {
-                    backgroundColor: i % 2 === 0 ? surf : bg,
-                    borderBottomColor: theme.colors.outlineVariant,
-                  }]}
+                  style={[
+                    styles.tableRow,
+                    { backgroundColor: i % 2 === 0 ? theme.colors.surface : theme.colors.background,
+                      borderBottomColor: theme.colors.outlineVariant },
+                    isMe && { borderLeftWidth: 3, borderLeftColor: colors.brand.navy },
+                  ]}
                 >
                   {/* Member */}
-                  <View style={[styles.col, { flex: 2.5, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
+                  <View style={[styles.cell, { flex: 2.4, flexDirection: 'row', alignItems: 'center', gap: 10 }]}>
                     <UserAvatar user={u} size={36} />
                     <View>
-                      <Text variant="bodySmall" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>
-                        {u.firstName} {u.lastName}
-                      </Text>
-                      {u.id === me?.id && (
-                        <Text variant="labelSmall" style={{ color: theme.colors.primary }}>You</Text>
-                      )}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[styles.memberName, { color: theme.colors.onSurface }]}>
+                          {u.firstName} {u.lastName}
+                        </Text>
+                        {isMe && (
+                          <View style={styles.youBadge}>
+                            <Text style={styles.youBadgeText}>You</Text>
+                          </View>
+                        )}
+                      </View>
                     </View>
                   </View>
 
                   {/* Email */}
-                  <Text variant="labelSmall" style={[styles.col, { flex: 2, color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+                  <Text style={[styles.cell, styles.emailText, { flex: 1.8, color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
                     {u.email}
                   </Text>
 
                   {/* Role */}
-                  <View style={[styles.col, { flex: 1 }]}>
-                    <View style={[styles.rolePill, { backgroundColor: rc + '18', borderColor: rc + '40' }]}>
-                      <Text variant="labelSmall" style={{ color: rc, fontWeight: '700', fontSize: 10 }}>
+                  <View style={[styles.cell, { flex: 1.1 }]}>
+                    <View style={[styles.rolePill, { backgroundColor: rc + '15', borderColor: rc + '40' }]}>
+                      <View style={[styles.roleDot, { backgroundColor: rc }]} />
+                      <Text style={[styles.rolePillText, { color: rc }]}>
                         {ROLE_LABELS[u.role] || u.role}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Open issues */}
-                  <View style={[styles.col, { flex: 0.8, alignItems: 'center' }]}>
-                    <View style={[styles.countBubble, { backgroundColor: u.openIssues > 0 ? '#3B82F618' : theme.colors.surfaceVariant }]}>
-                      <Text variant="labelSmall" style={{ color: u.openIssues > 0 ? '#3B82F6' : theme.colors.onSurfaceVariant, fontWeight: '700' }}>
+                  {/* Open */}
+                  <View style={[styles.cell, { flex: 0.7, alignItems: 'center' }]}>
+                    <View style={[styles.countBubble, {
+                      backgroundColor: u.openIssues > 0 ? '#3B82F615' : theme.colors.surfaceVariant,
+                    }]}>
+                      <Text style={[styles.countText, { color: u.openIssues > 0 ? '#3B82F6' : theme.colors.onSurfaceVariant }]}>
                         {u.openIssues || 0}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Done issues */}
-                  <View style={[styles.col, { flex: 0.8, alignItems: 'center' }]}>
-                    <View style={[styles.countBubble, { backgroundColor: u.doneIssues > 0 ? '#10B98118' : theme.colors.surfaceVariant }]}>
-                      <Text variant="labelSmall" style={{ color: u.doneIssues > 0 ? '#10B981' : theme.colors.onSurfaceVariant, fontWeight: '700' }}>
+                  {/* Done */}
+                  <View style={[styles.cell, { flex: 0.7, alignItems: 'center' }]}>
+                    <View style={[styles.countBubble, {
+                      backgroundColor: u.doneIssues > 0 ? '#10B98115' : theme.colors.surfaceVariant,
+                    }]}>
+                      <Text style={[styles.countText, { color: u.doneIssues > 0 ? '#10B981' : theme.colors.onSurfaceVariant }]}>
                         {u.doneIssues || 0}
                       </Text>
                     </View>
                   </View>
 
-                  {/* Workload bar */}
-                  <View style={[styles.col, { flex: 1, paddingRight: 12 }]}>
+                  {/* Workload */}
+                  <View style={[styles.cell, { flex: 1, paddingRight: 12 }]}>
                     {total > 0 ? (
-                      <View style={{ gap: 4 }}>
+                      <View style={{ gap: 5 }}>
                         <View style={[styles.workloadTrack, { backgroundColor: theme.colors.surfaceVariant }]}>
                           <View style={[styles.workloadFill, { width: `${workloadPct}%`, backgroundColor: workloadColor }]} />
                         </View>
-                        <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, fontSize: 10 }}>
-                          {workloadPct}% open
-                        </Text>
+                        <Text style={[styles.workloadPct, { color: workloadColor }]}>{workloadPct}% open</Text>
                       </View>
                     ) : (
-                      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>—</Text>
+                      <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>—</Text>
                     )}
                   </View>
 
                   {/* Joined */}
-                  <Text variant="labelSmall" style={[styles.col, { flex: 1, color: theme.colors.onSurfaceVariant }]}>
+                  <Text style={[styles.cell, styles.joinedText, { flex: 0.9, color: theme.colors.onSurfaceVariant }]}>
                     {formatDate(u.createdAt)}
                   </Text>
 
-                  {/* Manage (admin only) */}
+                  {/* Actions */}
                   {canManage && (
-                    <View style={{ width: 180, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
-                      {/* Assign to project */}
+                    <View style={{ width: 170, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 }}>
                       <Button
-                        compact
-                        mode="outlined"
+                        compact mode="outlined"
                         icon="folder-plus-outline"
                         onPress={() => setAssignTarget(u)}
-                        style={{ borderRadius: 6 }}
-                        contentStyle={{ paddingHorizontal: 2 }}
+                        style={styles.actionBtn}
+                        contentStyle={{ paddingHorizontal: 4 }}
+                        labelStyle={{ fontSize: 12 }}
                       >
                         Assign
                       </Button>
-                      {/* Change role */}
                       <Menu
                         visible={roleMenuForUser === u.id}
                         onDismiss={() => setRoleMenuForUser(null)}
                         anchor={
                           <Button
-                            compact
-                            mode="text"
+                            compact mode="text"
+                            icon="shield-edit-outline"
                             onPress={() => setRoleMenuForUser(u.id)}
-                            disabled={u.id === me?.id}
+                            disabled={isMe}
+                            labelStyle={{ fontSize: 12 }}
                           >
                             Role
                           </Button>
                         }
                       >
-                        <Text variant="labelSmall" style={{ paddingHorizontal: 16, paddingVertical: 8, color: theme.colors.onSurfaceVariant }}>
-                          Change role for {u.firstName}
-                        </Text>
+                        <Text style={styles.menuHeader}>Change role for {u.firstName}</Text>
                         <Divider />
                         {ALL_ROLES.filter(r => r !== 'super_admin').map(r => (
-                          <Menu.Item
-                            key={r}
-                            title={ROLE_LABELS[r] || r}
+                          <Menu.Item key={r} title={ROLE_LABELS[r] || r}
                             leadingIcon={u.role === r ? 'check' : 'shield-account-outline'}
-                            onPress={() => handleRoleChange(u.id, r)}
-                          />
+                            onPress={() => handleRoleChange(u.id, r)} />
                         ))}
                       </Menu>
                     </View>
@@ -404,110 +404,172 @@ export default function TeamScreen() {
           </ScrollView>
         </View>
 
-        {/* ── Right: stats sidebar ── */}
-        <View style={[styles.statsSidebar, { backgroundColor: surf, borderLeftColor: theme.colors.outlineVariant }]}>
-          <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '700', marginBottom: 20 }}>Team Stats</Text>
+        {/* ── Stats sidebar ── */}
+        <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderLeftColor: theme.colors.outlineVariant }]}>
+          <View style={styles.sidebarTitleRow}>
+            <View style={styles.sidebarAccent} />
+            <Text style={[styles.sidebarTitle, { color: theme.colors.onSurface }]}>Team Stats</Text>
+          </View>
 
-          <StatCard label="Total Members" value={users.length} icon="account-group-outline" color="#3B82F6" theme={theme} />
-          <StatCard label="Open Issues" value={totalOpen} icon="alert-circle-outline" color="#F59E0B" theme={theme} />
-          <StatCard label="Resolved" value={totalDone} icon="check-circle-outline" color="#10B981" theme={theme} />
+          <View style={styles.statTiles}>
+            <StatTile label="Total Members" value={users.length}   icon="account-group-outline"  color="#3B82F6" theme={theme} />
+            <StatTile label="Open Issues"   value={totalOpen}      icon="alert-circle-outline"   color="#F59E0B" theme={theme} />
+            <StatTile label="Resolved"      value={totalDone}      icon="check-circle-outline"   color="#10B981" theme={theme} />
+          </View>
 
-          <Divider style={{ marginVertical: 20 }} />
+          <Divider style={{ marginVertical: 18 }} />
 
-          <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700', letterSpacing: 0, marginBottom: 12 }}>
-            BY ROLE
-          </Text>
+          <Text style={[styles.roleBreakdownTitle, { color: theme.colors.onSurfaceVariant }]}>BY ROLE</Text>
           {ALL_ROLES.map(r => {
             const cnt = users.filter(u => u.role === r).length;
             if (cnt === 0) return null;
             const rc = ROLE_COLOR[r] || '#6B7280';
+            const pct = users.length > 0 ? Math.round((cnt / users.length) * 100) : 0;
             return (
-              <View key={r} style={styles.roleStatRow}>
-                <View style={[styles.roleStatDot, { backgroundColor: rc }]} />
-                <Text variant="labelSmall" style={{ flex: 1, color: theme.colors.onSurface }}>
+              <View key={r} style={styles.roleRow}>
+                <View style={[styles.roleDotSm, { backgroundColor: rc }]} />
+                <Text style={[styles.roleRowLabel, { color: theme.colors.onSurface }]}>
                   {ROLE_LABELS[r] || r}
                 </Text>
-                <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700' }}>{cnt}</Text>
+                <View style={[styles.roleBarWrap, { backgroundColor: theme.colors.surfaceVariant }]}>
+                  <View style={[styles.roleBarFill, { width: `${Math.max(4, pct)}%`, backgroundColor: rc + '80' }]} />
+                </View>
+                <Text style={[styles.roleCount, { color: theme.colors.onSurfaceVariant }]}>{cnt}</Text>
               </View>
             );
           })}
         </View>
       </View>
 
-      {/* ── Assign to Project Dialog ── */}
       <Portal>
         {assignTarget && (
-          <AssignProjectDialog
-            user={assignTarget}
-            theme={theme}
-            onDismiss={() => setAssignTarget(null)}
-          />
+          <AssignProjectDialog user={assignTarget} theme={theme} onDismiss={() => setAssignTarget(null)} />
         )}
       </Portal>
     </View>
   );
 }
 
-const StatCard = ({ label, value, icon, color, theme }) => (
-  <View style={[styles.statCard, { backgroundColor: color + '10' }]}>
-    <View style={[styles.statIcon, { backgroundColor: color + '20' }]}>
-      <MaterialCommunityIcons name={icon} size={18} color={color} />
-    </View>
-    <View>
-      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>{label}</Text>
-      <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '800' }}>{value}</Text>
-    </View>
-  </View>
-);
-
 const styles = StyleSheet.create({
   root: { flex: 1, flexDirection: 'column' },
 
+  /* Header */
   pageHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 28, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 28, paddingVertical: 16, borderBottomWidth: 1,
+    boxShadow: '0px 1px 4px rgba(6,43,111,0.05)',
   },
+  pageHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  titleAccent: { width: 4, height: 28, borderRadius: 2, backgroundColor: colors.brand.navy },
+  pageTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
+  pageSubtitle: { fontSize: 12, marginTop: 2 },
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   searchBox: {
-    flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderRadius: 8,
-    paddingHorizontal: 12, paddingVertical: 6, minWidth: 200, height: 38,
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 8,
+    paddingHorizontal: 12, height: 38, minWidth: 220,
   },
-  searchInput: {
-    flex: 1, fontSize: 14, marginLeft: 8, height: '100%', borderWidth: 0, backgroundColor: 'transparent',
-  },
+  searchInput: { flex: 1, fontSize: 13, height: '100%', borderWidth: 0, backgroundColor: 'transparent' },
+  filterBtn: { borderRadius: 8 },
+  filterBtnLabel: { fontSize: 13 },
 
-  body: { flex: 1, flexDirection: 'row' },
+  /* Body */
+  body: { flex: 1, flexDirection: 'row', overflow: 'hidden' },
 
+  /* Table */
   tableWrap: { flex: 1, overflow: 'hidden' },
   tableHead: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 11,
   },
-  col: { paddingHorizontal: 6 },
-  colHead: { fontSize: 11, fontWeight: '700', color: '#6B7280', textTransform: 'uppercase', letterSpacing: 0 },
+  colHead: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase', letterSpacing: 0.4, paddingHorizontal: 6 },
   tableRow: {
-    flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 13,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  loadingRow: { alignItems: 'center', padding: 40 },
-  emptyRow: { alignItems: 'center', paddingVertical: 60 },
+  cell: { paddingHorizontal: 6 },
+
+  memberName: { fontSize: 13, fontWeight: '600' },
+  emailText: { fontSize: 12 },
+  joinedText: { fontSize: 12 },
+
+  youBadge: {
+    backgroundColor: colors.brand.skyLight, borderRadius: 10,
+    paddingHorizontal: 6, paddingVertical: 2,
+  },
+  youBadgeText: { color: colors.brand.navy, fontSize: 10, fontWeight: '800' },
 
   rolePill: {
-    paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, alignSelf: 'flex-start',
-    borderWidth: 1,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 10, alignSelf: 'flex-start', borderWidth: 1,
   },
-  countBubble: { width: 32, height: 24, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  roleDot: { width: 6, height: 6, borderRadius: 3 },
+  rolePillText: { fontSize: 10, fontWeight: '700' },
+
+  countBubble: { width: 34, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
+  countText: { fontSize: 12, fontWeight: '700' },
+
   workloadTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
   workloadFill: { height: '100%', borderRadius: 3 },
+  workloadPct: { fontSize: 10, fontWeight: '700' },
 
-  statsSidebar: {
-    width: 220, borderLeftWidth: StyleSheet.hairlineWidth, padding: 20,
+  actionBtn: { borderRadius: 6 },
+  menuHeader: { paddingHorizontal: 16, paddingVertical: 8, color: '#6B7280', fontSize: 12 },
+
+  centeredRow: { alignItems: 'center', paddingVertical: 60, gap: 8 },
+  emptyIconWrap: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
+  mutedText: { fontSize: 13 },
+
+  /* Sidebar */
+  sidebar: { width: 230, borderLeftWidth: StyleSheet.hairlineWidth, padding: 18 },
+  sidebarTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  sidebarAccent: { width: 3, height: 16, borderRadius: 2, backgroundColor: colors.brand.navy },
+  sidebarTitle: { fontSize: 14, fontWeight: '700' },
+  statTiles: { gap: 10 },
+  statTile: {
+    flexDirection: 'row', alignItems: 'center',
+    borderRadius: 10, borderWidth: 1, borderBottomWidth: 3,
+    padding: 12, gap: 8,
+    boxShadow: '0px 1px 4px rgba(6,43,111,0.06)',
   },
-  statCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12,
-    borderRadius: 10, marginBottom: 10,
+  statTileValue: { fontSize: 22, fontWeight: '800', lineHeight: 26, letterSpacing: -0.5 },
+  statTileLabel: { fontSize: 11, marginTop: 2 },
+  statTileIcon: { width: 36, height: 36, borderRadius: 9, justifyContent: 'center', alignItems: 'center' },
+
+  roleBreakdownTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 12 },
+  roleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+  roleDotSm: { width: 8, height: 8, borderRadius: 4 },
+  roleRowLabel: { fontSize: 12, width: 90 },
+  roleBarWrap: { flex: 1, height: 5, borderRadius: 3, overflow: 'hidden' },
+  roleBarFill: { height: '100%', borderRadius: 3 },
+  roleCount: { fontSize: 12, fontWeight: '700', width: 16, textAlign: 'right' },
+
+  /* Dialog */
+  dialog: { maxWidth: 520, alignSelf: 'center', width: '100%', borderRadius: 12 },
+  dialogTitle: { fontWeight: '800', fontSize: 16 },
+  dialogSectionLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, paddingHorizontal: 4 },
+  roleChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 4 },
+  roleChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
+  roleChipText: { fontSize: 12 },
+
+  projRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 12, paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  statIcon: { width: 36, height: 36, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-  roleStatRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
-  roleStatDot: { width: 8, height: 8, borderRadius: 4 },
+  projKey: {
+    width: 34, height: 34, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  projKeyText: { color: '#fff', fontSize: 11, fontWeight: '800' },
+  projName: { fontSize: 13, fontWeight: '600' },
+  projSub: { fontSize: 11 },
+  memberBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 16, backgroundColor: '#ECFDF5',
+  },
+  memberBadgeText: { color: '#10B981', fontSize: 11, fontWeight: '700' },
 });

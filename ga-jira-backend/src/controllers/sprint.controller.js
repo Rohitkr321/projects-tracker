@@ -23,7 +23,13 @@ exports.getActive = async (req, res, next) => {
     const { projectId } = req.params;
     const sprint = await Sprint.findOne({
       where: { projectId, status: 'active' },
-      include: [{ model: Issue, as: 'issues' }],
+      include: [{
+        model: Issue, as: 'issues',
+        include: [
+          { model: User, as: 'assignee', attributes: ['id', 'firstName', 'lastName', 'avatar'] },
+          { model: WorkflowStatus, as: 'status' },
+        ],
+      }],
     });
     successResponse(res, sprint || null);
   } catch (err) {

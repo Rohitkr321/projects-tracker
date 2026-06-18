@@ -121,10 +121,11 @@ exports.dashboard = async (req, res, next) => {
       const projectIds = orgProjects.map(p => p.id);
 
       const todoStatuses = await WorkflowStatus.findAll({ where: { category: 'todo' }, attributes: ['id'] });
-      const inProgressStatuses = await WorkflowStatus.findAll({ where: { category: 'in_progress' }, attributes: ['id'] });
+      const allInProgressStatuses = await WorkflowStatus.findAll({ where: { category: 'in_progress' }, attributes: ['id', 'name'] });
       const doneStatuses = await WorkflowStatus.findAll({ where: { category: 'done' }, attributes: ['id'] });
       const todoIds = todoStatuses.map(s => s.id);
-      const inProgressIds = inProgressStatuses.map(s => s.id);
+      const inReviewIds = allInProgressStatuses.filter(s => /review/i.test(s.name)).map(s => s.id);
+      const inProgressIds = allInProgressStatuses.filter(s => !/review/i.test(s.name)).map(s => s.id);
       const doneIds = doneStatuses.map(s => s.id);
 
       const baseWhere = projectIds.length ? { projectId: { [Op.in]: projectIds } } : { projectId: null };
@@ -132,7 +133,7 @@ exports.dashboard = async (req, res, next) => {
       const [
         totalProjects, totalIssues, inProgressCount, overdueCount,
         todoCount, doneCount, activeSprintsCount, totalMembers,
-        myTasks, myInProgress,
+        myTasks, myInProgress, inReviewCount,
       ] = await Promise.all([
         Project.count({ where: { organizationId: orgId } }),
         Issue.count({ where: baseWhere }),
@@ -145,11 +146,12 @@ exports.dashboard = async (req, res, next) => {
         // Still show personal tasks for the admin
         Issue.count({ where: { assigneeId: userId, resolvedAt: null } }),
         Issue.count({ where: { assigneeId: userId, workflowStatusId: { [Op.in]: inProgressIds.length ? inProgressIds : ['none'] } } }),
+        Issue.count({ where: { ...baseWhere, workflowStatusId: { [Op.in]: inReviewIds.length ? inReviewIds : ['none'] } } }),
       ]);
 
       return successResponse(res, {
         isAdmin: true,
-        totalProjects, totalIssues, inProgressCount, overdueCount,
+        totalProjects, totalIssues, inProgressCount, inReviewCount, overdueCount,
         todoCount, doneCount, activeSprintsCount, totalMembers,
         // Personal view too
         myTasks, myInProgress,
