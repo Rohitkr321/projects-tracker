@@ -272,7 +272,7 @@ const DashboardScreen = ({ navigation }) => {
                     <EmptyBlock icon="clipboard-check-outline" label="No tasks assigned to you" theme={theme} />
                   ) : (
                     <View style={{ gap: 8 }}>
-                      {myTasksList.slice(0, 6).map(issue => (
+                      {myTasksList.slice(0, 5).map(issue => (
                         <IssueCard
                           key={issue.id}
                           issue={issue}
@@ -338,7 +338,7 @@ const DashboardScreen = ({ navigation }) => {
                   <SectionHeader title="My Tasks" action="View All" onAction={() => navigation.navigate('ProjectStack', { screen: 'IssueList' })} />
                   {myTasksList.length === 0
                     ? <EmptyBlock icon="clipboard-check-outline" label="No active tasks — you're all caught up!" theme={theme} />
-                    : <View style={{ gap: 8 }}>{myTasksList.map(issue => (
+                    : <View style={{ gap: 8 }}>{myTasksList.slice(0, 5).map(issue => (
                         <IssueCard key={issue.id} issue={issue}
                           onPress={() => navigation.navigate('ProjectStack', { screen: 'IssueDetail', params: { issueId: issue.id } })} />
                       ))}</View>

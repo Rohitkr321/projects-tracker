@@ -7,6 +7,7 @@ import { useLogoutMutation, useChangePasswordMutation } from '../../api/authApi'
 import { useCreateInviteMutation, useListInvitesQuery, useRevokeInviteMutation } from '../../api/inviteApi';
 import { ROLE_LABELS } from '../../constants';
 import { formatDate } from '../../utils/dateUtils';
+import UserManualSection from './UserManualSection.web';
 
 const Toast = ({ message, isError, onDone }) => {
   const [opacity] = useState(new Animated.Value(0));
@@ -29,6 +30,7 @@ const SECTIONS = [
   { key: 'account',  label: 'Account',        icon: 'account-edit-outline' },
   { key: 'invite',   label: 'Invite Members',  icon: 'account-plus-outline', adminOnly: true },
   { key: 'security', label: 'Security',        icon: 'shield-lock-outline' },
+  { key: 'manual',   label: 'User Manual',     icon: 'book-open-outline' },
 ];
 
 const INVITABLE_ROLES = [
@@ -445,6 +447,18 @@ export default function ProfileScreen() {
           </>
         )}
 
+        {/* ── USER MANUAL ── */}
+        {section === 'manual' && (
+          <>
+            <SectionHeader
+              title="User Manual"
+              desc="A complete guide to every feature in GA Tracker, tailored to your role."
+              theme={theme}
+            />
+            <UserManualSection user={user} />
+          </>
+        )}
+
         {/* ── SECURITY ── */}
         {section === 'security' && (
           <>
@@ -457,6 +471,7 @@ export default function ProfileScreen() {
                 value={currentPw}
                 onChangeText={setCurrentPw}
                 mode="outlined" secureTextEntry dense style={{ marginBottom: 12 }}
+                autoComplete="current-password"
                 left={<TextInput.Icon icon="lock-outline" />}
               />
               <TextInput
@@ -464,6 +479,7 @@ export default function ProfileScreen() {
                 value={newPw}
                 onChangeText={setNewPw}
                 mode="outlined" secureTextEntry dense style={{ marginBottom: 12 }}
+                autoComplete="new-password"
                 left={<TextInput.Icon icon="lock-plus-outline" />}
               />
               <TextInput
@@ -471,6 +487,7 @@ export default function ProfileScreen() {
                 value={confirmPw}
                 onChangeText={setConfirmPw}
                 mode="outlined" secureTextEntry dense style={{ marginBottom: 20 }}
+                autoComplete="new-password"
                 left={<TextInput.Icon icon="lock-check-outline" />}
               />
               <Button
