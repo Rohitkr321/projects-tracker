@@ -21,23 +21,26 @@ socketService.init(httpServer);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
-// Support comma-separated list: FRONTEND_URL=https://trackerweb.generalaeronautics.com,http://localhost:8081
-const envOrigins = (process.env.FRONTEND_URL || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-
+// Build allowed origins: hardcoded production domains + anything in FRONTEND_URL env var
 const ALLOWED_ORIGINS = [
-  ...envOrigins,
+  // ── Production domains (always allowed) ──
+  'https://trackerweb.generalaeronautics.com',
+  'http://trackerweb.generalaeronautics.com',
+  'https://tracker.generalaeronautics.com',
+  'http://tracker.generalaeronautics.com',
+  // ── Local dev ──
   'http://localhost:3000',
   'http://localhost:8081',
+  'http://localhost:8082',
   'http://localhost:19006',
   'http://localhost:19000',
+  // ── Extra origins from .env (comma-separated) ──
+  ...(process.env.FRONTEND_URL || '').split(',').map(s => s.trim()).filter(Boolean),
 ];
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
-    // Allow no-origin requests (native mobile apps, Postman, curl)
+    // Allow requests with no origin (mobile apps, Postman, curl)
     if (!origin) return callback(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
     console.warn(`[CORS] Blocked origin: ${origin}`);
@@ -46,10 +49,12 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+  optionsSuccessStatus: 200, // some browsers (IE11) choke on 204
+};
 
-// Ensure preflight OPTIONS requests are handled immediately
-app.options('/{*path}', cors());
+// Handle preflight OPTIONS before any other middleware
+app.options('/{*path}', cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));

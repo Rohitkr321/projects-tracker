@@ -4,9 +4,14 @@ const init = (httpServer) => {
   const { Server } = require('socket.io');
   io = new Server(httpServer, {
     cors: {
-      origin: (process.env.FRONTEND_URL || '')
-        .split(',').map(s => s.trim()).filter(Boolean)
-        .concat(['http://localhost:8081', 'http://localhost:3000']),
+      origin: [
+        'https://trackerweb.generalaeronautics.com',
+        'http://trackerweb.generalaeronautics.com',
+        'https://tracker.generalaeronautics.com',
+        'http://localhost:8081',
+        'http://localhost:3000',
+        ...(process.env.FRONTEND_URL || '').split(',').map(s => s.trim()).filter(Boolean),
+      ],
       methods: ['GET', 'POST'],
       credentials: true,
     },
