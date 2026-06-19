@@ -49,7 +49,7 @@ app.use(cors({
 }));
 
 // Ensure preflight OPTIONS requests are handled immediately
-app.options('*', cors());
+app.options('/{*path}', cors());
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));
