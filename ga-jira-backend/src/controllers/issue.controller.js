@@ -8,6 +8,7 @@ const { generateIssueKey } = require('../utils/issueKey');
 const { notifyIssueAssigned, notifyIssueUpdated, notifyCommentAdded } = require('../services/notification.service');
 const { emitToProject, emitToIssue } = require('../services/socket.service');
 const { triggerWebhooks } = require('../services/webhook.service');
+const { getPresignedPutUrl, getPresignedGetUrl, deleteObject } = require('../services/s3.service');
 
 const ISSUE_INCLUDES = [
   { model: User, as: 'assignee', attributes: ['id', 'firstName', 'lastName', 'avatar'] },
@@ -65,7 +66,13 @@ exports.getById = async (req, res, next) => {
       ],
     });
     if (!issue) return errorResponse(res, 'Issue not found', 404);
-    successResponse(res, issue);
+    const data = issue.toJSON();
+    await Promise.all((data.attachments || []).map(async (att) => {
+      if (att.mimeType !== 'link' && att.filename) {
+        try { att.viewUrl = await getPresignedGetUrl(att.filename); } catch (_) {}
+      }
+    }));
+    successResponse(res, data);
   } catch (err) {
     next(err);
   }
@@ -99,15 +106,16 @@ exports.create = async (req, res, next) => {
       await IssueWatcher.findOrCreate({ where: { issueId: issue.id, userId: assigneeId } });
     }
 
-    if (req.files?.length) {
-      await Attachment.bulkCreate(req.files.map(f => ({
+    const links = Array.isArray(req.body.attachmentLinks) ? req.body.attachmentLinks : [];
+    if (links.length) {
+      await Attachment.bulkCreate(links.filter(l => l.url).map(l => ({
         issueId: issue.id,
         uploadedById: req.user.id,
-        filename: f.filename,
-        originalName: f.originalname,
-        mimeType: f.mimetype,
-        size: f.size,
-        url: `/uploads/${f.filename}`,
+        filename: l.url,
+        originalName: l.name || l.url,
+        mimeType: 'link',
+        size: null,
+        url: l.url,
       })));
     }
 
@@ -245,6 +253,105 @@ exports.removeDependency = async (req, res, next) => {
   try {
     await IssueDependency.destroy({ where: { id: req.params.depId } });
     successResponse(res, null, 'Dependency removed');
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.getAttachments = async (req, res, next) => {
+  try {
+    const attachments = await Attachment.findAll({
+      where: { issueId: req.params.issueId },
+      include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }],
+      order: [['createdAt', 'DESC']],
+    });
+    const data = await Promise.all(attachments.map(async (att) => {
+      const a = att.toJSON();
+      if (a.mimeType !== 'link' && a.filename) {
+        try { a.viewUrl = await getPresignedGetUrl(a.filename); } catch (_) {}
+      }
+      return a;
+    }));
+    successResponse(res, data);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Step 1 — FE requests a presigned PUT URL to upload directly to S3.
+// type: 'images' | 'files'  (default: images)
+exports.getPresignedUrl = async (req, res, next) => {
+  try {
+    const { issueId } = req.params;
+    const { filename, contentType, type = 'images' } = req.body;
+    if (!filename) return errorResponse(res, 'filename is required', 400);
+    const issue = await Issue.findByPk(issueId);
+    if (!issue) return errorResponse(res, 'Issue not found', 404);
+    const { presignedUrl, key } = await getPresignedPutUrl(type, issueId, filename, contentType || 'image/jpeg');
+    successResponse(res, { presignedUrl, key });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Step 2 — FE has finished the S3 PUT; tell backend to store the key.
+exports.confirmImageUpload = async (req, res, next) => {
+  try {
+    const { issueId } = req.params;
+    const { key, name, mimeType, size } = req.body;
+    if (!key) return errorResponse(res, 'key is required', 400);
+    const issue = await Issue.findByPk(issueId);
+    if (!issue) return errorResponse(res, 'Issue not found', 404);
+    const att = await Attachment.create({
+      issueId,
+      uploadedById: req.user.id,
+      filename: key,         // S3 key stored here for future presign / delete
+      originalName: name || key,
+      mimeType: mimeType || 'image/jpeg',
+      size: size || null,
+      url: key,              // same key — display goes through presigned GET
+    });
+    const attJson = att.toJSON();
+    try { attJson.viewUrl = await getPresignedGetUrl(key); } catch (_) {}
+    successResponse(res, attJson, 'Attachment saved');
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.uploadAttachments = async (req, res, next) => {
+  try {
+    const { issueId } = req.params;
+    const { url, name } = req.body;
+    if (!url) return errorResponse(res, 'url is required', 400);
+    const issue = await Issue.findByPk(issueId);
+    if (!issue) return errorResponse(res, 'Issue not found', 404);
+    const att = await Attachment.create({
+      issueId,
+      uploadedById: req.user.id,
+      filename: url,
+      originalName: name || url,
+      mimeType: 'link',
+      size: null,
+      url,
+    });
+    successResponse(res, att, 'Link added');
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteAttachment = async (req, res, next) => {
+  try {
+    const att = await Attachment.findByPk(req.params.attachmentId);
+    if (!att) return errorResponse(res, 'Attachment not found', 404);
+    if (String(att.issueId) !== String(req.params.issueId)) return errorResponse(res, 'Forbidden', 403);
+    // Delete from S3 if it's an image (filename holds the S3 key)
+    if (att.mimeType !== 'link' && att.url?.startsWith('http')) {
+      await deleteObject(att.filename);
+    }
+    await att.destroy();
+    successResponse(res, null, 'Attachment deleted');
   } catch (err) {
     next(err);
   }

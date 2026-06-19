@@ -32,10 +32,10 @@ export const issueApi = createApi({
       providesTags: (result, error, id) => [{ type: 'Issue', id }],
     }),
     createIssue: builder.mutation({
-      query: ({ formData, projectId, sprintId }) => ({
+      query: ({ body, projectId, sprintId }) => ({
         url: '/issues',
         method: 'POST',
-        body: formData,           // send FormData directly — not JSON-wrapped
+        body,
       }),
       invalidatesTags: (result, error, { projectId, sprintId }) => [
         'Issue',
@@ -119,11 +119,25 @@ export const issueApi = createApi({
       providesTags: (result, error, issueId) => [{ type: 'Attachment', id: issueId }],
     }),
     uploadAttachment: builder.mutation({
-      query: ({ issueId, formData }) => ({
+      query: ({ issueId, url, name }) => ({
         url: `/issues/${issueId}/attachments`,
         method: 'POST',
-        body: formData,
-        formData: true,
+        body: { url, name },
+      }),
+      invalidatesTags: (result, error, { issueId }) => [{ type: 'Attachment', id: issueId }],
+    }),
+    presignImageUpload: builder.mutation({
+      query: ({ issueId, filename, contentType, type }) => ({
+        url: `/issues/${issueId}/attachments/presign`,
+        method: 'POST',
+        body: { filename, contentType, type },
+      }),
+    }),
+    confirmImageUpload: builder.mutation({
+      query: ({ issueId, key, name, mimeType, size }) => ({
+        url: `/issues/${issueId}/attachments/image`,
+        method: 'POST',
+        body: { key, name, mimeType, size },
       }),
       invalidatesTags: (result, error, { issueId }) => [{ type: 'Attachment', id: issueId }],
     }),
@@ -195,6 +209,8 @@ export const {
   useAddTimeLogMutation,
   useGetAttachmentsQuery,
   useUploadAttachmentMutation,
+  usePresignImageUploadMutation,
+  useConfirmImageUploadMutation,
   useDeleteAttachmentMutation,
   useLinkIssuesMutation,
   useGetIssueActivityQuery,

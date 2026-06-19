@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput, Animated } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
 import { Text, useTheme, Button, Menu, Divider, Portal, Dialog } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetOrgUsersQuery, useUpdateUserMutation } from '../../api/userApi';
@@ -10,6 +10,7 @@ import { formatDate } from '../../utils/dateUtils';
 import AppToast from '../../components/common/AppToast';
 
 const NAVY = '#0F2557';
+const GOLD = '#B8AA6E';
 const ALL_ROLES = ['org_admin', 'project_manager', 'team_lead', 'developer', 'reporter', 'viewer'];
 const ROLE_COLOR = {
   super_admin: '#7C3AED', org_admin: '#DB2777', project_manager: '#0369A1',
@@ -28,16 +29,142 @@ const UserAvatar = ({ user, size = 40, inactive }) => {
   return (
     <View style={{
       width: size, height: size, borderRadius: size / 2,
-      backgroundColor: inactive ? '#CBD5E1' : `hsl(${hue},52%,42%)`,
+      backgroundColor: inactive ? '#94A3B8' : `hsl(${hue},52%,42%)`,
       justifyContent: 'center', alignItems: 'center',
-      opacity: inactive ? 0.7 : 1,
     }}>
-      <Text style={{ color: '#fff', fontSize: size * 0.34, fontWeight: '800' }}>{initials}</Text>
+      <Text style={{ color: '#fff', fontSize: size * 0.36, fontWeight: '800' }}>{initials}</Text>
     </View>
   );
 };
 
-/* ─── Project assign row (inside drawer) ─── */
+/* ─── Member Card ─── */
+const MemberCard = ({ user, isSelected, isMe, canManage, theme, onSelect, onDeactivate }) => {
+  const isInactive = user.isActive === false;
+  const rc = ROLE_COLOR[user.role] || '#6B7280';
+  const total = (user.openIssues || 0) + (user.doneIssues || 0);
+  const openPct = total > 0 ? Math.round((user.openIssues / total) * 100) : 0;
+  const workColor = openPct > 70 ? '#EF4444' : openPct > 40 ? '#F59E0B' : '#10B981';
+
+  return (
+    <TouchableOpacity
+      onPress={() => onSelect(user)}
+      activeOpacity={0.88}
+      style={[
+        styles.memberCard,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: isSelected ? NAVY : theme.colors.outlineVariant,
+          borderWidth: isSelected ? 2 : 1,
+          boxShadow: isSelected
+            ? '0 4px 20px rgba(15,37,87,0.14)'
+            : '0 1px 5px rgba(0,0,0,0.05)',
+        },
+        isInactive && { opacity: 0.65 },
+      ]}
+    >
+      {/* Selected accent strip */}
+      {isSelected && <View style={[styles.cardStrip, { backgroundColor: NAVY }]} />}
+
+      {/* Card body */}
+      <View style={styles.cardBody}>
+        {/* Avatar with status indicator */}
+        <View style={{ position: 'relative', alignSelf: 'flex-start', marginTop: 2 }}>
+          <View style={[styles.cardAvatarRing, {
+            borderColor: isSelected ? NAVY + '30' : theme.colors.outlineVariant,
+            backgroundColor: theme.colors.background,
+          }]}>
+            <UserAvatar user={user} size={46} inactive={isInactive} />
+          </View>
+          <View style={[styles.cardStatusDot, {
+            backgroundColor: isInactive ? '#EF4444' : '#22C55E',
+            borderColor: theme.colors.surface,
+          }]} />
+        </View>
+
+        {/* Name / email / role */}
+        <View style={{ flex: 1, marginLeft: 13 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <Text
+              style={[styles.cardName, {
+                color: isInactive ? theme.colors.onSurfaceVariant : theme.colors.onSurface,
+                textDecorationLine: isInactive ? 'line-through' : 'none',
+              }]}
+              numberOfLines={1}
+            >
+              {user.firstName} {user.lastName}
+            </Text>
+            {isMe && (
+              <View style={styles.youBadge}>
+                <Text style={{ fontSize: 9, fontWeight: '800', color: NAVY }}>YOU</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.cardEmail, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+            {user.email}
+          </Text>
+          <View style={[styles.rolePill, {
+            backgroundColor: (isInactive ? '#94A3B8' : rc) + '14',
+            borderColor: (isInactive ? '#94A3B8' : rc) + '40',
+            marginTop: 7, alignSelf: 'flex-start',
+          }]}>
+            <View style={[styles.roleDot, { backgroundColor: isInactive ? '#94A3B8' : rc }]} />
+            <Text style={[styles.rolePillTxt, { color: isInactive ? '#94A3B8' : rc }]}>
+              {ROLE_LABELS[user.role] || user.role}
+            </Text>
+          </View>
+        </View>
+
+        {/* Deactivate toggle */}
+        {canManage && !isMe && (
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation?.(); onDeactivate(user); }}
+            style={[styles.cardActionBtn, {
+              backgroundColor: isInactive ? '#F0FDF4' : '#FEF2F2',
+              borderColor: isInactive ? '#86EFAC' : '#FCA5A5',
+            }]}
+          >
+            <MaterialCommunityIcons
+              name={isInactive ? 'account-check-outline' : 'account-cancel-outline'}
+              size={13} color={isInactive ? '#16A34A' : '#DC2626'}
+            />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Footer: workload stats */}
+      <View style={[styles.cardFooter, { borderTopColor: theme.colors.outlineVariant }]}>
+        <View style={styles.cardStat}>
+          <View style={[styles.cardStatDot, { backgroundColor: '#F59E0B' }]} />
+          <Text style={[styles.cardStatNum, { color: '#D97706' }]}>{user.openIssues || 0}</Text>
+          <Text style={[styles.cardStatLbl, { color: theme.colors.onSurfaceVariant }]}>Open</Text>
+        </View>
+        <View style={[styles.cardStatSep, { backgroundColor: theme.colors.outlineVariant }]} />
+        <View style={styles.cardStat}>
+          <View style={[styles.cardStatDot, { backgroundColor: '#22C55E' }]} />
+          <Text style={[styles.cardStatNum, { color: '#16A34A' }]}>{user.doneIssues || 0}</Text>
+          <Text style={[styles.cardStatLbl, { color: theme.colors.onSurfaceVariant }]}>Done</Text>
+        </View>
+        <View style={[styles.cardStatSep, { backgroundColor: theme.colors.outlineVariant }]} />
+        {total > 0 ? (
+          <View style={{ flex: 1, paddingLeft: 10, justifyContent: 'center' }}>
+            <View style={[styles.cardWorkTrack, { backgroundColor: theme.colors.surfaceVariant }]}>
+              <View style={[styles.cardWorkFill, { width: `${openPct}%`, backgroundColor: workColor }]} />
+            </View>
+            <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, marginTop: 3 }}>
+              {openPct}% open ratio
+            </Text>
+          </View>
+        ) : (
+          <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, marginLeft: 10, flex: 1, alignSelf: 'center' }}>
+            No issues assigned
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+/* ─── Project assign row ─── */
 const ProjectRow = ({ project, userId, selectedRole, theme, onSuccess }) => {
   const { data: membersData } = useGetProjectMembersQuery(project.id);
   const [addMember, { isLoading }] = useAddProjectMemberMutation();
@@ -45,90 +172,178 @@ const ProjectRow = ({ project, userId, selectedRole, theme, onSuccess }) => {
   const isMember = added || (membersData?.data || []).some(m => (m.userId ?? m.id) === userId);
 
   return (
-    <View style={[styles.projRow, { borderBottomColor: theme.colors.outlineVariant }]}>
+    <View style={[styles.projRow, { borderColor: theme.colors.outlineVariant }]}>
       <View style={[styles.projKey, { backgroundColor: NAVY }]}>
         <Text style={styles.projKeyTxt}>{project.key?.substring(0, 2)}</Text>
       </View>
-      <Text style={[styles.projName, { color: theme.colors.onSurface, flex: 1 }]} numberOfLines={1}>{project.name}</Text>
+      <Text style={[styles.projName, { color: theme.colors.onSurface, flex: 1 }]} numberOfLines={1}>
+        {project.name}
+      </Text>
       {isMember ? (
         <View style={styles.memberBadge}>
-          <MaterialCommunityIcons name="check-circle" size={12} color="#10B981" />
+          <MaterialCommunityIcons name="check-circle" size={11} color="#10B981" />
           <Text style={styles.memberBadgeTxt}>Member</Text>
         </View>
       ) : (
-        <Button compact mode="contained" onPress={async () => {
-          try { await addMember({ projectId: project.id, userId, role: selectedRole }).unwrap(); setAdded(true); onSuccess?.(); }
-          catch (e) { onSuccess?.(e?.data?.message || 'Failed', true); }
-        }} loading={isLoading} style={{ borderRadius: 6 }}>Add</Button>
+        <TouchableOpacity
+          onPress={async () => {
+            try {
+              await addMember({ projectId: project.id, userId, role: selectedRole }).unwrap();
+              setAdded(true);
+              onSuccess?.();
+            } catch (e) { onSuccess?.(e?.data?.message || 'Failed', true); }
+          }}
+          disabled={isLoading}
+          style={[styles.addBtn, { backgroundColor: NAVY, opacity: isLoading ? 0.6 : 1 }]}
+        >
+          <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>+ Add</Text>
+        </TouchableOpacity>
       )}
     </View>
   );
 };
 
-/* ─── User Detail Drawer (right panel) ─── */
+/* ─── User Detail Drawer ─── */
 const UserDrawer = ({ user, canManage, isMe, theme, onClose, onDeactivate, onRoleChanged, onToast }) => {
   const { data: projectsData } = useGetProjectsQuery({});
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const [assignRole, setAssignRole] = useState('developer');
+  const [roleMenuOpen,   setRoleMenuOpen]   = useState(false);
+  const [assignRole,     setAssignRole]     = useState('developer');
   const [assignRoleMenu, setAssignRoleMenu] = useState(false);
-  const allProjects = projectsData?.data?.data || [];
-  const isInactive = user.isActive === false;
-  const rc = ROLE_COLOR[user.role] || '#6B7280';
-  const total = (user.openIssues || 0) + (user.doneIssues || 0);
-  const workPct = total > 0 ? Math.round((user.openIssues / total) * 100) : 0;
-  const workColor = workPct > 70 ? '#EF4444' : workPct > 40 ? '#F59E0B' : '#10B981';
+  const allProjects  = projectsData?.data?.data || [];
+  const isInactive   = user.isActive === false;
+  const rc           = ROLE_COLOR[user.role] || '#6B7280';
+  const total        = (user.openIssues || 0) + (user.doneIssues || 0);
+  const workPct      = total > 0 ? Math.round((user.openIssues / total) * 100) : 0;
+  const workColor    = workPct > 70 ? '#EF4444' : workPct > 40 ? '#F59E0B' : '#10B981';
+  const surf         = theme.colors.surface;
+  const border       = theme.colors.outlineVariant;
 
   return (
-    <View style={[styles.drawer, { backgroundColor: theme.colors.surface, borderLeftColor: theme.colors.outlineVariant }]}>
-      {/* Header */}
-      <View style={[styles.drawerHeader, { borderBottomColor: theme.colors.outlineVariant }]}>
-        <Text style={[styles.drawerTitle, { color: theme.colors.onSurface }]}>Member Details</Text>
-        <TouchableOpacity onPress={onClose} style={styles.drawerClose}>
-          <MaterialCommunityIcons name="close" size={18} color={theme.colors.onSurfaceVariant} />
+    <View style={[styles.drawer, { backgroundColor: theme.colors.background, borderLeftColor: border }]}>
+
+      {/* ── Slim NAVY header strip ── */}
+      <View style={styles.drawerHeader}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <MaterialCommunityIcons name="account-details-outline" size={15} color="rgba(255,255,255,0.65)" />
+          <Text style={{ fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.75)', letterSpacing: 1 }}>
+            MEMBER DETAILS
+          </Text>
+        </View>
+        <TouchableOpacity onPress={onClose} style={styles.drawerCloseBtn}>
+          <MaterialCommunityIcons name="close" size={16} color="rgba(255,255,255,0.7)" />
         </TouchableOpacity>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
 
-        {/* Profile card */}
-        <View style={[styles.drawerProfile, { borderBottomColor: theme.colors.outlineVariant }]}>
-          <UserAvatar user={user} size={56} inactive={isInactive} />
-          <View style={{ marginTop: 12, alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.drawerName, { color: isInactive ? theme.colors.onSurfaceVariant : theme.colors.onSurface, textDecorationLine: isInactive ? 'line-through' : 'none' }]}>
-                {user.firstName} {user.lastName}
-              </Text>
-              {isMe && <View style={[styles.youBadge, { backgroundColor: '#EFF6FF' }]}><Text style={{ fontSize: 9, fontWeight: '800', color: NAVY }}>YOU</Text></View>}
+        {/* ── Identity card: avatar + name/email/badges + mini stats ── */}
+        <View style={[styles.identityCard, { backgroundColor: surf, borderColor: border }]}>
+          {/* Top row: avatar + info */}
+          <View style={styles.identityTop}>
+            <View style={{ position: 'relative' }}>
+              <View style={[styles.identityAvatarRing, { borderColor: isInactive ? '#CBD5E1' : rc + '50' }]}>
+                <UserAvatar user={user} size={52} inactive={isInactive} />
+              </View>
+              <View style={[styles.identityStatusDot, {
+                backgroundColor: isInactive ? '#EF4444' : '#22C55E',
+                borderColor: surf,
+              }]} />
             </View>
-            <Text style={[styles.drawerEmail, { color: theme.colors.onSurfaceVariant }]}>{user.email}</Text>
+            <View style={{ flex: 1, marginLeft: 14 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <Text style={[styles.identityName, {
+                  color: isInactive ? theme.colors.onSurfaceVariant : theme.colors.onSurface,
+                  textDecorationLine: isInactive ? 'line-through' : 'none',
+                }]}>
+                  {user.firstName} {user.lastName}
+                </Text>
+                {isMe && (
+                  <View style={styles.youBadge}>
+                    <Text style={{ fontSize: 9, fontWeight: '800', color: NAVY }}>YOU</Text>
+                  </View>
+                )}
+              </View>
+              <Text style={[styles.identityEmail, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+                {user.email}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <View style={[styles.rolePill, { backgroundColor: (isInactive ? '#94A3B8' : rc) + '14', borderColor: (isInactive ? '#94A3B8' : rc) + '40' }]}>
+                  <View style={[styles.roleDot, { backgroundColor: isInactive ? '#94A3B8' : rc }]} />
+                  <Text style={[styles.rolePillTxt, { color: isInactive ? '#94A3B8' : rc }]}>
+                    {ROLE_LABELS[user.role] || user.role}
+                  </Text>
+                </View>
+                <View style={[styles.identityStatusBadge, {
+                  backgroundColor: isInactive ? '#FEF2F2' : '#F0FDF4',
+                  borderColor: isInactive ? '#FECACA' : '#BBF7D0',
+                }]}>
+                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: isInactive ? '#EF4444' : '#22C55E' }} />
+                  <Text style={{ fontSize: 10, fontWeight: '700', color: isInactive ? '#DC2626' : '#16A34A' }}>
+                    {isInactive ? 'Inactive' : 'Active'}
+                  </Text>
+                </View>
+              </View>
+            </View>
           </View>
 
-          {/* Status badge */}
-          <View style={[styles.statusBig, {
-            backgroundColor: isInactive ? '#FEF2F2' : '#F0FDF4',
-            borderColor: isInactive ? '#FECACA' : '#BBF7D0',
-          }]}>
-            <View style={[styles.statusDot, { backgroundColor: isInactive ? '#EF4444' : '#22C55E' }]} />
-            <Text style={{ fontSize: 11, fontWeight: '700', color: isInactive ? '#DC2626' : '#16A34A' }}>
-              {isInactive ? 'Inactive — cannot login' : 'Active'}
-            </Text>
+          {/* Mini workload stats row */}
+          <View style={[styles.identityStats, { borderTopColor: border }]}>
+            <View style={styles.miniStat}>
+              <Text style={[styles.miniStatNum, { color: '#D97706' }]}>{user.openIssues || 0}</Text>
+              <Text style={[styles.miniStatLbl, { color: theme.colors.onSurfaceVariant }]}>Open</Text>
+            </View>
+            <View style={[styles.miniStatSep, { backgroundColor: border }]} />
+            <View style={styles.miniStat}>
+              <Text style={[styles.miniStatNum, { color: '#16A34A' }]}>{user.doneIssues || 0}</Text>
+              <Text style={[styles.miniStatLbl, { color: theme.colors.onSurfaceVariant }]}>Resolved</Text>
+            </View>
+            <View style={[styles.miniStatSep, { backgroundColor: border }]} />
+            <View style={{ flex: 1, paddingHorizontal: 14, justifyContent: 'center' }}>
+              {total > 0 ? (
+                <>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
+                    <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant }}>Open ratio</Text>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: workColor }}>{workPct}%</Text>
+                  </View>
+                  <View style={[styles.miniWorkBar, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    <View style={[styles.miniWorkFill, { width: `${workPct}%`, backgroundColor: workColor }]} />
+                  </View>
+                </>
+              ) : (
+                <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant }}>No issues assigned</Text>
+              )}
+            </View>
           </View>
         </View>
 
-        {/* Info rows */}
-        <View style={[styles.drawerSection, { borderBottomColor: theme.colors.outlineVariant }]}>
-          <InfoRow icon="shield-account-outline" label="Role" theme={theme}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={[styles.rolePill, { backgroundColor: rc + '15', borderColor: rc + '40' }]}>
+        {/* ── Account info ── */}
+        <View style={[styles.drawerCard, { backgroundColor: surf, borderColor: border }]}>
+          <View style={styles.drawerCardHeader}>
+            <View style={[styles.drawerCardAccent, { backgroundColor: rc }]} />
+            <Text style={[styles.drawerCardTitle, { color: theme.colors.onSurfaceVariant }]}>ACCOUNT INFO</Text>
+          </View>
+
+          <View style={styles.infoRow}>
+            <View style={[styles.infoIconBox, { backgroundColor: rc + '12' }]}>
+              <MaterialCommunityIcons name="shield-account-outline" size={14} color={rc} />
+            </View>
+            <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>Role</Text>
+            <View style={{ flex: 1, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 }}>
+              <View style={[styles.rolePill, { backgroundColor: rc + '12', borderColor: rc + '35' }]}>
                 <View style={[styles.roleDot, { backgroundColor: isInactive ? '#94A3B8' : rc }]} />
-                <Text style={[styles.rolePillTxt, { color: isInactive ? '#94A3B8' : rc }]}>{ROLE_LABELS[user.role] || user.role}</Text>
+                <Text style={[styles.rolePillTxt, { color: isInactive ? '#94A3B8' : rc }]}>
+                  {ROLE_LABELS[user.role] || user.role}
+                </Text>
               </View>
               {canManage && !isMe && !isInactive && (
                 <Menu
                   visible={roleMenuOpen}
                   onDismiss={() => setRoleMenuOpen(false)}
                   anchor={
-                    <TouchableOpacity onPress={() => setRoleMenuOpen(true)} style={[styles.editBtn, { borderColor: theme.colors.outlineVariant }]}>
+                    <TouchableOpacity
+                      onPress={() => setRoleMenuOpen(true)}
+                      style={[styles.editPencilBtn, { borderColor: border }]}
+                    >
                       <MaterialCommunityIcons name="pencil-outline" size={13} color={theme.colors.onSurfaceVariant} />
                     </TouchableOpacity>
                   }
@@ -136,49 +351,87 @@ const UserDrawer = ({ user, canManage, isMe, theme, onClose, onDeactivate, onRol
                   {ALL_ROLES.map(r => (
                     <Menu.Item key={r} title={ROLE_LABELS[r] || r}
                       leadingIcon={user.role === r ? 'check' : 'shield-account-outline'}
-                      onPress={() => { setRoleMenuOpen(false); onRoleChanged(user.id, r); }} />
+                      onPress={() => { setRoleMenuOpen(false); onRoleChanged(user.id, r); }}
+                    />
                   ))}
                 </Menu>
               )}
             </View>
-          </InfoRow>
+          </View>
 
-          <InfoRow icon="calendar-outline" label="Joined" theme={theme}>
-            <Text style={{ fontSize: 13, color: theme.colors.onSurface }}>{formatDate(user.createdAt)}</Text>
-          </InfoRow>
+          <View style={[styles.infoRow, { marginBottom: 0 }]}>
+            <View style={[styles.infoIconBox, { backgroundColor: '#4C9AFF12' }]}>
+              <MaterialCommunityIcons name="calendar-outline" size={14} color="#4C9AFF" />
+            </View>
+            <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>Joined</Text>
+            <Text style={{ fontSize: 12, color: theme.colors.onSurface, fontWeight: '600' }}>
+              {formatDate(user.createdAt)}
+            </Text>
+          </View>
         </View>
 
-        {/* Stats */}
-        <View style={[styles.drawerSection, { borderBottomColor: theme.colors.outlineVariant }]}>
-          <Text style={[styles.drawerSectionTitle, { color: theme.colors.onSurfaceVariant }]}>WORKLOAD</Text>
-          <View style={styles.statRow}>
-            <StatBox value={user.openIssues || 0} label="Open" color="#F59E0B" theme={theme} />
-            <StatBox value={user.doneIssues || 0} label="Resolved" color="#10B981" theme={theme} />
+        {/* ── Workload ── */}
+        <View style={[styles.drawerCard, { backgroundColor: surf, borderColor: border }]}>
+          <View style={styles.drawerCardHeader}>
+            <View style={[styles.drawerCardAccent, { backgroundColor: workColor }]} />
+            <Text style={[styles.drawerCardTitle, { color: theme.colors.onSurfaceVariant }]}>WORKLOAD</Text>
           </View>
-          {total > 0 && !isInactive && (
-            <View style={{ marginTop: 12 }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+          <View style={styles.statRow}>
+            <View style={[styles.statBox, { backgroundColor: '#FFFBEB', borderColor: '#FDE68A' }]}>
+              <Text style={[styles.statVal, { color: '#D97706' }]}>{user.openIssues || 0}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#F59E0B' }} />
+                <Text style={[styles.statLabel, { color: '#92400E' }]}>Open</Text>
+              </View>
+            </View>
+            <View style={[styles.statBox, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+              <Text style={[styles.statVal, { color: '#16A34A' }]}>{user.doneIssues || 0}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: '#22C55E' }} />
+                <Text style={[styles.statLabel, { color: '#14532D' }]}>Resolved</Text>
+              </View>
+            </View>
+          </View>
+          {total > 0 && (
+            <View style={{ marginTop: 14 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                 <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>Open ratio</Text>
-                <Text style={{ fontSize: 11, fontWeight: '700', color: workColor }}>{workPct}%</Text>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: workColor }}>{workPct}%</Text>
               </View>
               <View style={[styles.workTrack, { backgroundColor: theme.colors.surfaceVariant }]}>
                 <View style={[styles.workFill, { width: `${workPct}%`, backgroundColor: workColor }]} />
               </View>
+              <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant, marginTop: 5 }}>
+                {user.openIssues || 0} of {total} issues still open
+              </Text>
             </View>
+          )}
+          {total === 0 && (
+            <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant, textAlign: 'center', paddingTop: 8, paddingBottom: 4 }}>
+              No issues assigned yet
+            </Text>
           )}
         </View>
 
-        {/* Assign to projects */}
+        {/* ── Project assignment ── */}
         {canManage && !isInactive && (
-          <View style={[styles.drawerSection, { borderBottomColor: theme.colors.outlineVariant }]}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <Text style={[styles.drawerSectionTitle, { color: theme.colors.onSurfaceVariant }]}>PROJECTS</Text>
+          <View style={[styles.drawerCard, { backgroundColor: surf, borderColor: border }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <View style={styles.drawerCardHeader}>
+                <View style={[styles.drawerCardAccent, { backgroundColor: NAVY }]} />
+                <Text style={[styles.drawerCardTitle, { color: theme.colors.onSurfaceVariant, marginBottom: 0 }]}>PROJECTS</Text>
+              </View>
               <Menu
                 visible={assignRoleMenu}
                 onDismiss={() => setAssignRoleMenu(false)}
                 anchor={
-                  <TouchableOpacity onPress={() => setAssignRoleMenu(true)} style={[styles.editBtn, { borderColor: theme.colors.outlineVariant, paddingHorizontal: 8, gap: 4, width: 'auto', flexDirection: 'row' }]}>
-                    <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>as {ROLE_LABELS[assignRole] || assignRole}</Text>
+                  <TouchableOpacity
+                    onPress={() => setAssignRoleMenu(true)}
+                    style={[styles.roleAsBtn, { borderColor: border }]}
+                  >
+                    <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>
+                      as {ROLE_LABELS[assignRole] || assignRole}
+                    </Text>
                     <MaterialCommunityIcons name="chevron-down" size={12} color={theme.colors.onSurfaceVariant} />
                   </TouchableOpacity>
                 }
@@ -186,52 +439,50 @@ const UserDrawer = ({ user, canManage, isMe, theme, onClose, onDeactivate, onRol
                 {ALL_ROLES.map(r => (
                   <Menu.Item key={r} title={ROLE_LABELS[r] || r}
                     leadingIcon={assignRole === r ? 'check' : 'shield-account-outline'}
-                    onPress={() => { setAssignRole(r); setAssignRoleMenu(false); }} />
+                    onPress={() => { setAssignRole(r); setAssignRoleMenu(false); }}
+                  />
                 ))}
               </Menu>
             </View>
             {allProjects.map(p => (
-              <ProjectRow key={p.id} project={p} userId={user.id} selectedRole={assignRole} theme={theme} onSuccess={(msg, isErr) => onToast(msg || 'Done', isErr ? 'error' : 'success')} />
+              <ProjectRow
+                key={p.id} project={p} userId={user.id}
+                selectedRole={assignRole} theme={theme}
+                onSuccess={(msg, isErr) => onToast(msg || 'Done', isErr ? 'error' : 'success')}
+              />
             ))}
             {allProjects.length === 0 && (
-              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, textAlign: 'center', paddingVertical: 12 }}>No projects</Text>
+              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, textAlign: 'center', paddingVertical: 10 }}>
+                No projects
+              </Text>
             )}
           </View>
         )}
 
-        {/* Deactivate / Activate */}
+        {/* ── Deactivate ── */}
         {canManage && !isMe && (
-          <View style={styles.drawerSection}>
-            <Button
-              mode="outlined"
-              icon={isInactive ? 'account-check-outline' : 'account-cancel-outline'}
+          <View style={{ paddingHorizontal: 16, paddingVertical: 14, paddingBottom: 28 }}>
+            <TouchableOpacity
               onPress={() => onDeactivate(user)}
-              style={[styles.deactivateBtn, { borderColor: isInactive ? '#22C55E' : '#EF4444' }]}
-              labelStyle={{ color: isInactive ? '#22C55E' : '#EF4444', fontSize: 13 }}
+              style={[styles.deactivateBtn, {
+                backgroundColor: isInactive ? '#F0FDF4' : '#FFF5F5',
+                borderColor: isInactive ? '#BBF7D0' : '#FECACA',
+              }]}
             >
-              {isInactive ? 'Reactivate Account' : 'Deactivate Account'}
-            </Button>
+              <MaterialCommunityIcons
+                name={isInactive ? 'account-check-outline' : 'account-cancel-outline'}
+                size={16} color={isInactive ? '#16A34A' : '#DC2626'}
+              />
+              <Text style={{ color: isInactive ? '#16A34A' : '#DC2626', fontSize: 13, fontWeight: '700' }}>
+                {isInactive ? 'Reactivate Account' : 'Deactivate Account'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
       </ScrollView>
     </View>
   );
 };
-
-const InfoRow = ({ icon, label, children, theme }) => (
-  <View style={styles.infoRow}>
-    <MaterialCommunityIcons name={icon} size={15} color={theme.colors.onSurfaceVariant} style={{ marginTop: 1 }} />
-    <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
-    <View style={{ flex: 1, alignItems: 'flex-end' }}>{children}</View>
-  </View>
-);
-
-const StatBox = ({ value, label, color, theme }) => (
-  <View style={[styles.statBox, { backgroundColor: color + '10', borderColor: color + '30' }]}>
-    <Text style={[styles.statBoxVal, { color }]}>{value}</Text>
-    <Text style={[styles.statBoxLabel, { color: theme.colors.onSurfaceVariant }]}>{label}</Text>
-  </View>
-);
 
 /* ─── Deactivate Confirm Dialog ─── */
 const DeactivateDialog = ({ user, onConfirm, onDismiss, loading }) => {
@@ -246,7 +497,10 @@ const DeactivateDialog = ({ user, onConfirm, onDismiss, loading }) => {
           backgroundColor: isCurrentlyInactive ? '#F0FDF4' : '#FEF2F2',
           borderColor: isCurrentlyInactive ? '#BBF7D0' : '#FECACA',
         }]}>
-          <MaterialCommunityIcons name={isCurrentlyInactive ? 'account-check-outline' : 'account-cancel-outline'} size={22} color={isCurrentlyInactive ? '#22C55E' : '#EF4444'} />
+          <MaterialCommunityIcons
+            name={isCurrentlyInactive ? 'account-check-outline' : 'account-cancel-outline'}
+            size={22} color={isCurrentlyInactive ? '#22C55E' : '#EF4444'}
+          />
           <View style={{ flex: 1 }}>
             <Text style={{ fontWeight: '700', color: isCurrentlyInactive ? '#16A34A' : '#DC2626', fontSize: 13 }}>
               {isCurrentlyInactive ? 'This will restore login access' : 'This will immediately block login'}
@@ -278,22 +532,22 @@ export default function TeamScreen() {
   const { user: me } = useAuth();
   const canManage = ['super_admin', 'org_admin'].includes(me?.role);
 
-  const [search,       setSearch]       = useState('');
-  const [statusFilter, setStatusFilter] = useState('active');
-  const [roleFilter,   setRoleFilter]   = useState('all');
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [search,           setSearch]           = useState('');
+  const [statusFilter,     setStatusFilter]     = useState('active');
+  const [roleFilter,       setRoleFilter]       = useState('all');
+  const [roleMenuOpen,     setRoleMenuOpen]     = useState(false);
+  const [selectedUser,     setSelectedUser]     = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
-  const [toast,    setToast]    = useState('');
-  const [toastType,setToastType]= useState('success');
+  const [toast,            setToast]            = useState('');
+  const [toastType,        setToastType]        = useState('success');
 
   const showToast = (msg, type = 'success') => { setToast(msg); setToastType(type); };
 
   const { data, isLoading, refetch } = useGetOrgUsersQuery({ search, limit: 100 });
   const [updateUser, { isLoading: toggling }] = useUpdateUserMutation();
 
-  const allUsers    = data?.data?.data || [];
-  const activeCount = allUsers.filter(u => u.isActive !== false).length;
+  const allUsers      = data?.data?.data || [];
+  const activeCount   = allUsers.filter(u => u.isActive !== false).length;
   const inactiveCount = allUsers.filter(u => u.isActive === false).length;
 
   const filtered = allUsers.filter(u => {
@@ -307,7 +561,6 @@ export default function TeamScreen() {
     try {
       await updateUser({ id: userId, role: newRole }).unwrap();
       showToast('Role updated');
-      // update selectedUser locally for instant feedback
       if (selectedUser?.id === userId) setSelectedUser(prev => ({ ...prev, role: newRole }));
       refetch();
     } catch { showToast('Failed to update role', 'error'); }
@@ -325,12 +578,15 @@ export default function TeamScreen() {
     } catch (err) { showToast(err?.data?.message || 'Failed to update status', 'error'); }
   };
 
+  const surf   = theme.colors.surface;
+  const border = theme.colors.outlineVariant;
+
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
 
-      {/* ── Header ── */}
-      <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+      {/* ── Page header ── */}
+      <View style={[styles.pageHeader, { backgroundColor: surf, borderBottomColor: border }]}>
+        <View style={styles.pageTitleRow}>
           <View style={styles.titleAccent} />
           <View>
             <Text style={[styles.pageTitle, { color: theme.colors.onSurface }]}>Team</Text>
@@ -340,9 +596,9 @@ export default function TeamScreen() {
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={styles.filterRow}>
           {/* Search */}
-          <View style={[styles.searchBox, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
+          <View style={[styles.searchBox, { backgroundColor: theme.colors.background, borderColor: border }]}>
             <MaterialCommunityIcons name="magnify" size={15} color={theme.colors.onSurfaceVariant} />
             <TextInput
               value={search} onChangeText={setSearch}
@@ -358,14 +614,27 @@ export default function TeamScreen() {
           </View>
 
           {/* Status chips */}
-          <View style={{ flexDirection: 'row', gap: 5 }}>
-            {[['all','All'],['active','Active'],['inactive','Inactive']].map(([v, l]) => (
-              <TouchableOpacity key={v} onPress={() => setStatusFilter(v)}
-                style={[styles.chip, { backgroundColor: statusFilter === v ? NAVY : 'transparent', borderColor: statusFilter === v ? NAVY : theme.colors.outlineVariant }]}>
-                {v !== 'all' && <View style={[styles.chipDot, { backgroundColor: statusFilter === v ? (v === 'active' ? '#86EFAC' : '#FCA5A5') : (v === 'active' ? '#22C55E' : '#EF4444') }]} />}
-                <Text style={{ fontSize: 12, fontWeight: '600', color: statusFilter === v ? '#fff' : theme.colors.onSurfaceVariant }}>{l}</Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.chipGroup}>
+            {[['all', 'All'], ['active', 'Active'], ['inactive', 'Inactive']].map(([v, l]) => {
+              const isActive = statusFilter === v;
+              const dotColor = v === 'active' ? '#22C55E' : v === 'inactive' ? '#EF4444' : null;
+              return (
+                <TouchableOpacity
+                  key={v} onPress={() => setStatusFilter(v)}
+                  style={[styles.chip, {
+                    backgroundColor: isActive ? NAVY : 'transparent',
+                    borderColor: isActive ? NAVY : border,
+                  }]}
+                >
+                  {dotColor && (
+                    <View style={[styles.chipDot, { backgroundColor: isActive ? '#ffffff88' : dotColor }]} />
+                  )}
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: isActive ? '#fff' : theme.colors.onSurfaceVariant }}>
+                    {l}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           {/* Role filter */}
@@ -376,24 +645,34 @@ export default function TeamScreen() {
               <TouchableOpacity
                 onPress={() => setRoleMenuOpen(true)}
                 style={[styles.roleFilterBtn, {
-                  backgroundColor: roleFilter !== 'all' ? NAVY + '0F' : 'transparent',
-                  borderColor: roleFilter !== 'all' ? NAVY + '50' : theme.colors.outlineVariant,
+                  backgroundColor: roleFilter !== 'all' ? NAVY + '10' : 'transparent',
+                  borderColor: roleFilter !== 'all' ? NAVY + '50' : border,
                 }]}
               >
-                <MaterialCommunityIcons name="filter-variant" size={14} color={roleFilter !== 'all' ? NAVY : theme.colors.onSurfaceVariant} />
+                <MaterialCommunityIcons
+                  name="filter-variant" size={14}
+                  color={roleFilter !== 'all' ? NAVY : theme.colors.onSurfaceVariant}
+                />
                 <Text style={{ fontSize: 12, fontWeight: '600', color: roleFilter !== 'all' ? NAVY : theme.colors.onSurfaceVariant }}>
                   {roleFilter === 'all' ? 'All roles' : ROLE_LABELS[roleFilter] || roleFilter}
                 </Text>
-                <MaterialCommunityIcons name="chevron-down" size={13} color={roleFilter !== 'all' ? NAVY : theme.colors.onSurfaceVariant} />
+                <MaterialCommunityIcons
+                  name="chevron-down" size={13}
+                  color={roleFilter !== 'all' ? NAVY : theme.colors.onSurfaceVariant}
+                />
               </TouchableOpacity>
             }
           >
-            <Menu.Item title="All roles" leadingIcon={roleFilter === 'all' ? 'check' : 'account-multiple-outline'} onPress={() => { setRoleFilter('all'); setRoleMenuOpen(false); }} />
+            <Menu.Item title="All roles"
+              leadingIcon={roleFilter === 'all' ? 'check' : 'account-multiple-outline'}
+              onPress={() => { setRoleFilter('all'); setRoleMenuOpen(false); }}
+            />
             <Divider />
             {ALL_ROLES.map(r => (
               <Menu.Item key={r} title={ROLE_LABELS[r] || r}
                 leadingIcon={roleFilter === r ? 'check' : 'shield-account-outline'}
-                onPress={() => { setRoleFilter(r); setRoleMenuOpen(false); }} />
+                onPress={() => { setRoleFilter(r); setRoleMenuOpen(false); }}
+              />
             ))}
           </Menu>
         </View>
@@ -402,17 +681,9 @@ export default function TeamScreen() {
       {/* ── Body ── */}
       <View style={styles.body}>
 
-        {/* Member list */}
+        {/* ── Member card grid ── */}
         <View style={{ flex: 1, overflow: 'hidden' }}>
-          {/* Table head */}
-          <View style={[styles.tableHead, { backgroundColor: NAVY }]}>
-            <Text style={[styles.colH, { flex: 2 }]}>Member</Text>
-            <Text style={[styles.colH, { flex: 1 }]}>Role</Text>
-            <Text style={[styles.colH, { width: 110, textAlign: 'center' }]}>Status</Text>
-            {canManage && <Text style={[styles.colH, { width: 52 }]}></Text>}
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.cardGrid}>
             {isLoading && (
               <View style={styles.emptyState}>
                 <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>Loading…</Text>
@@ -420,92 +691,33 @@ export default function TeamScreen() {
             )}
             {!isLoading && filtered.length === 0 && (
               <View style={styles.emptyState}>
-                <View style={[styles.emptyIcon, { backgroundColor: '#EFF6FF' }]}>
-                  <MaterialCommunityIcons name="account-group-outline" size={26} color={NAVY} />
+                <View style={[styles.emptyIconWrap, { backgroundColor: '#EFF6FF' }]}>
+                  <MaterialCommunityIcons name="account-group-outline" size={28} color={NAVY} />
                 </View>
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13, marginTop: 10 }}>No members match your filter</Text>
+                <Text style={{ color: theme.colors.onSurface, fontSize: 14, fontWeight: '700', marginTop: 14 }}>
+                  No members found
+                </Text>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, marginTop: 4 }}>
+                  Try adjusting your filters
+                </Text>
               </View>
             )}
-
-            {filtered.map((u, i) => {
-              const isInactive = u.isActive === false;
-              const isSelected = selectedUser?.id === u.id;
-              const rc = ROLE_COLOR[u.role] || '#6B7280';
-              const isMe = u.id === me?.id;
-
-              return (
-                <TouchableOpacity
-                  key={u.id}
-                  onPress={() => setSelectedUser(isSelected ? null : u)}
-                  style={[
-                    styles.row,
-                    { backgroundColor: isSelected ? NAVY + '08' : i % 2 === 0 ? theme.colors.surface : theme.colors.background, borderBottomColor: theme.colors.outlineVariant },
-                    isSelected && { borderLeftWidth: 3, borderLeftColor: NAVY },
-                    isInactive && { opacity: 0.6 },
-                  ]}
-                >
-                  {/* Avatar + name */}
-                  <View style={[styles.rowCell, { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
-                    <UserAvatar user={u} size={38} inactive={isInactive} />
-                    <View>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[styles.memberName, { color: isInactive ? theme.colors.onSurfaceVariant : theme.colors.onSurface, textDecorationLine: isInactive ? 'line-through' : 'none' }]}>
-                          {u.firstName} {u.lastName}
-                        </Text>
-                        {isMe && <View style={[styles.youBadge, { backgroundColor: '#EFF6FF' }]}><Text style={{ fontSize: 9, fontWeight: '800', color: NAVY }}>YOU</Text></View>}
-                      </View>
-                      <Text style={[styles.memberEmail, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>{u.email}</Text>
-                    </View>
-                  </View>
-
-                  {/* Role */}
-                  <View style={[styles.rowCell, { flex: 1 }]}>
-                    <View style={[styles.rolePill, { backgroundColor: (isInactive ? '#94A3B8' : rc) + '15', borderColor: (isInactive ? '#94A3B8' : rc) + '40' }]}>
-                      <View style={[styles.roleDot, { backgroundColor: isInactive ? '#94A3B8' : rc }]} />
-                      <Text style={[styles.rolePillTxt, { color: isInactive ? '#94A3B8' : rc }]} numberOfLines={1}>{ROLE_LABELS[u.role] || u.role}</Text>
-                    </View>
-                  </View>
-
-                  {/* Status */}
-                  <View style={[styles.rowCell, { width: 110, alignItems: 'center' }]}>
-                    <View style={[styles.statusPill, {
-                      backgroundColor: isInactive ? '#FEF2F2' : '#F0FDF4',
-                      borderColor: isInactive ? '#FECACA' : '#BBF7D0',
-                    }]}>
-                      <View style={[styles.statusDot, { backgroundColor: isInactive ? '#EF4444' : '#22C55E' }]} />
-                      <Text style={{ fontSize: 10, fontWeight: '700', color: isInactive ? '#DC2626' : '#16A34A' }}>
-                        {isInactive ? 'Inactive' : 'Active'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Quick deactivate/activate icon */}
-                  {canManage && (
-                    <View style={[styles.rowCell, { width: 52, alignItems: 'center' }]}>
-                      {!isMe && (
-                        <TouchableOpacity
-                          onPress={(e) => { e.stopPropagation?.(); setDeactivateTarget(u); }}
-                          style={[styles.quickBtn, {
-                            backgroundColor: isInactive ? '#F0FDF4' : '#FEF2F2',
-                            borderColor: isInactive ? '#BBF7D0' : '#FECACA',
-                          }]}
-                        >
-                          <MaterialCommunityIcons
-                            name={isInactive ? 'account-check-outline' : 'account-cancel-outline'}
-                            size={14}
-                            color={isInactive ? '#22C55E' : '#EF4444'}
-                          />
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
+            {!isLoading && filtered.map(u => (
+              <MemberCard
+                key={u.id}
+                user={u}
+                isSelected={selectedUser?.id === u.id}
+                isMe={u.id === me?.id}
+                canManage={canManage}
+                theme={theme}
+                onSelect={u => setSelectedUser(selectedUser?.id === u.id ? null : u)}
+                onDeactivate={setDeactivateTarget}
+              />
+            ))}
           </ScrollView>
         </View>
 
-        {/* Detail Drawer */}
+        {/* ── Detail Drawer ── */}
         {selectedUser && (
           <UserDrawer
             user={selectedUser}
@@ -513,7 +725,7 @@ export default function TeamScreen() {
             isMe={selectedUser.id === me?.id}
             theme={theme}
             onClose={() => setSelectedUser(null)}
-            onDeactivate={(u) => setDeactivateTarget(u)}
+            onDeactivate={u => setDeactivateTarget(u)}
             onRoleChanged={handleRoleChange}
             onToast={showToast}
           />
@@ -540,130 +752,222 @@ export default function TeamScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
-  header: {
+  /* ── Page header ── */
+  pageHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 24, paddingVertical: 14, borderBottomWidth: 1,
-    boxShadow: '0 1px 4px rgba(6,43,111,0.05)',
+    boxShadow: '0 1px 4px rgba(6,43,111,0.06)',
   },
-  titleAccent: { width: 4, height: 26, borderRadius: 2, backgroundColor: NAVY },
-  pageTitle:   { fontSize: 19, fontWeight: '800', letterSpacing: -0.3 },
-  pageSub:     { fontSize: 12, marginTop: 2 },
+  pageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  titleAccent:  { width: 4, height: 28, borderRadius: 2, backgroundColor: NAVY },
+  pageTitle:    { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  pageSub:      { fontSize: 12, marginTop: 2 },
 
+  filterRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
   searchBox: {
     flexDirection: 'row', alignItems: 'center', gap: 7,
-    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, height: 36, minWidth: 190,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, height: 36, minWidth: 180,
   },
   searchInput: { flex: 1, fontSize: 13, height: '100%', borderWidth: 0, backgroundColor: 'transparent' },
 
+  chipGroup: { flexDirection: 'row', gap: 5 },
   chip: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, cursor: 'pointer',
+    paddingHorizontal: 11, paddingVertical: 5, borderRadius: 8, borderWidth: 1, cursor: 'pointer',
   },
   chipDot: { width: 6, height: 6, borderRadius: 3 },
+
   roleFilterBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, cursor: 'pointer',
+    paddingHorizontal: 11, paddingVertical: 5, borderRadius: 8, borderWidth: 1, cursor: 'pointer',
   },
 
+  /* ── Body ── */
   body: { flex: 1, flexDirection: 'row', overflow: 'hidden' },
 
-  /* Table */
-  tableHead: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 11 },
-  colH: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.72)', textTransform: 'uppercase', letterSpacing: 0.4, paddingHorizontal: 4 },
-
-  row: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 13,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    cursor: 'pointer',
+  /* ── Card grid ── */
+  cardGrid: {
+    flexDirection: 'row', flexWrap: 'wrap',
+    padding: 18, gap: 14,
+    alignContent: 'flex-start',
   },
-  rowCell: { paddingHorizontal: 4 },
 
-  memberName:  { fontSize: 13, fontWeight: '600' },
-  memberEmail: { fontSize: 11, marginTop: 1 },
-  youBadge:    { borderRadius: 8, paddingHorizontal: 5, paddingVertical: 2 },
+  /* ── Member card ── */
+  memberCard: {
+    flex: 1, minWidth: 260,
+    borderRadius: 14, overflow: 'hidden',
+    cursor: 'pointer',
+    position: 'relative',
+  },
+  cardStrip: {
+    position: 'absolute', left: 0, top: 0, bottom: 0, width: 4,
+    zIndex: 1,
+  },
+  cardBody: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12,
+  },
+  cardAvatarRing: {
+    width: 52, height: 52, borderRadius: 26,
+    borderWidth: 2, justifyContent: 'center', alignItems: 'center',
+  },
+  cardStatusDot: {
+    position: 'absolute', bottom: 1, right: 1,
+    width: 11, height: 11, borderRadius: 6, borderWidth: 2,
+  },
+  cardName:      { fontSize: 13, fontWeight: '700' },
+  cardEmail:     { fontSize: 11, marginTop: 2 },
+  cardActionBtn: {
+    width: 28, height: 28, borderRadius: 8,
+    justifyContent: 'center', alignItems: 'center', borderWidth: 1, cursor: 'pointer',
+    alignSelf: 'flex-start',
+  },
 
+  cardFooter: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  cardStat: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 6 },
+  cardStatDot: { width: 6, height: 6, borderRadius: 3 },
+  cardStatNum: { fontSize: 14, fontWeight: '800' },
+  cardStatLbl: { fontSize: 11 },
+  cardStatSep: { width: StyleSheet.hairlineWidth, height: 16, marginHorizontal: 2 },
+
+  cardWorkTrack: { height: 5, borderRadius: 3, overflow: 'hidden' },
+  cardWorkFill:  { height: '100%', borderRadius: 3 },
+
+  /* Shared pills */
   rolePill: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 10, alignSelf: 'flex-start', borderWidth: 1, maxWidth: 112,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 20,
+    alignSelf: 'flex-start', borderWidth: 1,
   },
-  roleDot:    { width: 6, height: 6, borderRadius: 3 },
-  rolePillTxt:{ fontSize: 10, fontWeight: '700' },
+  roleDot:     { width: 6, height: 6, borderRadius: 3 },
+  rolePillTxt: { fontSize: 11, fontWeight: '700' },
 
-  statusPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8, borderWidth: 1,
-  },
-  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  youBadge: { borderRadius: 5, paddingHorizontal: 5, paddingVertical: 2, backgroundColor: '#EFF6FF' },
 
-  quickBtn: {
-    width: 28, height: 28, borderRadius: 7,
-    justifyContent: 'center', alignItems: 'center', borderWidth: 1, cursor: 'pointer',
-  },
+  emptyState:    { width: '100%', alignItems: 'center', paddingVertical: 70 },
+  emptyIconWrap: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
 
-  emptyState:  { alignItems: 'center', paddingVertical: 60 },
-  emptyIcon:   { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
-
-  /* Drawer */
+  /* ── Drawer ── */
   drawer: {
-    width: 300, borderLeftWidth: 1, flexDirection: 'column',
-    boxShadow: '-4px 0 16px rgba(6,43,111,0.07)',
+    width: 360, borderLeftWidth: 1,
+    boxShadow: '-4px 0 24px rgba(6,43,111,0.10)',
   },
+
+  /* Slim NAVY strip at the top */
   drawerHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 18, paddingVertical: 14, borderBottomWidth: 1,
+    backgroundColor: NAVY,
+    paddingHorizontal: 16, height: 50,
   },
-  drawerTitle: { fontSize: 14, fontWeight: '700' },
-  drawerClose: { width: 28, height: 28, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
-
-  drawerProfile: {
-    alignItems: 'center', paddingVertical: 22, paddingHorizontal: 18,
-    borderBottomWidth: 1, gap: 4,
-  },
-  drawerName:  { fontSize: 15, fontWeight: '700' },
-  drawerEmail: { fontSize: 12, marginTop: 2 },
-  statusBig: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    marginTop: 10, paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 10, borderWidth: 1,
+  drawerCloseBtn: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    justifyContent: 'center', alignItems: 'center',
+    cursor: 'pointer',
   },
 
-  drawerSection: {
-    paddingHorizontal: 18, paddingVertical: 16, borderBottomWidth: StyleSheet.hairlineWidth,
+  /* Identity card (avatar + name/email/badges + mini stats) */
+  identityCard: {
+    marginHorizontal: 14, marginTop: 14,
+    borderRadius: 14, borderWidth: 1,
+    overflow: 'hidden',
   },
-  drawerSectionTitle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, marginBottom: 10 },
+  identityTop: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    padding: 16,
+  },
+  identityAvatarRing: {
+    width: 60, height: 60, borderRadius: 30,
+    borderWidth: 2.5, justifyContent: 'center', alignItems: 'center',
+  },
+  identityStatusDot: {
+    position: 'absolute', bottom: 2, right: 2,
+    width: 12, height: 12, borderRadius: 6, borderWidth: 2.5,
+  },
+  identityName:  { fontSize: 15, fontWeight: '800', letterSpacing: -0.1 },
+  identityEmail: { fontSize: 11, marginTop: 3 },
+  identityStatusBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 20, borderWidth: 1,
+  },
 
-  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  infoLabel: { fontSize: 12, width: 50 },
+  /* Mini workload row at the bottom of identity card */
+  identityStats: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  miniStat: { alignItems: 'center', paddingHorizontal: 16 },
+  miniStatNum: { fontSize: 20, fontWeight: '800', lineHeight: 24 },
+  miniStatLbl: { fontSize: 10, marginTop: 2 },
+  miniStatSep: { width: StyleSheet.hairlineWidth, height: 30 },
+  miniWorkBar:  { height: 5, borderRadius: 3, overflow: 'hidden' },
+  miniWorkFill: { height: '100%', borderRadius: 3 },
 
-  editBtn: {
+  /* Drawer cards */
+  drawerCard: {
+    marginHorizontal: 14, marginTop: 12,
+    borderRadius: 12, borderWidth: 1,
+    paddingHorizontal: 14, paddingVertical: 14,
+  },
+  drawerCardHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12,
+  },
+  drawerCardAccent: {
+    width: 4, height: 14, borderRadius: 2,
+  },
+  drawerCardTitle: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 0.9, textTransform: 'uppercase',
+  },
+
+  infoRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  infoIconBox: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  infoLabel:   { fontSize: 12, width: 42 },
+
+  editPencilBtn: {
     width: 26, height: 26, borderRadius: 6,
     justifyContent: 'center', alignItems: 'center', borderWidth: 1, cursor: 'pointer',
   },
 
-  statRow:    { flexDirection: 'row', gap: 10 },
-  statBox:    { flex: 1, borderRadius: 10, borderWidth: 1, paddingVertical: 10, alignItems: 'center' },
-  statBoxVal: { fontSize: 22, fontWeight: '800', lineHeight: 26 },
-  statBoxLabel: { fontSize: 11, marginTop: 2 },
+  statRow: { flexDirection: 'row', gap: 10 },
+  statBox: {
+    flex: 1, borderRadius: 10, borderWidth: 1,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  statVal:   { fontSize: 28, fontWeight: '800', lineHeight: 32 },
+  statLabel: { fontSize: 11, fontWeight: '600' },
 
-  workTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
-  workFill:  { height: '100%', borderRadius: 3 },
+  workTrack: { height: 7, borderRadius: 4, overflow: 'hidden' },
+  workFill:  { height: '100%', borderRadius: 4 },
+
+  roleAsBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 6, borderWidth: 1, cursor: 'pointer',
+  },
 
   projRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  projKey:    { width: 30, height: 30, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
+  projKey:    { width: 28, height: 28, borderRadius: 7, justifyContent: 'center', alignItems: 'center' },
   projKeyTxt: { color: '#fff', fontSize: 10, fontWeight: '800' },
   projName:   { fontSize: 12, fontWeight: '600' },
 
-  memberBadge:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, backgroundColor: '#ECFDF5' },
-  memberBadgeTxt:{ color: '#10B981', fontSize: 10, fontWeight: '700' },
+  memberBadge:    { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 10, backgroundColor: '#ECFDF5' },
+  memberBadgeTxt: { color: '#10B981', fontSize: 10, fontWeight: '700' },
+  addBtn:         { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, cursor: 'pointer' },
 
-  deactivateBtn: { borderRadius: 8, marginTop: 4 },
+  deactivateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    paddingVertical: 12, borderRadius: 10, borderWidth: 1.5, cursor: 'pointer',
+  },
 
-  /* Confirm dialog */
+  /* Dialog */
   confirmDialog: { maxWidth: 440, alignSelf: 'center', width: '100%', borderRadius: 12 },
   warnBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 12,

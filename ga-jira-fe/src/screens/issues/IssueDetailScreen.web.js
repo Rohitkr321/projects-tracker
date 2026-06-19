@@ -5,17 +5,33 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useGetIssueQuery, useUpdateIssueMutation, useAddCommentMutation,
   useWatchIssueMutation, useUnwatchIssueMutation, useCreateIssueMutation,
+  useUploadAttachmentMutation, usePresignImageUploadMutation, useConfirmImageUploadMutation, useDeleteAttachmentMutation,
 } from '../../api/issueApi';
 import { useGetProjectWorkflowQuery, useGetProjectMembersQuery } from '../../api/projectApi';
 import { useGetActiveSprintQuery } from '../../api/sprintApi';
 import { useAuth } from '../../hooks/useAuth';
 import { formatRelative, formatDate } from '../../utils/dateUtils';
 import { getPriorityColor } from '../../utils/helpers';
-import { WS_URL } from '../../constants';
 import CommentItem from '../../components/issues/CommentItem';
 import AppToast from '../../components/common/AppToast';
 
 const NAVY = '#0F2557';
+
+const FILE_META = {
+  'application/pdf':                                                                        { icon: 'file-pdf-box',        color: '#DC2626' },
+  'application/msword':                                                                     { icon: 'file-word-box',       color: '#2563EB' },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':               { icon: 'file-word-box',       color: '#2563EB' },
+  'application/vnd.ms-excel':                                                               { icon: 'file-excel-box',      color: '#059669' },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':                     { icon: 'file-excel-box',      color: '#059669' },
+  'application/vnd.ms-powerpoint':                                                          { icon: 'file-powerpoint-box', color: '#EA580C' },
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':             { icon: 'file-powerpoint-box', color: '#EA580C' },
+  'text/plain':                                                                              { icon: 'file-document-outline', color: '#6B7280' },
+  'text/csv':                                                                               { icon: 'file-table-outline',  color: '#0891B2' },
+  'application/zip':                                                                        { icon: 'folder-zip-outline',  color: '#7C3AED' },
+  'application/x-zip-compressed':                                                           { icon: 'folder-zip-outline',  color: '#7C3AED' },
+};
+const getFileMeta = (mime) => FILE_META[mime] || { icon: 'file-outline', color: '#6B7280' };
+const fmtSize = (b) => !b ? '' : b < 1024 ? `${b} B` : b < 1048576 ? `${(b/1024).toFixed(1)} KB` : `${(b/1048576).toFixed(1)} MB`;
 
 const TYPE_META = {
   bug:     { icon: 'bug',                      color: '#DE350B', bg: '#FFEBE6', label: 'Bug'     },
@@ -61,7 +77,14 @@ export default function IssueDetailScreen({ route, navigation }) {
   const [mentionAnchor, setMentionAnchor]       = useState(-1);
   const [mentionIdx, setMentionIdx]             = useState(0);
   const [mentionMap, setMentionMap]             = useState({}); // { 'Full Name': userId }
-  const textareaRef = useRef(null);
+  const textareaRef    = useRef(null);
+  const imgInputRef    = useRef(null);
+  const fileInputRef   = useRef(null);
+  const [uploadingImg,  setUploadingImg]  = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [linkUrl, setLinkUrl]   = useState('');
+  const [linkName, setLinkName] = useState('');
+  const [addingLink, setAddingLink] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen]     = useState(false);
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
@@ -75,6 +98,10 @@ export default function IssueDetailScreen({ route, navigation }) {
   const [createIssue, { isLoading: creatingSubtask }] = useCreateIssueMutation();
   const [watchIssue]   = useWatchIssueMutation();
   const [unwatchIssue] = useUnwatchIssueMutation();
+  const [uploadAttachment]    = useUploadAttachmentMutation();
+  const [presignImageUpload]  = usePresignImageUploadMutation();
+  const [confirmImageUpload]  = useConfirmImageUploadMutation();
+  const [deleteAttachment]    = useDeleteAttachmentMutation();
 
   const issue     = data?.data;
   const projectId = issue?.projectId;
@@ -200,6 +227,106 @@ export default function IssueDetailScreen({ route, navigation }) {
     } catch (err) { showToast(err?.data?.message || 'Failed to create subtask', 'error'); }
   };
 
+  const compressImage = (file, maxDim = 1920, quality = 0.82) =>
+    new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1);
+          const canvas = document.createElement('canvas');
+          canvas.width  = Math.round(img.width  * ratio);
+          canvas.height = Math.round(img.height * ratio);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(
+            blob => resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' })),
+            'image/jpeg', quality,
+          );
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+  const handleUploadImage = async (files) => {
+    if (!files?.length) return;
+    setUploadingImg(true);
+    try {
+      for (const f of Array.from(files)) {
+        if (!f.type.startsWith('image/')) continue;
+        const compressed = await compressImage(f);
+        // 1. Get presigned PUT URL from backend
+        const presignData = await presignImageUpload({
+          issueId, filename: compressed.name, contentType: 'image/jpeg', type: 'images',
+        }).unwrap();
+        const { presignedUrl, key } = presignData.data;
+        // 2. Upload directly to S3 (no auth header — presigned URL handles auth)
+        const s3Res = await fetch(presignedUrl, {
+          method: 'PUT',
+          body: compressed,
+          headers: { 'Content-Type': 'image/jpeg' },
+        });
+        if (!s3Res.ok) throw new Error('S3 upload failed');
+        // 3. Tell backend to store the S3 key
+        await confirmImageUpload({
+          issueId, key, name: f.name,
+          mimeType: 'image/jpeg', size: compressed.size,
+        }).unwrap();
+      }
+      showToast('Image uploaded');
+      refetch();
+    } catch (err) { showToast(err?.data?.message || 'Upload failed', 'error'); }
+    finally { setUploadingImg(false); }
+  };
+
+  const handleUploadFile = async (files) => {
+    if (!files?.length) return;
+    setUploadingFile(true);
+    try {
+      for (const f of Array.from(files)) {
+        const presignData = await presignImageUpload({
+          issueId, filename: f.name, contentType: f.type || 'application/octet-stream', type: 'files',
+        }).unwrap();
+        const { presignedUrl, key } = presignData.data;
+        const s3Res = await fetch(presignedUrl, {
+          method: 'PUT',
+          body: f,
+          headers: { 'Content-Type': f.type || 'application/octet-stream' },
+        });
+        if (!s3Res.ok) throw new Error('S3 upload failed');
+        await confirmImageUpload({
+          issueId, key, name: f.name, mimeType: f.type || 'application/octet-stream', size: f.size,
+        }).unwrap();
+      }
+      showToast('File uploaded');
+      refetch();
+    } catch (err) { showToast(err?.data?.message || 'File upload failed', 'error'); }
+    finally { setUploadingFile(false); }
+  };
+
+  const handleAddLink = async () => {
+    const url = linkUrl.trim();
+    if (!url) return;
+    const name = linkName.trim() || url;
+    setAddingLink(true);
+    try {
+      await uploadAttachment({ issueId, url, name }).unwrap();
+      showToast('Link added');
+      setLinkUrl('');
+      setLinkName('');
+      refetch();
+    } catch (err) { showToast(err?.data?.message || 'Failed to add link', 'error'); }
+    finally { setAddingLink(false); }
+  };
+
+  const handleDeleteAttachment = async (attId) => {
+    try {
+      await deleteAttachment({ issueId, attachmentId: attId }).unwrap();
+      showToast('Link removed');
+      refetch();
+    } catch { showToast('Failed to remove link', 'error'); }
+  };
+
   if (isLoading) return (
     <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
       <ActivityIndicator size="large" color={NAVY} />
@@ -230,8 +357,8 @@ export default function IssueDetailScreen({ route, navigation }) {
       {/* ── Top bar ── */}
       <View style={[styles.topBar, { backgroundColor: surf, borderBottomColor: border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={20} color={NAVY} />
-          <Text style={{ color: NAVY, marginLeft: 2, fontWeight: '600', fontSize: 13 }}>Back</Text>
+          <MaterialCommunityIcons name="chevron-left" size={18} color={theme.colors.onSurfaceVariant} />
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginLeft: 2, fontSize: 13 }}>Back</Text>
         </TouchableOpacity>
 
         <View style={styles.breadcrumb}>
@@ -364,45 +491,172 @@ export default function IssueDetailScreen({ route, navigation }) {
             )}
           </View>
 
-          {/* Attachments card */}
-          {issue.attachments?.length > 0 && (
-            <View style={[styles.card, { backgroundColor: surf }]}>
-              <View style={styles.cardHeader}>
-                <View style={[styles.cardIconWrap, { backgroundColor: '#F59E0B18' }]}>
-                  <MaterialCommunityIcons name="paperclip" size={14} color="#F59E0B" />
-                </View>
-                <Text style={[styles.cardTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>Attachments</Text>
+          {/* ── Attachments card (images + files) ── */}
+          <View style={[styles.card, { backgroundColor: surf }]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardIconWrap, { backgroundColor: '#F59E0B18' }]}>
+                <MaterialCommunityIcons name="paperclip" size={14} color="#F59E0B" />
+              </View>
+              <Text style={[styles.cardTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>Attachments</Text>
+              {(() => { const n = (issue.attachments || []).filter(a => a.mimeType !== 'link').length; return n > 0 ? (
                 <View style={[styles.countBadge, { backgroundColor: NAVY }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 10 }}>{issue.attachments.length}</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 10 }}>{n}</Text>
                 </View>
-              </View>
-              <View style={styles.attGrid}>
-                {issue.attachments.map(att => {
-                  const src = att.url?.startsWith('http') ? att.url : `${WS_URL}${att.url}`;
-                  const isImage = att.mimeType?.startsWith('image/');
-                  return (
-                    <TouchableOpacity
-                      key={att.id}
-                      onPress={() => window.open(src, '_blank')}
-                      activeOpacity={0.8}
-                      style={[styles.attItem, { backgroundColor: isDark ? '#1F2937' : '#F3F4F6', borderColor: border }]}
-                    >
-                      {isImage ? (
-                        <img src={src} alt={att.originalName} style={{ width: '100%', height: 90, objectFit: 'cover', display: 'block', borderRadius: '7px 7px 0 0' }} />
-                      ) : (
-                        <View style={{ height: 90, justifyContent: 'center', alignItems: 'center' }}>
-                          <MaterialCommunityIcons name="file-document-outline" size={36} color={NAVY} />
-                        </View>
-                      )}
-                      <View style={{ padding: 6 }}>
-                        <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 10 }} numberOfLines={1}>{att.originalName}</Text>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+              ) : null; })()}
+              <View style={{ flex: 1 }} />
+              <TouchableOpacity onPress={() => imgInputRef.current?.click()} disabled={uploadingImg}
+                style={[styles.addLinkBtn, { backgroundColor: NAVY + '12', borderWidth: 1, borderColor: NAVY + '30', marginRight: 6 }]}>
+                {uploadingImg ? <ActivityIndicator size={11} color={NAVY} /> : <MaterialCommunityIcons name="image-plus" size={13} color={NAVY} />}
+                <Text style={{ color: NAVY, fontSize: 11, fontWeight: '700' }}>{uploadingImg ? 'Uploading…' : 'Image'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => fileInputRef.current?.click()} disabled={uploadingFile}
+                style={[styles.addLinkBtn, { backgroundColor: NAVY + '12', borderWidth: 1, borderColor: NAVY + '30' }]}>
+                {uploadingFile ? <ActivityIndicator size={11} color={NAVY} /> : <MaterialCommunityIcons name="file-plus-outline" size={13} color={NAVY} />}
+                <Text style={{ color: NAVY, fontSize: 11, fontWeight: '700' }}>{uploadingFile ? 'Uploading…' : 'File'}</Text>
+              </TouchableOpacity>
             </View>
-          )}
+
+            <input ref={imgInputRef} type="file" accept="image/*" multiple style={{ display: 'none' }}
+              onChange={e => { handleUploadImage(e.target.files); e.target.value = ''; }} />
+            <input ref={fileInputRef} type="file" multiple
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip"
+              style={{ display: 'none' }}
+              onChange={e => { handleUploadFile(e.target.files); e.target.value = ''; }} />
+
+            {(() => {
+              const imgs     = (issue.attachments || []).filter(a => a.mimeType?.startsWith('image/'));
+              const docFiles = (issue.attachments || []).filter(a => a.mimeType !== 'link' && !a.mimeType?.startsWith('image/'));
+              if (!imgs.length && !docFiles.length) return (
+                <div
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={e => { e.preventDefault(); handleUploadImage(e.dataTransfer.files); }}
+                  onClick={() => imgInputRef.current?.click()}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <View style={[styles.attDropZone, { borderColor: border, backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
+                    <MaterialCommunityIcons name="tray-plus" size={24} color={theme.colors.onSurfaceVariant} />
+                    <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, marginTop: 6 }}>No attachments yet</Text>
+                    <Text style={{ color: theme.colors.outline, fontSize: 11, marginTop: 2 }}>Drag images here, or use the buttons above</Text>
+                  </View>
+                </div>
+              );
+              return (
+                <>
+                  {imgs.length > 0 && (
+                    <View style={[styles.imgGrid, { marginBottom: docFiles.length ? 12 : 0 }]}>
+                      {imgs.map(att => (
+                        <View key={att.id} style={styles.imgThumbWrap}>
+                          <TouchableOpacity onPress={() => window.open(att.viewUrl, '_blank')} activeOpacity={0.85}>
+                            <img
+                              src={att.viewUrl}
+                              alt={att.originalName || 'image'}
+                              onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
+                              style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                            />
+                            <div style={{ display: 'none', width: 80, height: 80, borderRadius: 8, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 4 }}>
+                              <span style={{ fontSize: 22 }}>🖼️</span>
+                              <span style={{ fontSize: 9, color: '#64748B', textAlign: 'center', padding: '0 4px', wordBreak: 'break-all' }}>{att.originalName}</span>
+                            </div>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => handleDeleteAttachment(att.id)} style={styles.imgThumbDelete}>
+                            <MaterialCommunityIcons name="close-circle" size={16} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                  {docFiles.length > 0 && (
+                    <View style={{ gap: 6 }}>
+                      {docFiles.map(att => {
+                        const fm = getFileMeta(att.mimeType);
+                        return (
+                          <View key={att.id} style={[styles.attRow, { borderColor: border, backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
+                            <View style={[styles.attIconBox, { backgroundColor: fm.color + '15' }]}>
+                              <MaterialCommunityIcons name={fm.icon} size={22} color={fm.color} />
+                            </View>
+                            <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => window.open(att.viewUrl, '_blank')} activeOpacity={0.7}>
+                              <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.onSurface }} numberOfLines={1}>{att.originalName}</Text>
+                              <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, marginTop: 2 }}>{fmtSize(att.size)}</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleDeleteAttachment(att.id)}
+                              style={[styles.attDeleteBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+                              <MaterialCommunityIcons name="close" size={13} color="#EF4444" />
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </>
+              );
+            })()}
+          </View>
+
+          {/* ── Links card (separate) ── */}
+          <View style={[styles.card, { backgroundColor: surf }]}>
+            <View style={styles.cardHeader}>
+              <View style={[styles.cardIconWrap, { backgroundColor: '#3B82F618' }]}>
+                <MaterialCommunityIcons name="link-variant" size={14} color="#3B82F6" />
+              </View>
+              <Text style={[styles.cardTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>Links</Text>
+              {(() => { const n = (issue.attachments || []).filter(a => a.mimeType === 'link').length; return n > 0 ? (
+                <View style={[styles.countBadge, { backgroundColor: '#3B82F6' }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 10 }}>{n}</Text>
+                </View>
+              ) : null; })()}
+            </View>
+
+            <View style={[styles.linkInputRow, { borderColor: border, backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
+              <MaterialCommunityIcons name="link" size={14} color={theme.colors.onSurfaceVariant} style={{ flexShrink: 0 }} />
+              <input
+                value={linkUrl}
+                onChange={e => setLinkUrl(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
+                placeholder="Paste OneDrive / SharePoint / any URL…"
+                style={{ flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: 13, color: theme.colors.onSurface, fontFamily: 'inherit', minWidth: 0 }}
+              />
+            </View>
+            <View style={[styles.linkNameRow, { borderColor: border, backgroundColor: isDark ? '#1F2937' : '#F9FAFB' }]}>
+              <MaterialCommunityIcons name="tag-outline" size={13} color={theme.colors.onSurfaceVariant} style={{ flexShrink: 0 }} />
+              <input
+                value={linkName}
+                onChange={e => setLinkName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
+                placeholder="Label (optional)"
+                style={{ flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: 13, color: theme.colors.onSurface, fontFamily: 'inherit', minWidth: 0 }}
+              />
+              <TouchableOpacity onPress={handleAddLink} disabled={addingLink || !linkUrl.trim()}
+                style={[styles.addLinkBtn, { backgroundColor: linkUrl.trim() ? NAVY : (isDark ? '#374151' : '#E5E7EB') }]}>
+                {addingLink ? <ActivityIndicator size={11} color="#fff" /> : <MaterialCommunityIcons name="plus" size={13} color={linkUrl.trim() ? '#fff' : theme.colors.onSurfaceVariant} />}
+                <Text style={{ color: linkUrl.trim() ? '#fff' : theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' }}>{addingLink ? '…' : 'Add'}</Text>
+              </TouchableOpacity>
+            </View>
+
+            {(issue.attachments || []).filter(a => a.mimeType === 'link').map(att => (
+              <View key={att.id} style={[styles.attRow, { borderColor: border, backgroundColor: isDark ? '#1F2937' : '#F9FAFB', marginTop: 6 }]}>
+                <View style={[styles.attIconBox, { backgroundColor: '#3B82F610' }]}>
+                  <MaterialCommunityIcons name="link-variant" size={18} color="#3B82F6" />
+                </View>
+                <TouchableOpacity style={{ flex: 1, minWidth: 0 }} onPress={() => window.open(att.url, '_blank')} activeOpacity={0.7}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: isDark ? '#60A5FA' : '#1D4ED8' }} numberOfLines={1}>
+                    {att.originalName !== att.url ? att.originalName : att.url}
+                  </Text>
+                  {att.originalName !== att.url && (
+                    <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, marginTop: 2 }} numberOfLines={1}>{att.url}</Text>
+                  )}
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => handleDeleteAttachment(att.id)}
+                  style={[styles.attDeleteBtn, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+                  <MaterialCommunityIcons name="close" size={13} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {(issue.attachments || []).filter(a => a.mimeType === 'link').length === 0 && (
+              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, textAlign: 'center', paddingVertical: 10 }}>
+                No links yet — paste a URL above
+              </Text>
+            )}
+          </View>
 
           {/* Sub-tasks card (hidden for subtasks themselves) */}
           {issue.type !== 'subtask' && (
@@ -901,8 +1155,50 @@ const styles = StyleSheet.create({
     borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', marginTop: 4,
   },
 
-  attGrid:  { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  attItem:  { width: 120, borderRadius: 8, overflow: 'hidden', borderWidth: 1 },
+
+  attSubHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingVertical: 8, marginBottom: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  attSubTitle:  { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+
+  imgGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  imgThumbWrap: { position: 'relative', width: 80, height: 80 },
+  imgThumbDelete: {
+    position: 'absolute', top: -4, right: -4,
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
+  },
+  imgThumbAdd: {
+    width: 80, height: 80, borderRadius: 8, borderWidth: 1.5, borderStyle: 'dashed',
+    justifyContent: 'center', alignItems: 'center', cursor: 'pointer',
+  },
+
+  linkInputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 6,
+  },
+  linkNameRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 6, marginBottom: 8,
+  },
+  addLinkBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7, cursor: 'pointer',
+  },
+  attDropZone: {
+    alignItems: 'center', paddingVertical: 20,
+    borderRadius: 8, borderWidth: 1, borderStyle: 'dashed', marginTop: 4,
+  },
+  attList:    { gap: 6, marginTop: 4 },
+  attRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 10, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,
+  },
+  attIconBox:   { width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center', flexShrink: 0 },
+  attDeleteBtn: { width: 26, height: 26, borderRadius: 6, justifyContent: 'center', alignItems: 'center', borderWidth: 1, flexShrink: 0 },
 
   countBadge: {
     minWidth: 20, height: 20, borderRadius: 10,

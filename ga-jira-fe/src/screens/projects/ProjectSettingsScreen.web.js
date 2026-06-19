@@ -167,8 +167,8 @@ export default function ProjectSettingsScreen({ route, navigation }) {
       <View style={[styles.nav, { backgroundColor: surf, borderRightColor: border }]}>
         {/* Back */}
         <TouchableOpacity style={styles.backRow} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="chevron-left" size={20} color={theme.colors.onSurfaceVariant} />
-          <Text variant="labelMedium" style={{ color: theme.colors.onSurfaceVariant, marginLeft: 4 }}>Back to project</Text>
+          <MaterialCommunityIcons name="chevron-left" size={18} color={theme.colors.onSurfaceVariant} />
+          <Text style={{ color: theme.colors.onSurfaceVariant, marginLeft: 2, fontSize: 13 }}>Back to project</Text>
         </TouchableOpacity>
 
         <Divider style={{ marginBottom: 12 }} />

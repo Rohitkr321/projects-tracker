@@ -119,8 +119,8 @@ const SprintScreen = ({ route, navigation }) => {
         elevation={0}
       >
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={22} color={theme.colors.onSurfaceVariant} />
-          <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Back</Text>
+          <MaterialCommunityIcons name="chevron-left" size={18} color={theme.colors.onSurfaceVariant} />
+          <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13, marginLeft: 2 }}>Back</Text>
         </TouchableOpacity>
 
         <View style={styles.headerMid}>

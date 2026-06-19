@@ -8,10 +8,15 @@
     "dev": "nodemon server.js",
     "db:sync": "node -e \"require('dotenv').config(); const { sequelize } = require('./src/models'); sequelize.sync({ force: true }).then(() => { console.log('DB synced'); process.exit(0); }).catch(e => { console.error(e); process.exit(1); });\""
   },
-  "keywords": ["jira", "task-tracker"],
+  "keywords": [
+    "jira",
+    "task-tracker"
+  ],
   "author": "General Aeronautics Software Team",
   "license": "UNLICENSED",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1072.0",
+    "@aws-sdk/s3-request-presigner": "^3.1072.0",
     "bcryptjs": "^3.0.3",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
