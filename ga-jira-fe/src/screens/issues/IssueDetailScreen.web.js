@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Button, ActivityIndicator, Menu, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useGetIssueQuery, useUpdateIssueMutation, useAddCommentMutation,
-  useWatchIssueMutation, useUnwatchIssueMutation,
+  useWatchIssueMutation, useUnwatchIssueMutation, useCreateIssueMutation,
 } from '../../api/issueApi';
 import { useGetProjectWorkflowQuery, useGetProjectMembersQuery } from '../../api/projectApi';
 import { useGetActiveSprintQuery } from '../../api/sprintApi';
@@ -54,6 +54,14 @@ export default function IssueDetailScreen({ route, navigation }) {
   const isDark = theme.dark;
 
   const [commentText, setCommentText]           = useState('');
+  const [subtaskTitle, setSubtaskTitle]         = useState('');
+  const [showSubtaskInput, setShowSubtaskInput] = useState(false);
+  const [mentionSearch, setMentionSearch]       = useState('');
+  const [showMentions, setShowMentions]         = useState(false);
+  const [mentionAnchor, setMentionAnchor]       = useState(-1);
+  const [mentionIdx, setMentionIdx]             = useState(0);
+  const [mentionMap, setMentionMap]             = useState({}); // { 'Full Name': userId }
+  const textareaRef = useRef(null);
   const [statusMenuOpen, setStatusMenuOpen]     = useState(false);
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
@@ -64,6 +72,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   const { data, isLoading, refetch } = useGetIssueQuery(issueId);
   const [updateIssue, { isLoading: updating }] = useUpdateIssueMutation();
   const [addComment,  { isLoading: commenting }] = useAddCommentMutation();
+  const [createIssue, { isLoading: creatingSubtask }] = useCreateIssueMutation();
   const [watchIssue]   = useWatchIssueMutation();
   const [unwatchIssue] = useUnwatchIssueMutation();
 
@@ -78,6 +87,9 @@ export default function IssueDetailScreen({ route, navigation }) {
   const defaultWf   = workflows.find(w => w.isDefault) || workflows[0];
   const allStatuses = defaultWf?.statuses ? [...defaultWf.statuses].sort((a, b) => a.order - b.order) : [];
   const members     = (membersData?.data || []).map(m => m.user).filter(Boolean);
+  const filteredMembers = showMentions
+    ? members.filter(m => `${m.firstName} ${m.lastName}`.toLowerCase().includes(mentionSearch.toLowerCase())).slice(0, 7)
+    : [];
   const isWatching  = issue?.watchers?.some(w => (w.id || w) === user?.id);
   const activeSprint = activeSprintData?.data;
 
@@ -112,10 +124,80 @@ export default function IssueDetailScreen({ route, navigation }) {
     try { await updateIssue({ id: issueId, sprintId: null }).unwrap(); showToast('Removed from sprint'); refetch(); }
     catch (err) { showToast(err?.data?.message || 'Failed to remove from sprint', 'error'); }
   };
+  const handleCommentChange = (e) => {
+    const val = e.target.value;
+    const cursor = e.target.selectionStart;
+    setCommentText(val);
+    const textBefore = val.slice(0, cursor);
+    const atIdx = textBefore.lastIndexOf('@');
+    if (atIdx >= 0) {
+      const between = textBefore.slice(atIdx + 1);
+      if (!between.includes(' ') && !between.includes('\n') && between.length <= 30) {
+        setMentionAnchor(atIdx);
+        setMentionSearch(between);
+        setShowMentions(true);
+        setMentionIdx(0);
+        return;
+      }
+    }
+    setShowMentions(false);
+  };
+
+  const insertMention = (member) => {
+    const cursor = textareaRef.current?.selectionStart ?? (mentionAnchor + 1 + mentionSearch.length);
+    const before  = commentText.slice(0, mentionAnchor);
+    const after   = commentText.slice(cursor);
+    const displayName = `${member.firstName} ${member.lastName}`;
+    // Show readable @Name in textarea; track mapping for submit conversion
+    setCommentText(before + `@${displayName} ` + after);
+    setMentionMap(prev => ({ ...prev, [displayName]: member.id }));
+    setShowMentions(false);
+    setTimeout(() => textareaRef.current?.focus(), 10);
+  };
+
+  const handleCommentKeyDown = (e) => {
+    if (showMentions && filteredMembers.length > 0) {
+      if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIdx(v => Math.min(v + 1, filteredMembers.length - 1)); return; }
+      if (e.key === 'ArrowUp')   { e.preventDefault(); setMentionIdx(v => Math.max(v - 1, 0)); return; }
+      if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); insertMention(filteredMembers[mentionIdx]); return; }
+      if (e.key === 'Escape') { setShowMentions(false); return; }
+    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleComment(); }
+  };
+
   const handleComment = async () => {
     if (!commentText.trim()) return;
-    try { await addComment({ issueId, body: commentText.trim() }).unwrap(); setCommentText(''); refetch(); }
+    // Convert @Name to @[Name](userId) for backend mention parsing
+    let body = commentText.trim();
+    Object.entries(mentionMap).forEach(([name, userId]) => {
+      const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      body = body.replace(new RegExp(`@${escaped}`, 'g'), `@[${name}](${userId})`);
+    });
+    try {
+      await addComment({ issueId, body }).unwrap();
+      setCommentText('');
+      setMentionMap({});
+      setShowMentions(false);
+      refetch();
+    }
     catch (err) { showToast(err?.data?.message || 'Failed to post comment', 'error'); }
+  };
+
+  const handleCreateSubtask = async () => {
+    if (!subtaskTitle.trim() || !projectId) return;
+    const fd = new FormData();
+    fd.append('title', subtaskTitle.trim());
+    fd.append('type', 'subtask');
+    fd.append('projectId', projectId);
+    fd.append('parentId', issueId);
+    if (issue.sprintId) fd.append('sprintId', issue.sprintId);
+    try {
+      await createIssue({ formData: fd, projectId, sprintId: issue.sprintId || null }).unwrap();
+      setSubtaskTitle('');
+      setShowSubtaskInput(false);
+      showToast('Subtask created');
+      refetch();
+    } catch (err) { showToast(err?.data?.message || 'Failed to create subtask', 'error'); }
   };
 
   if (isLoading) return (
@@ -322,6 +404,98 @@ export default function IssueDetailScreen({ route, navigation }) {
             </View>
           )}
 
+          {/* Sub-tasks card (hidden for subtasks themselves) */}
+          {issue.type !== 'subtask' && (
+            <View style={[styles.card, { backgroundColor: surf }]}>
+              <View style={styles.cardHeader}>
+                <View style={[styles.cardIconWrap, { backgroundColor: '#4C9AFF18' }]}>
+                  <MaterialCommunityIcons name="subdirectory-arrow-right" size={14} color="#4C9AFF" />
+                </View>
+                <Text style={[styles.cardTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>
+                  Sub-tasks
+                </Text>
+                {(issue.subtasks?.length || 0) > 0 && (
+                  <View style={[styles.countBadge, { backgroundColor: '#4C9AFF' }]}>
+                    <Text style={{ color: '#fff', fontWeight: '700', fontSize: 10 }}>{issue.subtasks.length}</Text>
+                  </View>
+                )}
+                <TouchableOpacity
+                  style={[styles.addSubtaskBtn, { backgroundColor: NAVY + '12', borderColor: NAVY + '30' }]}
+                  onPress={() => setShowSubtaskInput(v => !v)}
+                >
+                  <MaterialCommunityIcons name={showSubtaskInput ? 'close' : 'plus'} size={14} color={NAVY} />
+                  <Text style={{ color: NAVY, fontSize: 12, fontWeight: '600', marginLeft: 4 }}>
+                    {showSubtaskInput ? 'Cancel' : 'Add'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Quick-create subtask input */}
+              {showSubtaskInput && (
+                <View style={[styles.subtaskInputRow, { borderColor: border }]}>
+                  <input
+                    autoFocus
+                    value={subtaskTitle}
+                    onChange={e => setSubtaskTitle(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleCreateSubtask(); if (e.key === 'Escape') setShowSubtaskInput(false); }}
+                    placeholder="Subtask title…"
+                    style={{
+                      flex: 1, border: 'none', outline: 'none', fontSize: 14,
+                      background: 'transparent', fontFamily: 'inherit',
+                      color: isDark ? '#F3F4F6' : '#111827',
+                    }}
+                  />
+                  <TouchableOpacity
+                    onPress={handleCreateSubtask}
+                    disabled={!subtaskTitle.trim() || creatingSubtask}
+                    style={[styles.sendBtn, { backgroundColor: subtaskTitle.trim() ? NAVY : border, opacity: creatingSubtask ? 0.6 : 1 }]}
+                  >
+                    {creatingSubtask
+                      ? <ActivityIndicator size={12} color="#fff" />
+                      : <MaterialCommunityIcons name="send" size={13} color="#fff" />
+                    }
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Subtask list */}
+              {(issue.subtasks?.length || 0) === 0 ? (
+                !showSubtaskInput && (
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13, textAlign: 'center', paddingVertical: 12 }}>
+                    No sub-tasks yet
+                  </Text>
+                )
+              ) : (
+                <View style={styles.subtaskList}>
+                  {issue.subtasks.map(st => {
+                    const isDone = st.status?.category === 'done';
+                    return (
+                      <TouchableOpacity
+                        key={st.id}
+                        style={[styles.subtaskRow, { borderBottomColor: border }]}
+                        onPress={() => navigation.navigate('IssueDetail', { issueId: st.id })}
+                      >
+                        <MaterialCommunityIcons
+                          name={isDone ? 'check-circle' : 'circle-outline'}
+                          size={18}
+                          color={isDone ? '#10B981' : theme.colors.onSurfaceVariant}
+                        />
+                        <Text
+                          style={{ flex: 1, fontSize: 13, color: isDone ? theme.colors.onSurfaceVariant : theme.colors.onSurface, textDecorationLine: isDone ? 'line-through' : 'none' }}
+                          numberOfLines={1}
+                        >
+                          {st.title}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>{st.key}</Text>
+                        <MaterialCommunityIcons name="chevron-right" size={14} color={theme.colors.onSurfaceVariant} />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
+
           {/* Comments card */}
           <View style={[styles.card, { backgroundColor: surf }]}>
             <View style={styles.cardHeader}>
@@ -336,42 +510,64 @@ export default function IssueDetailScreen({ route, navigation }) {
               )}
             </View>
 
-            {/* Compose box */}
-            <View style={[styles.commentBox, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor: border }]}>
-              <Avatar user={user} size={32} style={{ flexShrink: 0, marginTop: 2 }} />
-              <View style={styles.commentInputWrap}>
-                <textarea
-                  value={commentText}
-                  onChange={e => setCommentText(e.target.value)}
-                  placeholder="Add a comment… (Enter to send, Shift+Enter for new line)"
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleComment(); } }}
-                  rows={2}
-                  style={{
-                    width: '100%', border: 'none', outline: 'none',
-                    background: 'transparent', fontSize: 14, lineHeight: '22px',
-                    color: theme.colors.onSurface,
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    resize: 'vertical', minHeight: 44,
-                  }}
-                />
-                <View style={styles.commentActions}>
-                  <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11 }}>Shift+Enter for new line</Text>
-                  <TouchableOpacity
-                    onPress={handleComment}
-                    disabled={!commentText.trim() || commenting}
-                    style={[styles.sendBtn, {
-                      backgroundColor: commentText.trim() ? NAVY : theme.colors.outlineVariant,
-                      opacity: commenting ? 0.6 : 1,
-                    }]}
-                  >
-                    {commenting
-                      ? <ActivityIndicator size={12} color="#fff" />
-                      : <>
-                          <MaterialCommunityIcons name="send" size={13} color="#fff" />
-                          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12, marginLeft: 5 }}>Send</Text>
-                        </>
-                    }
-                  </TouchableOpacity>
+            {/* Compose box (with @mention dropdown) */}
+            <View style={{ position: 'relative' }}>
+              {/* @mention dropdown */}
+              {showMentions && filteredMembers.length > 0 && (
+                <View style={[styles.mentionDropdown, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+                  {filteredMembers.map((m, i) => (
+                    <TouchableOpacity
+                      key={m.id}
+                      style={[styles.mentionItem, mentionIdx === i && { backgroundColor: theme.colors.primaryContainer + '44' }]}
+                      onPress={() => insertMention(m)}
+                      onMouseEnter={() => setMentionIdx(i)}
+                    >
+                      <Avatar user={m} size={22} />
+                      <Text style={{ color: theme.colors.onSurface, fontSize: 13, fontWeight: '500' }}>{m.firstName} {m.lastName}</Text>
+                      <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11, marginLeft: 'auto' }}>{m.email}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+              <View style={[styles.commentBox, { backgroundColor: isDark ? '#111827' : '#F9FAFB', borderColor: border }]}>
+                <Avatar user={user} size={32} style={{ flexShrink: 0, marginTop: 2 }} />
+                <View style={styles.commentInputWrap}>
+                  <textarea
+                    ref={textareaRef}
+                    value={commentText}
+                    onChange={handleCommentChange}
+                    placeholder="Add a comment… type @ to mention someone"
+                    onKeyDown={handleCommentKeyDown}
+                    rows={2}
+                    style={{
+                      width: '100%', border: 'none', outline: 'none',
+                      background: 'transparent', fontSize: 14, lineHeight: '22px',
+                      color: theme.colors.onSurface,
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      resize: 'vertical', minHeight: 44,
+                    }}
+                  />
+                  <View style={styles.commentActions}>
+                    <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11 }}>
+                      @ to mention · Shift+Enter for new line
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleComment}
+                      disabled={!commentText.trim() || commenting}
+                      style={[styles.sendBtn, {
+                        backgroundColor: commentText.trim() ? NAVY : theme.colors.outlineVariant,
+                        opacity: commenting ? 0.6 : 1,
+                      }]}
+                    >
+                      {commenting
+                        ? <ActivityIndicator size={12} color="#fff" />
+                        : <>
+                            <MaterialCommunityIcons name="send" size={13} color="#fff" />
+                            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12, marginLeft: 5 }}>Send</Text>
+                          </>
+                      }
+                    </TouchableOpacity>
+                  </View>
                 </View>
               </View>
             </View>
@@ -726,6 +922,31 @@ const styles = StyleSheet.create({
   sendBtn: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 14, paddingVertical: 7, borderRadius: 7,
+  },
+  addSubtaskBtn: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, borderWidth: 1,
+    marginLeft: 'auto',
+  },
+  subtaskInputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    borderWidth: 1.5, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8,
+    marginBottom: 8,
+  },
+  subtaskList: { gap: 0 },
+  subtaskRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth,
+    cursor: 'pointer',
+  },
+  mentionDropdown: {
+    position: 'absolute', bottom: '100%', left: 0, right: 0,
+    borderRadius: 10, borderWidth: 1, marginBottom: 4, zIndex: 100,
+    overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+  },
+  mentionItem: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 7, gap: 8, cursor: 'pointer',
   },
   commentList:   { gap: 0 },
   commentRow:    { paddingVertical: 12, borderBottomWidth: 1 },

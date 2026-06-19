@@ -11,6 +11,7 @@ import { notificationApi } from '../api/notificationApi';
 import { reportApi } from '../api/reportApi';
 import { inviteApi } from '../api/inviteApi';
 import { userApi } from '../api/userApi';
+import { searchApi } from '../api/searchApi';
 
 export const store = configureStore({
   reducer: {
@@ -25,6 +26,7 @@ export const store = configureStore({
     [reportApi.reducerPath]: reportApi.reducer,
     [inviteApi.reducerPath]: inviteApi.reducer,
     [userApi.reducerPath]: userApi.reducer,
+    [searchApi.reducerPath]: searchApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -39,7 +41,8 @@ export const store = configureStore({
       .concat(notificationApi.middleware)
       .concat(reportApi.middleware)
       .concat(inviteApi.middleware)
-      .concat(userApi.middleware),
+      .concat(userApi.middleware)
+      .concat(searchApi.middleware),
 });
 
 setupListeners(store.dispatch);

@@ -6,6 +6,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetSprintsQuery, useStartSprintMutation, useCompleteSprintMutation } from '../../api/sprintApi';
 import { useGetIssuesQuery } from '../../api/issueApi';
+import { useGetBurndownReportQuery } from '../../api/reportApi';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import AppToast from '../../components/common/AppToast';
@@ -60,6 +61,12 @@ const SprintScreen = ({ route, navigation }) => {
     { skip: !focusedSprint?.id }
   );
   const sprintIssues = issuesData?.data?.data || [];
+
+  const { data: burndownData } = useGetBurndownReportQuery(
+    { sprintId: focusedSprint?.id },
+    { skip: !focusedSprint?.id || focusedSprint?.status === 'planned' }
+  );
+  const burndown = burndownData?.data || burndownData;
 
   const handleComplete = async () => {
     if (!completeDialog) return;
@@ -467,6 +474,27 @@ const SprintScreen = ({ route, navigation }) => {
             <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>—</Text>
           )}
 
+          {/* Burndown chart */}
+          {burndown?.data?.length > 1 && (
+            <>
+              <Divider style={{ marginVertical: 16 }} />
+              <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0, marginBottom: 10 }}>
+                Burndown
+              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 16, height: 2, backgroundColor: '#1D4ED8' }} />
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>Actual</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <View style={{ width: 16, height: 1, borderWidth: 1, borderColor: '#94A3B8', borderStyle: 'dashed' }} />
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>Ideal</Text>
+                </View>
+              </View>
+              <BurndownChart data={burndown.data} total={burndown.total} theme={theme} />
+            </>
+          )}
+
           <Divider style={{ marginVertical: 16 }} />
 
           {/* Quick actions */}
@@ -570,6 +598,67 @@ const StatBox = ({ label, value, icon, color, theme }) => (
     </View>
   </View>
 );
+
+const BurndownChart = ({ data, total, theme }) => {
+  if (!data || data.length < 2) return null;
+  const W = 240, H = 130;
+  const PAD = { t: 8, r: 8, b: 28, l: 32 };
+  const iW = W - PAD.l - PAD.r;
+  const iH = H - PAD.t - PAD.b;
+  const n = data.length;
+  const maxY = Math.max(total || 0, ...data.map(d => d.remaining), 1);
+
+  const toX = (i) => PAD.l + (i / Math.max(n - 1, 1)) * iW;
+  const toY = (v) => PAD.t + (1 - Math.min(v, maxY) / maxY) * iH;
+
+  const idealPts  = `${toX(0)},${toY(maxY)} ${toX(n - 1)},${toY(0)}`;
+  const actualPts = data.map((d, i) => `${toX(i)},${toY(d.remaining)}`).join(' ');
+  const areaBot   = PAD.t + iH;
+
+  const step = Math.max(1, Math.floor(n / 4));
+  const xLabels = data.reduce((acc, d, i) => {
+    if (i % step === 0 || i === n - 1) {
+      const dt = new Date(d.date);
+      const label = `${dt.getMonth() + 1}/${dt.getDate()}`;
+      acc.push({ i, label });
+    }
+    return acc;
+  }, []);
+
+  const yTicks = [0, 0.5, 1];
+
+  return (
+    <svg width={W} height={H} style={{ overflow: 'visible', display: 'block' }}>
+      {/* Grid + Y labels */}
+      {yTicks.map(pct => {
+        const y = toY(maxY * pct);
+        const val = Math.round(maxY * (1 - pct));
+        return (
+          <g key={pct}>
+            <line x1={PAD.l} y1={y} x2={W - PAD.r} y2={y} stroke="#E2E8F0" strokeWidth={1} />
+            <text x={PAD.l - 4} y={y + 4} textAnchor="end" fontSize={9} fill="#94A3B8">{val}</text>
+          </g>
+        );
+      })}
+      {/* Axes */}
+      <line x1={PAD.l} y1={PAD.t} x2={PAD.l} y2={PAD.t + iH} stroke="#CBD5E1" strokeWidth={1} />
+      <line x1={PAD.l} y1={PAD.t + iH} x2={W - PAD.r} y2={PAD.t + iH} stroke="#CBD5E1" strokeWidth={1} />
+      {/* Ideal line */}
+      <polyline points={idealPts} fill="none" stroke="#94A3B8" strokeWidth={1.5} strokeDasharray="5,3" />
+      {/* Actual area */}
+      <polygon
+        points={`${toX(0)},${areaBot} ${actualPts} ${toX(n - 1)},${areaBot}`}
+        fill="#DBEAFE" opacity="0.55"
+      />
+      {/* Actual line */}
+      <polyline points={actualPts} fill="none" stroke="#1D4ED8" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      {/* X labels */}
+      {xLabels.map(({ i, label }) => (
+        <text key={i} x={toX(i)} y={H - 6} textAnchor="middle" fontSize={9} fill="#94A3B8">{label}</text>
+      ))}
+    </svg>
+  );
+};
 
 const styles = StyleSheet.create({
   root: { flex: 1, flexDirection: 'column' },

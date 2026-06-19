@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext, createContext, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -45,6 +45,9 @@ const formatTimeAgo = (dateStr) => {
   return `${Math.floor(diff / 1440)}d ago`;
 };
 
+/* ─── Command Palette context ─── */
+const CmdPaletteCtx = createContext({ open: () => {} });
+
 // Global top bar — rendered above the drawer (sidebar + content).
 // useNavigation() here gives the Stack navigator context, so nested Drawer screens
 // must be addressed via navigate('Main', { screen: 'ScreenName' }).
@@ -55,6 +58,7 @@ const TopBar = ({ screenName = '' }) => {
   const navigation  = useNavigation();
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen,   setNotifOpen]   = useState(false);
+  const { open: openPalette } = useContext(CmdPaletteCtx);
 
   const dispatch     = useDispatch();
   const { data: notifData, refetch: refetchNotifs } = useGetNotificationsQuery({ limit: 5 });
@@ -73,13 +77,23 @@ const TopBar = ({ screenName = '' }) => {
 
   return (
     <View style={[topBarStyles.bar, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
-      {/* Left: current page title */}
+      {/* Left: current page title + search shortcut */}
       <View style={topBarStyles.left}>
         {!!screenName && (
           <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
             {SCREEN_LABELS[screenName] || screenName}
           </Text>
         )}
+        <TouchableOpacity
+          onPress={openPalette}
+          style={[topBarStyles.searchHint, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}
+        >
+          <MaterialCommunityIcons name="magnify" size={14} color={theme.colors.onSurfaceVariant} />
+          <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant, marginLeft: 5, marginRight: 6 }}>Search…</Text>
+          <View style={[topBarStyles.kbdHint, { borderColor: theme.colors.outlineVariant }]}>
+            <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant }}>⌘K</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       {/* Right: notifications + profile */}
@@ -263,7 +277,13 @@ const topBarStyles = StyleSheet.create({
     height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 10,
   },
-  left:        { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  left:        { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  searchHint: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1,
+    cursor: 'pointer',
+  },
+  kbdHint: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
   right:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
   iconBtn:     { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 16, position: 'relative' },
   badge:       { position: 'absolute', top: 0, right: 0 },
@@ -302,6 +322,7 @@ const topBarStyles = StyleSheet.create({
 import AuthNavigator from './AuthNavigator';
 import ProjectStackNavigator from './ProjectStackNavigator';
 import NotificationListener from '../components/common/NotificationListener';
+import CommandPalette from '../components/common/CommandPalette.web';
 import DashboardScreen from '../screens/dashboard/DashboardScreen';
 import ProjectsScreen from '../screens/projects/ProjectsScreen';
 import NotificationsScreen from '../screens/notifications/NotificationsScreen';
@@ -445,12 +466,30 @@ const MainWebDrawer = () => {
   );
 };
 
-const MainWebNavigator = () => (
-  <>
-    <NotificationListener />
-    <MainWebDrawer />
-  </>
-);
+const MainWebNavigator = () => {
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const openPalette  = useCallback(() => setPaletteOpen(true),  []);
+  const closePalette = useCallback(() => setPaletteOpen(false), []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setPaletteOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  return (
+    <CmdPaletteCtx.Provider value={{ open: openPalette }}>
+      <NotificationListener />
+      <MainWebDrawer />
+      <CommandPalette visible={paletteOpen} onClose={closePalette} />
+    </CmdPaletteCtx.Provider>
+  );
+};
 
 const AppNavigator = () => {
   const dispatch = useDispatch();

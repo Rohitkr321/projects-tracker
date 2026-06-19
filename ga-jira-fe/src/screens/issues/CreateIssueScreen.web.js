@@ -57,6 +57,107 @@ const DropTrigger = ({ onPress, children, theme }) => (
   </TouchableOpacity>
 );
 
+const ISSUE_TEMPLATES = [
+  {
+    id: 'bug',
+    label: 'Bug Report',
+    icon: 'bug-outline',
+    color: '#DE350B',
+    type: 'bug',
+    priority: 'high',
+    storyPoints: '2',
+    description: `**Steps to reproduce:**
+1.
+2.
+3.
+
+**Expected result:**
+
+
+**Actual result:**
+
+
+**Environment:**
+- Browser/OS:
+- Version:`,
+  },
+  {
+    id: 'feature',
+    label: 'Feature Request',
+    icon: 'star-outline',
+    color: '#00875A',
+    type: 'story',
+    priority: 'medium',
+    storyPoints: '5',
+    description: `**Summary:**
+What is the feature and why is it needed?
+
+**Acceptance criteria:**
+- [ ]
+- [ ]
+- [ ]
+
+**Out of scope:**`,
+  },
+  {
+    id: 'story',
+    label: 'User Story',
+    icon: 'account-outline',
+    color: '#6554C0',
+    type: 'story',
+    priority: 'medium',
+    storyPoints: '3',
+    description: `**As a** [type of user],
+**I want** [some goal],
+**So that** [some reason].
+
+**Acceptance criteria:**
+- Given [context], when [action], then [result]
+-
+
+**Notes:**`,
+  },
+  {
+    id: 'task',
+    label: 'Tech Task',
+    icon: 'wrench-outline',
+    color: '#0052CC',
+    type: 'task',
+    priority: 'medium',
+    storyPoints: '3',
+    description: `**Objective:**
+
+
+**Implementation notes:**
+-
+-
+
+**Definition of done:**
+- [ ] Code reviewed
+- [ ] Tests passing`,
+  },
+  {
+    id: 'epic',
+    label: 'Epic',
+    icon: 'lightning-bolt',
+    color: '#6554C0',
+    type: 'epic',
+    priority: 'high',
+    storyPoints: '13',
+    description: `**Goal:**
+
+
+**Background:**
+
+
+**Success metrics:**
+-
+
+**Key stories:**
+- `,
+  },
+];
+
 const ss = StyleSheet.create({
   labelRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
   labelIcon:  { width: 20, height: 20, borderRadius: 5, justifyContent: 'center', alignItems: 'center' },
@@ -82,6 +183,7 @@ export default function CreateIssueScreen({ route, navigation }) {
   const [titleError, setTitleError]     = useState('');
   const [toast, setToast]               = useState('');
   const [toastType, setToastType]       = useState('error');
+  const [showTemplates, setShowTemplates] = useState(true);
 
   const [priorityMenu, setPriorityMenu] = useState(false);
   const [assigneeMenu, setAssigneeMenu] = useState(false);
@@ -107,6 +209,14 @@ export default function CreateIssueScreen({ route, navigation }) {
   const selectedEpic   = epics.find(e => e.id === epicId);
   const typeMeta       = TYPE_META[issueType]  || TYPE_META.task;
   const priorityMeta   = PRIORITY_META[priority] || PRIORITY_META.medium;
+
+  const applyTemplate = (tpl) => {
+    setIssueType(tpl.type);
+    setPriority(tpl.priority);
+    setDescription(tpl.description);
+    if (tpl.storyPoints) setStoryPoints(tpl.storyPoints);
+    setShowTemplates(false);
+  };
 
   const addFiles = useCallback((incoming) => {
     const images = incoming.filter(f => f.type.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(f.name));
@@ -192,6 +302,41 @@ export default function CreateIssueScreen({ route, navigation }) {
 
         {/* ══ LEFT: main panel ══ */}
         <ScrollView style={styles.mainPanel} contentContainerStyle={styles.mainInner} showsVerticalScrollIndicator={false}>
+
+          {/* ── Issue Templates ── */}
+          <View style={[styles.templateSection, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+            <TouchableOpacity
+              style={styles.templateHeader}
+              onPress={() => setShowTemplates(v => !v)}
+            >
+              <MaterialCommunityIcons name="file-document-multiple-outline" size={16} color={NAVY} />
+              <Text style={{ color: NAVY, fontWeight: '700', fontSize: 13, marginLeft: 8, flex: 1 }}>
+                Start from a template
+              </Text>
+              <MaterialCommunityIcons
+                name={showTemplates ? 'chevron-up' : 'chevron-down'}
+                size={18} color={theme.colors.onSurfaceVariant}
+              />
+            </TouchableOpacity>
+            {showTemplates && (
+              <View style={styles.templateGrid}>
+                {ISSUE_TEMPLATES.map(tpl => (
+                  <TouchableOpacity
+                    key={tpl.id}
+                    style={[styles.templateCard, { borderColor: tpl.color + '50', backgroundColor: tpl.color + '08' }]}
+                    onPress={() => applyTemplate(tpl)}
+                  >
+                    <View style={[styles.templateIcon, { backgroundColor: tpl.color + '20' }]}>
+                      <MaterialCommunityIcons name={tpl.icon} size={18} color={tpl.color} />
+                    </View>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: tpl.color, marginTop: 8, textAlign: 'center' }}>
+                      {tpl.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+          </View>
 
           {/* Issue type tabs */}
           <View style={styles.typeTabs}>
@@ -580,6 +725,14 @@ const styles = StyleSheet.create({
   mainInner: { padding: 32, paddingTop: 28, maxWidth: 800 },
 
   /* Type tabs */
+  templateSection: { borderWidth: 1, borderRadius: 12, marginBottom: 24, overflow: 'hidden' },
+  templateHeader: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, cursor: 'pointer' },
+  templateGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 16, paddingBottom: 16 },
+  templateCard: {
+    width: 90, alignItems: 'center', paddingVertical: 12, paddingHorizontal: 8,
+    borderRadius: 10, borderWidth: 1.5, cursor: 'pointer',
+  },
+  templateIcon: { width: 38, height: 38, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   typeTabs: { flexDirection: 'row', gap: 8, marginBottom: 28, flexWrap: 'wrap' },
   typeTab:  {
     flexDirection: 'row', alignItems: 'center', gap: 6,

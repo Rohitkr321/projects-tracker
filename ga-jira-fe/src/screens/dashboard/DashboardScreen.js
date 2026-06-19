@@ -261,10 +261,10 @@ const SprintProgressCard = ({ projectId, theme, navigation }) => {
   const sprintData = sprint?.data;
   if (!sprintData) return null;
 
-  const progress = getSprintProgress(sprintData.startDate, sprintData.endDate) / 100;
   const daysLeft = getDaysRemaining(sprintData.endDate);
   const completedIssues = sprintData.issues?.filter(i => i.status?.category === 'done' || i.status?.name?.toLowerCase() === 'done').length || 0;
   const totalIssues = sprintData.issues?.length || 0;
+  const progress = totalIssues > 0 ? completedIssues / totalIssues : 0;
 
   return (
     <View style={styles.section}>

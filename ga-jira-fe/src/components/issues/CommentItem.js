@@ -1,9 +1,29 @@
 import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Text as RNText } from 'react-native';
 import { Text, useTheme, IconButton, TextInput, Button } from 'react-native-paper';
 import Avatar from '../common/Avatar';
 import { formatRelative } from '../../utils/dateUtils';
 import { useUpdateCommentMutation, useDeleteCommentMutation } from '../../api/issueApi';
+
+const MENTION_RE = /@\[([^\]]+)\]\([^)]+\)/g;
+
+const renderBody = (body, onSurface) => {
+  const parts = [];
+  let lastIdx = 0;
+  MENTION_RE.lastIndex = 0;
+  let m;
+  while ((m = MENTION_RE.exec(body)) !== null) {
+    if (m.index > lastIdx) parts.push(<RNText key={`t${lastIdx}`}>{body.slice(lastIdx, m.index)}</RNText>);
+    parts.push(
+      <RNText key={`m${m.index}`} style={{ color: '#0052CC', fontWeight: '700', backgroundColor: '#DEEBFF', borderRadius: 3, paddingHorizontal: 2 }}>
+        @{m[1]}
+      </RNText>
+    );
+    lastIdx = m.index + m[0].length;
+  }
+  if (lastIdx < body.length) parts.push(<RNText key={`t${lastIdx}`}>{body.slice(lastIdx)}</RNText>);
+  return parts;
+};
 
 const CommentItem = ({ comment, issueId, currentUserId, onRefresh }) => {
   const theme = useTheme();
@@ -67,7 +87,7 @@ const CommentItem = ({ comment, issueId, currentUserId, onRefresh }) => {
           </View>
         ) : (
           <Text variant="bodyMedium" style={[styles.commentText, { color: theme.colors.onSurface }]}>
-            {comment.body}
+            {renderBody(comment.body || '', theme.colors.onSurface)}
           </Text>
         )}
       </View>

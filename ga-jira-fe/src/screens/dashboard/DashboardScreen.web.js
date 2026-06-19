@@ -94,7 +94,7 @@ const SprintCard = ({ projectId, theme, navigation }) => {
             <Text style={[styles.sprintPct, { color: colors.brand.navy }]}>{pct}%</Text>
           </View>
           <ProgressBar
-            progress={progress / 100}
+            progress={pct / 100}
             color={colors.primary}
             style={styles.sprintBar}
           />
