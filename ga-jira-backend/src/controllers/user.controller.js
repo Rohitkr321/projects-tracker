@@ -79,10 +79,12 @@ exports.updateProfile = async (req, res, next) => {
 
 exports.updateUser = async (req, res, next) => {
   try {
-    const { role, isActive } = req.body;
+    const updates = {};
+    if (req.body.role     !== undefined) updates.role     = req.body.role;
+    if (req.body.isActive !== undefined) updates.isActive = req.body.isActive;
     const user = await User.findByPk(req.params.id);
     if (!user) return errorResponse(res, 'User not found', 404);
-    await user.update({ role, isActive });
+    await user.update(updates);
     successResponse(res, user);
   } catch (err) {
     next(err);

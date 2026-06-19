@@ -21,26 +21,35 @@ socketService.init(httpServer);
 
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
+// Support comma-separated list: FRONTEND_URL=https://trackerweb.generalaeronautics.com,http://localhost:8081
+const envOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
 const ALLOWED_ORIGINS = [
-  process.env.FRONTEND_URL,
+  ...envOrigins,
   'http://localhost:3000',
-  'http://localhost:8081',   // Expo web
-  'http://localhost:19006',  // Expo web (alternate)
-  'http://localhost:19000',  // Expo Go
-].filter(Boolean);
+  'http://localhost:8081',
+  'http://localhost:19006',
+  'http://localhost:19000',
+];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow no-origin requests (native mobile, Postman, curl)
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
-      return callback(null, true);
-    }
+    // Allow no-origin requests (native mobile apps, Postman, curl)
+    if (!origin) return callback(null, true);
+    if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    console.warn(`[CORS] Blocked origin: ${origin}`);
     callback(new Error(`CORS: origin ${origin} not allowed`));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Ensure preflight OPTIONS requests are handled immediately
+app.options('*', cors());
 app.use(compression());
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json({ limit: '10mb' }));

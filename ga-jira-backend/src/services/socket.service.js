@@ -3,7 +3,13 @@ let io;
 const init = (httpServer) => {
   const { Server } = require('socket.io');
   io = new Server(httpServer, {
-    cors: { origin: process.env.FRONTEND_URL || '*', methods: ['GET', 'POST'] },
+    cors: {
+      origin: (process.env.FRONTEND_URL || '')
+        .split(',').map(s => s.trim()).filter(Boolean)
+        .concat(['http://localhost:8081', 'http://localhost:3000']),
+      methods: ['GET', 'POST'],
+      credentials: true,
+    },
   });
 
   io.on('connection', (socket) => {

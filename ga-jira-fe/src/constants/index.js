@@ -1,5 +1,5 @@
-export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
-export const WS_URL = process.env.EXPO_PUBLIC_WS_URL || 'http://localhost:5000';
+export const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://tracker.generalaeronautics.com/api/v1';
+export const WS_URL = process.env.EXPO_PUBLIC_WS_URL || 'https://tracker.generalaeronautics.com';
 
 export const STORAGE_KEYS = {
   ACCESS_TOKEN: '@ga_jira_access_token',
