@@ -1,87 +1,130 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Text, useTheme, Button, Surface, Portal, Dialog, ProgressBar } from 'react-native-paper';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Text, useTheme, Button, Surface, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetIssuesQuery, useCreateIssueMutation } from '../../api/issueApi';
 import { useGetSprintsQuery, useStartSprintMutation } from '../../api/sprintApi';
-import { useGetProjectWorkflowQuery } from '../../api/projectApi';
+import { useGetProjectQuery, useGetProjectWorkflowQuery } from '../../api/projectApi';
+import Avatar from '../../components/common/Avatar';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import { ISSUE_TYPE_LABELS, PRIORITY_LABELS } from '../../constants';
+import {
+  getIssueTypeColor,
+  getIssueTypeIcon,
+  getPriorityColor,
+  getPriorityIcon,
+} from '../../utils/helpers';
 import { formatDate } from '../../utils/dateUtils';
 import colors from '../../theme/colors';
 import AppToast from '../../components/common/AppToast';
 
+const NAVY = colors.brand.navy;
+
 const PRIORITY_COLORS = {
-  highest: '#DC2626', high: '#F59E0B', medium: '#3B82F6', low: '#10B981', lowest: '#8993A4',
+  highest: colors.priority.highest,
+  high: colors.priority.high,
+  medium: colors.priority.medium,
+  low: colors.priority.low,
+  lowest: colors.priority.lowest,
 };
-const PRIORITY_ICONS = {
-  highest: 'arrow-up-bold', high: 'arrow-up', medium: 'minus', low: 'arrow-down', lowest: 'arrow-down-bold',
-};
-const TYPE_ICONS = {
-  bug:     { icon: 'bug',                  color: '#DC2626' },
-  task:    { icon: 'check-circle-outline', color: '#3B82F6' },
-  story:   { icon: 'bookmark',             color: '#10B981' },
-  epic:    { icon: 'lightning-bolt',        color: '#7C3AED' },
-  subtask: { icon: 'minus-circle-outline', color: '#6B7280' },
+
+const TYPE_VALUES = Object.keys(ISSUE_TYPE_LABELS);
+const PRIORITY_VALUES = Object.keys(PRIORITY_LABELS);
+
+const titleCase = (value = '') =>
+  String(value)
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+
+const projectInitials = (project) => (project?.key || project?.name || 'PR').substring(0, 2).toUpperCase();
+
+const personName = (user) => {
+  if (!user) return 'Unassigned';
+  const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+  return fullName || user.email || user.name || 'Unassigned';
 };
 
 const BacklogScreen = ({ route, navigation }) => {
   const { projectId } = route.params;
   const theme = useTheme();
-  const [search, setSearch]               = useState('');
-  const [filterType, setFilterType]       = useState(null);
+  const { width } = useWindowDimensions();
+  const isCompact = width < 1180;
+
+  const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState(null);
   const [filterPriority, setFilterPriority] = useState(null);
-  const [collapsed, setCollapsed]         = useState({});
+  const [collapsed, setCollapsed] = useState({});
   const [startSprintTarget, setStartSprintTarget] = useState(null);
-  const [snack, setSnack]                 = useState('');
-  const [snackType, setSnackType]         = useState('success');
-  const [inlineOpen, setInlineOpen]       = useState(false);
-  const [inlineTitle, setInlineTitle]     = useState('');
-  const [inlineType, setInlineType]       = useState('task');
+  const [snack, setSnack] = useState('');
+  const [snackType, setSnackType] = useState('success');
+  const [inlineOpen, setInlineOpen] = useState(false);
+  const [inlineTitle, setInlineTitle] = useState('');
+  const [inlineType, setInlineType] = useState('task');
   const titleRef = useRef(null);
 
   const issueParams = { projectId, limit: 500 };
-  if (search)         issueParams.search   = search;
-  if (filterType)     issueParams.type     = filterType;
+  if (search) issueParams.search = search;
+  if (filterType) issueParams.type = filterType;
   if (filterPriority) issueParams.priority = filterPriority;
 
-  const { data: issuesData, isLoading, refetch }     = useGetIssuesQuery(issueParams);
+  const { data: projectResp } = useGetProjectQuery(projectId);
+  const { data: issuesData, isLoading, isFetching, refetch } = useGetIssuesQuery(issueParams);
   const { data: sprintsData, refetch: refetchSprints } = useGetSprintsQuery({ projectId });
-  const { data: workflowData }                        = useGetProjectWorkflowQuery(projectId, { skip: !projectId });
-  const [createIssue,  { isLoading: creating }]       = useCreateIssueMutation();
-  const [startSprint,  { isLoading: startingSprint }] = useStartSprintMutation();
+  const { data: workflowData } = useGetProjectWorkflowQuery(projectId, { skip: !projectId });
+  const [createIssue, { isLoading: creating }] = useCreateIssueMutation();
+  const [startSprint, { isLoading: startingSprint }] = useStartSprintMutation();
 
+  const project = projectResp?.data || projectResp || {};
+  const accent = project.color || NAVY;
   const allIssues = issuesData?.data?.data || [];
-  const sprints   = (sprintsData?.data?.data || [])
-    .filter(s => s.status !== 'completed')
+  const sprints = (sprintsData?.data?.data || [])
+    .filter((s) => s.status !== 'completed')
     .sort((a, b) => (a.status === 'active' ? -1 : b.status === 'active' ? 1 : 0));
 
-  const issuesBySprint = {};
-  const backlogIssues  = [];
-  allIssues.forEach(issue => {
-    if (issue.sprintId) {
-      if (!issuesBySprint[issue.sprintId]) issuesBySprint[issue.sprintId] = [];
-      issuesBySprint[issue.sprintId].push(issue);
-    } else {
-      backlogIssues.push(issue);
-    }
-  });
+  const { issuesBySprint, backlogIssues } = useMemo(() => {
+    const bySprint = {};
+    const backlog = [];
+    allIssues.forEach((issue) => {
+      if (issue.sprintId) {
+        if (!bySprint[issue.sprintId]) bySprint[issue.sprintId] = [];
+        bySprint[issue.sprintId].push(issue);
+      } else {
+        backlog.push(issue);
+      }
+    });
+    return { issuesBySprint: bySprint, backlogIssues: backlog };
+  }, [allIssues]);
 
-  const workflows   = workflowData?.data || [];
-  const defaultWF   = workflows.find(w => w.isDefault) || workflows[0];
+  const workflows = workflowData?.data || [];
+  const defaultWF = workflows.find((w) => w.isDefault) || workflows[0];
   const firstStatus = [...(defaultWF?.statuses || [])].sort((a, b) => a.order - b.order)[0];
+  const activeSprintCount = sprints.filter((s) => s.status === 'active').length;
+  const plannedSprintCount = sprints.filter((s) => s.status !== 'active').length;
+  const highPriorityCount = allIssues.filter((issue) => ['highest', 'high'].includes(issue.priority)).length;
+  const activeFilterCount = [search, filterType, filterPriority].filter(Boolean).length;
 
   const handleQuickCreate = async () => {
     if (!inlineTitle.trim()) return;
     try {
       await createIssue({
-        title: inlineTitle.trim(), type: inlineType, priority: 'medium',
-        projectId, workflowStatusId: firstStatus?.id,
+        projectId,
+        body: {
+          title: inlineTitle.trim(),
+          type: inlineType,
+          priority: 'medium',
+          projectId,
+          workflowStatusId: firstStatus?.id,
+        },
       }).unwrap();
-      setInlineTitle(''); setInlineType('task'); setInlineOpen(false);
-      refetch(); setSnackType('success'); setSnack('Issue created in backlog');
+      setInlineTitle('');
+      setInlineType('task');
+      setInlineOpen(false);
+      refetch();
+      setSnackType('success');
+      setSnack('Issue created in backlog');
     } catch (err) {
-      setSnackType('error'); setSnack(err?.data?.message || 'Failed to create issue');
+      setSnackType('error');
+      setSnack(err?.data?.message || 'Failed to create issue');
     }
   };
 
@@ -90,412 +133,342 @@ const BacklogScreen = ({ route, navigation }) => {
     try {
       await startSprint({ id: startSprintTarget.id }).unwrap();
       setStartSprintTarget(null);
-      setSnackType('success'); setSnack(`"${startSprintTarget.name}" started!`);
-      refetchSprints(); refetch();
+      setSnackType('success');
+      setSnack(`${startSprintTarget.name} started`);
+      refetchSprints();
+      refetch();
     } catch (err) {
-      setSnackType('error'); setSnack(err?.data?.message || 'Failed to start sprint');
+      setSnackType('error');
+      setSnack(err?.data?.message || 'Failed to start sprint');
     }
   };
 
-  const toggleCollapse = (id) => setCollapsed(p => ({ ...p, [id]: !p[id] }));
+  const toggleCollapse = (id) => setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+  const clearFilters = () => {
+    setSearch('');
+    setFilterType(null);
+    setFilterPriority(null);
+  };
 
   if (isLoading) return <LoadingScreen />;
 
-  /* ─── Issue row ─── */
-  const renderIssueRow = (issue, idx) => {
-    const typeInfo      = TYPE_ICONS[issue.type] || TYPE_ICONS.task;
-    const priorityColor = PRIORITY_COLORS[issue.priority] || '#8993A4';
-    const priorityIcon  = PRIORITY_ICONS[issue.priority] || 'minus';
-    const statusColor   = issue.status?.color || '#6B7280';
-    const assigneeName  = issue.assignee
-      ? `${issue.assignee.firstName} ${issue.assignee.lastName || ''}`.trim()
-      : null;
-
-    return (
-      <TouchableOpacity
-        key={issue.id}
-        style={[styles.issueRow, {
-          backgroundColor:   idx % 2 === 0 ? theme.colors.surface : theme.colors.background,
-          borderBottomColor: theme.colors.outlineVariant,
-        }]}
-        onPress={() => navigation.navigate('IssueDetail', { issueId: issue.id })}
-        activeOpacity={0.8}
-      >
-        {/* Drag handle */}
-        <View style={styles.dragHandle}>
-          <MaterialCommunityIcons name="drag-vertical" size={15} color={theme.colors.outlineVariant} />
-        </View>
-
-        {/* Type icon */}
-        <View style={styles.typeCell}>
-          <MaterialCommunityIcons name={typeInfo.icon} size={15} color={typeInfo.color} />
-        </View>
-
-        {/* Key + Title */}
-        <View style={styles.titleCell}>
-          {!!issue.key && (
-            <Text style={[styles.issueKey, { color: theme.colors.onSurfaceVariant }]}>{issue.key}</Text>
-          )}
-          <Text style={[styles.issueTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>
-            {issue.title}
-          </Text>
-          {!!issue.status?.name && (
-            <View style={[styles.statusPill, { backgroundColor: statusColor + '18', borderColor: statusColor + '40' }]}>
-              <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-              <Text style={[styles.statusPillText, { color: statusColor }]}>{issue.status.name}</Text>
-            </View>
-          )}
-        </View>
-
-        {/* Assignee */}
-        <View style={styles.assigneeCell}>
-          {issue.assignee ? (
-            <>
-              <View style={[styles.assigneeAvatar, { backgroundColor: colors.brand.navy + '20' }]}>
-                <Text style={[styles.assigneeInitials, { color: colors.brand.navy }]}>
-                  {issue.assignee.firstName?.[0]}{issue.assignee.lastName?.[0] || ''}
-                </Text>
-              </View>
-              <Text style={[styles.assigneeName, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
-                {assigneeName}
-              </Text>
-            </>
-          ) : (
-            <Text style={[styles.unassigned, { color: theme.colors.outlineVariant }]}>Unassigned</Text>
-          )}
-        </View>
-
-        {/* Priority */}
-        <View style={styles.priorityCell}>
-          <MaterialCommunityIcons name={priorityIcon} size={13} color={priorityColor} />
-          <Text style={[styles.priorityText, { color: priorityColor }]}>
-            {(issue.priority || '—').charAt(0).toUpperCase() + (issue.priority || '').slice(1)}
-          </Text>
-        </View>
-
-        {/* Type label */}
-        <View style={styles.typeTextCell}>
-          <Text style={[styles.typeText, { color: theme.colors.onSurfaceVariant }]}>
-            {(issue.type || '—').charAt(0).toUpperCase() + (issue.type || '').slice(1)}
-          </Text>
-        </View>
-
-        {/* Story Points */}
-        <View style={styles.pointsCell}>
-          {issue.storyPoints != null ? (
-            <View style={[styles.pointsBadge, { backgroundColor: colors.brand.navy + '12', borderColor: colors.brand.navy + '30' }]}>
-              <Text style={[styles.pointsText, { color: colors.brand.navy }]}>{issue.storyPoints}</Text>
-            </View>
-          ) : (
-            <Text style={{ color: theme.colors.outlineVariant, fontSize: 12 }}>—</Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
+  const renderIssueRow = (issue) => (
+    <IssueListRow
+      key={issue.id}
+      issue={issue}
+      theme={theme}
+      onPress={() => navigation.navigate('IssueDetail', { issueId: issue.id })}
+    />
+  );
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-
-      {/* ── Toolbar ── */}
-      <Surface style={[styles.toolbar, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={0}>
-        <View style={styles.toolbarLeft}>
-          <TouchableOpacity onPress={() => navigation.navigate('ProjectDetail', { projectId })} style={styles.breadcrumb}>
-            <MaterialCommunityIcons name="chevron-left" size={18} color={theme.colors.onSurfaceVariant} />
-            <Text style={[styles.breadcrumbText, { color: theme.colors.onSurfaceVariant }]}>Back</Text>
-          </TouchableOpacity>
-
-          <View style={[styles.searchWrap, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
-            <MaterialCommunityIcons name="magnify" size={15} color={theme.colors.onSurfaceVariant} />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search issues..."
-              style={{
-                flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent',
-                fontSize: 13, color: theme.colors.onSurface, fontFamily: 'inherit',
-              }}
-            />
-            {!!search && (
-              <TouchableOpacity onPress={() => setSearch('')}>
-                <MaterialCommunityIcons name="close-circle" size={13} color={theme.colors.onSurfaceVariant} />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.toolbarRight}>
-          <Text style={[styles.filterLabel, { color: theme.colors.onSurfaceVariant }]}>Type:</Text>
-          {Object.entries(ISSUE_TYPE_LABELS).map(([value, label]) => {
-            const active = filterType === value;
-            return (
-              <TouchableOpacity
-                key={value}
-                onPress={() => setFilterType(active ? null : value)}
-                style={[styles.filterBtn, {
-                  backgroundColor: active ? '#0F2557' : theme.colors.background,
-                  borderColor: active ? '#0F2557' : theme.colors.outlineVariant,
-                }]}
-              >
-                <Text style={[styles.filterBtnText, { color: active ? '#fff' : theme.colors.onSurfaceVariant }]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-          <View style={[styles.sep, { backgroundColor: theme.colors.outlineVariant }]} />
-          <Text style={[styles.filterLabel, { color: theme.colors.onSurfaceVariant }]}>Priority:</Text>
-          {Object.entries(PRIORITY_LABELS).slice(0, 3).map(([value, label]) => {
-            const active = filterPriority === value;
-            return (
-              <TouchableOpacity
-                key={value}
-                onPress={() => setFilterPriority(active ? null : value)}
-                style={[styles.filterBtn, {
-                  backgroundColor: active ? '#0F2557' : theme.colors.background,
-                  borderColor: active ? '#0F2557' : theme.colors.outlineVariant,
-                }]}
-              >
-                <Text style={[styles.filterBtnText, { color: active ? '#fff' : theme.colors.onSurfaceVariant }]}>
-                  {label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-          <Button
-            mode="contained" icon="plus" compact
-            onPress={() => navigation.navigate('CreateIssue', { projectId })}
-            style={styles.createBtn}
-          >
-            Create Issue
-          </Button>
-        </View>
-      </Surface>
-
-      {/* ── Table column headers ── */}
-      <View style={[styles.tableHead, { backgroundColor: colors.brand.navy }]}>
-        <View style={{ width: 28 }} />
-        <View style={{ width: 26 }} />
-        <Text style={[styles.colHead, { flex: 4 }]}>ISSUE</Text>
-        <Text style={[styles.colHead, { flex: 2 }]}>ASSIGNEE</Text>
-        <Text style={[styles.colHead, { flex: 1.2 }]}>PRIORITY</Text>
-        <Text style={[styles.colHead, { flex: 1 }]}>TYPE</Text>
-        <Text style={[styles.colHead, { flex: 0.8, textAlign: 'center' }]}>PTS</Text>
-      </View>
-
-      <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
-
-        {/* ── Sprint sections ── */}
-        {sprints.map(sprint => {
-          const sprintIssues = issuesBySprint[sprint.id] || [];
-          const isCollapsed  = collapsed[sprint.id];
-          const isActive     = sprint.status === 'active';
-          const doneCount    = sprintIssues.filter(i => i.status?.category === 'done').length;
-          const totalCount   = sprintIssues.length;
-          const progress     = totalCount > 0 ? doneCount / totalCount : 0;
-
-          return (
-            <View key={sprint.id}>
-              {/* Sprint header */}
-              <TouchableOpacity
-                style={[styles.sprintHeader, {
-                  backgroundColor:   isActive ? '#F0F7FF' : theme.colors.surface,
-                  borderBottomColor: theme.colors.outlineVariant,
-                  borderLeftColor:   isActive ? colors.brand.navy : 'transparent',
-                }]}
-                onPress={() => toggleCollapse(sprint.id)}
-                activeOpacity={0.85}
-              >
-                <MaterialCommunityIcons
-                  name={isCollapsed ? 'chevron-right' : 'chevron-down'}
-                  size={15} color={theme.colors.onSurfaceVariant}
-                />
-                <MaterialCommunityIcons
-                  name={isActive ? 'lightning-bolt' : 'lightning-bolt-outline'}
-                  size={14} color={isActive ? colors.brand.navy : '#6B7280'}
-                  style={{ marginLeft: 6 }}
-                />
-
-                <View style={{ flex: 1, marginLeft: 6, gap: 3 }}>
-                  <View style={styles.sprintNameRow}>
-                    <Text style={[styles.sprintName, { color: theme.colors.onSurface }]}>{sprint.name}</Text>
-                    <View style={[styles.sprintBadge, {
-                      backgroundColor: isActive ? '#DBEAFE' : '#F3F4F6',
-                    }]}>
-                      <Text style={[styles.sprintBadgeText, { color: isActive ? '#1D4ED8' : '#6B7280' }]}>
-                        {isActive ? 'ACTIVE' : 'PLANNED'}
-                      </Text>
-                    </View>
-                    {sprint.startDate && (
-                      <Text style={[styles.sprintDates, { color: theme.colors.onSurfaceVariant }]}>
-                        {formatDate(sprint.startDate)}{sprint.endDate ? ` → ${formatDate(sprint.endDate)}` : ''}
-                      </Text>
-                    )}
-                  </View>
-
-                  {totalCount > 0 && (
-                    <View style={styles.sprintProgressRow}>
-                      <View style={[styles.progressTrack, { backgroundColor: theme.colors.outlineVariant }]}>
-                        <View style={[styles.progressFill, {
-                          width: `${Math.round(progress * 100)}%`,
-                          backgroundColor: isActive ? colors.brand.navy : '#9CA3AF',
-                        }]} />
-                      </View>
-                      <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>
-                        {doneCount}/{totalCount} done
-                      </Text>
-                    </View>
-                  )}
-                  {totalCount === 0 && (
-                    <Text style={[styles.sprintEmpty, { color: theme.colors.onSurfaceVariant }]}>No issues</Text>
-                  )}
-                </View>
-
-                <View style={styles.sprintActions}>
-                  {isActive ? (
-                    <Button compact mode="contained" onPress={() => navigation.navigate('Board', { projectId })}
-                      style={styles.sprintBtn} contentStyle={{ paddingHorizontal: 6 }}>
-                      View Board
-                    </Button>
-                  ) : (
-                    <Button compact mode="outlined" onPress={() => setStartSprintTarget(sprint)}
-                      style={styles.sprintBtn} contentStyle={{ paddingHorizontal: 6 }}>
-                      Start Sprint
-                    </Button>
-                  )}
-                </View>
-              </TouchableOpacity>
-
-              {/* Sprint issues */}
-              {!isCollapsed && (
-                sprintIssues.length === 0 ? (
-                  <View style={[styles.emptyRow, {
-                    backgroundColor: theme.colors.surface,
-                    borderBottomColor: theme.colors.outlineVariant,
-                  }]}>
-                    <MaterialCommunityIcons name="inbox-outline" size={15} color={theme.colors.outlineVariant} />
-                    <Text style={[styles.emptyRowText, { color: theme.colors.onSurfaceVariant }]}>
-                      No issues in this sprint
-                    </Text>
-                  </View>
-                ) : (
-                  sprintIssues.map((issue, idx) => renderIssueRow(issue, idx))
-                )
-              )}
+      <Surface style={[styles.backlogHeader, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={0}>
+        <View style={[styles.headerTop, isCompact && styles.headerTopCompact]}>
+          <View style={styles.headerIdentity}>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('ProjectDetail', { projectId })}
+              style={[styles.backBtn, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}
+            >
+              <MaterialCommunityIcons name="arrow-left" size={18} color={theme.colors.onSurfaceVariant} />
+            </TouchableOpacity>
+            <View style={[styles.projectAvatar, { backgroundColor: accent }]}>
+              <Text style={styles.projectAvatarText}>{projectInitials(project)}</Text>
             </View>
-          );
-        })}
-
-        {/* ── Backlog section header ── */}
-        <View style={[styles.backlogHeader, {
-          backgroundColor: theme.colors.surface,
-          borderBottomColor: theme.colors.outlineVariant,
-          borderTopColor: theme.colors.outlineVariant,
-        }]}>
-          <MaterialCommunityIcons name="inbox-outline" size={15} color={theme.colors.onSurfaceVariant} />
-          <Text style={[styles.backlogTitle, { color: theme.colors.onSurface }]}>Backlog</Text>
-          <View style={[styles.backlogCount, { backgroundColor: theme.colors.surfaceVariant }]}>
-            <Text style={[styles.backlogCountText, { color: theme.colors.onSurfaceVariant }]}>
-              {backlogIssues.length}
-            </Text>
-          </View>
-          <Text style={[styles.backlogSub, { color: theme.colors.onSurfaceVariant }]}>
-            issue{backlogIssues.length !== 1 ? 's' : ''} not in any sprint
-          </Text>
-        </View>
-
-        {/* Backlog empty state */}
-        {backlogIssues.length === 0 && !inlineOpen && (
-          <View style={[styles.empty, { backgroundColor: theme.colors.surface }]}>
-            <View style={[styles.emptyIconWrap, { backgroundColor: colors.brand.skyLight }]}>
-              <MaterialCommunityIcons name="inbox-arrow-down-outline" size={30} color={colors.brand.navy} />
-            </View>
-            <Text style={[styles.emptyTitle, { color: theme.colors.onSurface }]}>Backlog is empty</Text>
-            <Text style={[styles.emptySub, { color: theme.colors.onSurfaceVariant }]}>
-              Create issues below or drag sprint issues back to backlog
-            </Text>
-          </View>
-        )}
-
-        {backlogIssues.map((issue, idx) => renderIssueRow(issue, idx))}
-
-        {/* ── Inline quick-create ── */}
-        {!inlineOpen ? (
-          <TouchableOpacity
-            style={[styles.addRow, { borderTopColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surface }]}
-            onPress={() => { setInlineOpen(true); setTimeout(() => titleRef.current?.focus(), 60); }}
-          >
-            <View style={[styles.addIcon, { backgroundColor: theme.colors.primaryContainer }]}>
-              <MaterialCommunityIcons name="plus" size={14} color={theme.colors.primary} />
-            </View>
-            <Text style={[styles.addLabel, { color: theme.colors.primary }]}>Create Issue</Text>
-            <Text style={[styles.addHint, { color: theme.colors.onSurfaceVariant }]}>— adds to backlog</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={[styles.inlineForm, { backgroundColor: theme.colors.surface, borderTopColor: colors.brand.navy }]}>
-            <View style={styles.inlineTypeRow}>
-              {Object.entries(ISSUE_TYPE_LABELS).map(([val, label]) => {
-                const tm     = TYPE_ICONS[val] || TYPE_ICONS.task;
-                const active = inlineType === val;
-                return (
-                  <TouchableOpacity
-                    key={val}
-                    onPress={() => setInlineType(val)}
-                    style={[styles.typeChip, {
-                      borderColor:     active ? tm.color : theme.colors.outlineVariant,
-                      backgroundColor: active ? tm.color + '15' : 'transparent',
-                    }]}
-                  >
-                    <MaterialCommunityIcons name={tm.icon} size={12} color={active ? tm.color : theme.colors.onSurfaceVariant} />
-                    <Text style={{ fontSize: 11, color: active ? tm.color : theme.colors.onSurfaceVariant, marginLeft: 4, fontWeight: active ? '700' : '400' }}>
-                      {label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <input
-              ref={titleRef}
-              value={inlineTitle}
-              onChange={e => setInlineTitle(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && inlineTitle.trim()) handleQuickCreate();
-                if (e.key === 'Escape') { setInlineOpen(false); setInlineTitle(''); }
-              }}
-              placeholder="Issue title — Enter to save, Esc to cancel"
-              style={{
-                width: '100%', border: 'none', outline: 'none',
-                fontSize: 14, fontFamily: 'inherit',
-                color: theme.colors.onSurface, backgroundColor: 'transparent',
-                padding: '4px 0', boxSizing: 'border-box',
-              }}
-            />
-
-            <View style={styles.inlineActions}>
-              <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>Goes to Backlog · no sprint</Text>
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                <Button compact mode="text" onPress={() => { setInlineOpen(false); setInlineTitle(''); }}>Cancel</Button>
-                <Button compact mode="contained" onPress={handleQuickCreate}
-                  loading={creating} disabled={!inlineTitle.trim() || creating} style={{ borderRadius: 6 }}>
-                  Save
-                </Button>
+            <View style={styles.titleBlock}>
+              <Text style={[styles.headerEyebrow, { color: theme.colors.onSurfaceVariant }]}>Project backlog</Text>
+              <Text style={[styles.headerTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>
+                {project.name || 'Project'}
+              </Text>
+              <View style={styles.headerMetaRow}>
+                <MetaPill icon="pound" label={project.key || 'KEY'} tone={accent} theme={theme} />
+                <MetaPill icon="tray-full" label={`${backlogIssues.length} backlog`} theme={theme} />
+                <MetaPill icon="lightning-bolt-outline" label={`${sprints.length} sprints`} theme={theme} />
               </View>
             </View>
           </View>
+
+          <View style={styles.headerActions}>
+            <Button
+              icon="view-column-outline"
+              mode="outlined"
+              compact
+              onPress={() => navigation.navigate('Board', { projectId })}
+              style={[styles.headerButton, { borderColor: theme.colors.outlineVariant }]}
+              labelStyle={[styles.outlinedActionLabel, { color: accent }]}
+            >
+              Board
+            </Button>
+            <Button
+              icon="plus"
+              mode="contained"
+              compact
+              onPress={() => navigation.navigate('CreateIssue', { projectId })}
+              style={[styles.headerButton, { backgroundColor: accent }]}
+              labelStyle={styles.containedActionLabel}
+            >
+              Create Issue
+            </Button>
+          </View>
+        </View>
+
+        <View style={[styles.headerStats, isCompact && styles.headerStatsWrap]}>
+          <MetricTile icon="ticket-outline" value={allIssues.length} label="Visible issues" tone={colors.info} theme={theme} />
+          <MetricTile icon="tray-full" value={backlogIssues.length} label="Backlog queue" tone="#7C5EA7" theme={theme} />
+          <MetricTile icon="lightning-bolt" value={activeSprintCount} label="Active sprint" tone={colors.warning} theme={theme} />
+          <MetricTile icon="calendar-clock" value={plannedSprintCount} label="Planned sprints" tone={colors.success} theme={theme} />
+          <MetricTile icon="alert-circle-outline" value={highPriorityCount} label="High priority" tone={colors.danger} theme={theme} />
+        </View>
+      </Surface>
+
+      <Surface style={[styles.filterPanel, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]} elevation={0}>
+        <View style={[styles.searchWrap, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
+          <MaterialCommunityIcons name="magnify" size={15} color={theme.colors.onSurfaceVariant} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search backlog issues..."
+            style={{
+              flex: 1,
+              border: 'none',
+              outline: 'none',
+              backgroundColor: 'transparent',
+              fontSize: 13,
+              color: theme.colors.onSurface,
+              fontFamily: 'inherit',
+            }}
+          />
+          {!!search && (
+            <TouchableOpacity onPress={() => setSearch('')}>
+              <MaterialCommunityIcons name="close-circle" size={13} color={theme.colors.onSurfaceVariant} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={styles.filterGroup}>
+          {TYPE_VALUES.map((value) => (
+            <FilterPill
+              key={value}
+              label={ISSUE_TYPE_LABELS[value]}
+              active={filterType === value}
+              color={getIssueTypeColor(value)}
+              icon={getIssueTypeIcon(value)}
+              theme={theme}
+              onPress={() => setFilterType(filterType === value ? null : value)}
+            />
+          ))}
+        </View>
+
+        <View style={styles.filterDivider} />
+
+        <View style={styles.filterGroup}>
+          {PRIORITY_VALUES.map((value) => (
+            <FilterPill
+              key={value}
+              label={PRIORITY_LABELS[value]}
+              active={filterPriority === value}
+              color={PRIORITY_COLORS[value] || getPriorityColor(value)}
+              icon={getPriorityIcon(value)}
+              theme={theme}
+              onPress={() => setFilterPriority(filterPriority === value ? null : value)}
+            />
+          ))}
+        </View>
+
+        {activeFilterCount > 0 && (
+          <Button compact mode="text" icon="close-circle-outline" textColor={theme.colors.error} onPress={clearFilters}>
+            Clear ({activeFilterCount})
+          </Button>
         )}
 
-        <View style={{ height: 48 }} />
+        <View style={{ flex: 1 }} />
+        {isFetching && <ActivityIndicator size="small" color={theme.colors.primary} />}
+      </Surface>
+
+      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator>
+        {sprints.map((sprint) => {
+          const sprintIssues = issuesBySprint[sprint.id] || [];
+          const isCollapsed = collapsed[sprint.id];
+          const isActive = sprint.status === 'active';
+          const doneCount = sprintIssues.filter((issue) => issue.status?.category === 'done').length;
+          const totalCount = sprintIssues.length;
+          const progress = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+          return (
+            <Surface key={sprint.id} style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]} elevation={0}>
+              <TouchableOpacity style={styles.sectionHeader} onPress={() => toggleCollapse(sprint.id)} activeOpacity={0.85}>
+                <View style={[styles.sectionIcon, { backgroundColor: isActive ? `${accent}12` : theme.colors.surfaceVariant }]}>
+                  <MaterialCommunityIcons name={isActive ? 'lightning-bolt' : 'lightning-bolt-outline'} size={17} color={isActive ? accent : theme.colors.onSurfaceVariant} />
+                </View>
+                <View style={styles.sectionTitleBlock}>
+                  <View style={styles.sectionTitleRow}>
+                    <MaterialCommunityIcons name={isCollapsed ? 'chevron-right' : 'chevron-down'} size={17} color={theme.colors.onSurfaceVariant} />
+                    <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>{sprint.name}</Text>
+                    <StatusPill active={isActive} theme={theme} accent={accent} />
+                  </View>
+                  <Text style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+                    {sprint.startDate ? formatDate(sprint.startDate) : 'No start date'}
+                    {sprint.endDate ? ` to ${formatDate(sprint.endDate)}` : ''}
+                    {` - ${totalCount} issue${totalCount !== 1 ? 's' : ''}`}
+                  </Text>
+                </View>
+
+                <View style={styles.sectionProgressWrap}>
+                  <Text style={[styles.progressText, { color: theme.colors.onSurfaceVariant }]}>{doneCount}/{totalCount} done</Text>
+                  <View style={[styles.progressTrack, { backgroundColor: theme.colors.surfaceVariant }]}>
+                    <View style={[styles.progressFill, { width: `${progress}%`, backgroundColor: isActive ? accent : colors.success }]} />
+                  </View>
+                </View>
+
+                {isActive ? (
+                  <Button
+                    compact
+                    mode="contained"
+                    onPress={() => navigation.navigate('Board', { projectId })}
+                    style={[styles.sectionButton, { backgroundColor: accent }]}
+                    labelStyle={styles.containedActionLabel}
+                  >
+                    View Board
+                  </Button>
+                ) : (
+                  <Button
+                    compact
+                    mode="outlined"
+                    onPress={() => setStartSprintTarget(sprint)}
+                    style={[styles.sectionButton, { borderColor: theme.colors.outlineVariant }]}
+                    labelStyle={[styles.outlinedActionLabel, { color: accent }]}
+                  >
+                    Start Sprint
+                  </Button>
+                )}
+              </TouchableOpacity>
+
+              {!isCollapsed && (
+                <View style={[styles.sectionBody, { borderTopColor: theme.colors.outlineVariant }]}>
+                  <IssueListHeader theme={theme} />
+                  {sprintIssues.length === 0 ? (
+                    <EmptySection icon="tray" text="No issues in this sprint" theme={theme} />
+                  ) : (
+                    sprintIssues.map(renderIssueRow)
+                  )}
+                </View>
+              )}
+            </Surface>
+          );
+        })}
+
+        <Surface style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]} elevation={0}>
+          <View style={styles.sectionHeader}>
+            <View style={[styles.sectionIcon, { backgroundColor: `${accent}12` }]}>
+              <MaterialCommunityIcons name="tray-full" size={17} color={accent} />
+            </View>
+            <View style={styles.sectionTitleBlock}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Backlog queue</Text>
+                <View style={[styles.countPill, { backgroundColor: theme.colors.surfaceVariant }]}>
+                  <Text style={[styles.countPillText, { color: theme.colors.onSurfaceVariant }]}>{backlogIssues.length}</Text>
+                </View>
+              </View>
+              <Text style={[styles.sectionSubtitle, { color: theme.colors.onSurfaceVariant }]}>
+                Issues not assigned to a sprint
+              </Text>
+            </View>
+          </View>
+
+          <View style={[styles.sectionBody, { borderTopColor: theme.colors.outlineVariant }]}>
+            <IssueListHeader theme={theme} />
+            {backlogIssues.length === 0 && !inlineOpen ? (
+              <EmptySection icon="inbox-arrow-down-outline" text="Backlog is empty" theme={theme} />
+            ) : (
+              backlogIssues.map(renderIssueRow)
+            )}
+
+            {!inlineOpen ? (
+              <TouchableOpacity
+                style={[styles.addRow, { backgroundColor: `${accent}08`, borderTopColor: theme.colors.outlineVariant }]}
+                onPress={() => { setInlineOpen(true); setTimeout(() => titleRef.current?.focus(), 60); }}
+              >
+                <View style={[styles.addIcon, { backgroundColor: `${accent}14` }]}>
+                  <MaterialCommunityIcons name="plus" size={14} color={accent} />
+                </View>
+                <Text style={[styles.addLabel, { color: accent }]}>Create issue in backlog</Text>
+              </TouchableOpacity>
+            ) : (
+              <View style={[styles.inlineForm, { borderTopColor: `${accent}28`, backgroundColor: theme.colors.background }]}>
+                <View style={styles.inlineTypeRow}>
+                  {TYPE_VALUES.map((value) => (
+                    <FilterPill
+                      key={value}
+                      label={ISSUE_TYPE_LABELS[value]}
+                      active={inlineType === value}
+                      color={getIssueTypeColor(value)}
+                      icon={getIssueTypeIcon(value)}
+                      theme={theme}
+                      onPress={() => setInlineType(value)}
+                    />
+                  ))}
+                </View>
+
+                <input
+                  ref={titleRef}
+                  value={inlineTitle}
+                  onChange={(e) => setInlineTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && inlineTitle.trim()) handleQuickCreate();
+                    if (e.key === 'Escape') {
+                      setInlineOpen(false);
+                      setInlineTitle('');
+                    }
+                  }}
+                  placeholder="Issue title - Enter to save, Esc to cancel"
+                  style={{
+                    width: '100%',
+                    border: 'none',
+                    outline: 'none',
+                    fontSize: 14,
+                    fontFamily: 'inherit',
+                    color: theme.colors.onSurface,
+                    backgroundColor: 'transparent',
+                    padding: '6px 0',
+                    boxSizing: 'border-box',
+                  }}
+                />
+
+                <View style={styles.inlineActions}>
+                  <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>Goes to Backlog - no sprint</Text>
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <Button compact mode="text" onPress={() => { setInlineOpen(false); setInlineTitle(''); }}>Cancel</Button>
+                    <Button
+                      compact
+                      mode="contained"
+                      onPress={handleQuickCreate}
+                      loading={creating}
+                      disabled={!inlineTitle.trim() || creating}
+                      style={[styles.headerButton, { backgroundColor: accent }]}
+                      labelStyle={styles.containedActionLabel}
+                    >
+                      Save
+                    </Button>
+                  </View>
+                </View>
+              </View>
+            )}
+          </View>
+        </Surface>
       </ScrollView>
 
-      {/* ── Dialogs ── */}
       <Portal>
-        <Dialog visible={!!startSprintTarget} onDismiss={() => setStartSprintTarget(null)}
-          style={{ maxWidth: 440, alignSelf: 'center', width: '100%', borderRadius: 12 }}>
-          <Dialog.Title style={{ fontWeight: '800' }}>Start Sprint</Dialog.Title>
+        <Dialog
+          visible={!!startSprintTarget}
+          onDismiss={() => setStartSprintTarget(null)}
+          style={styles.dialog}
+        >
+          <Dialog.Title style={{ fontWeight: '900' }}>Start Sprint</Dialog.Title>
           <Dialog.Content>
             <Text variant="bodyMedium">
-              Start "{startSprintTarget?.name}"? This will make it the active sprint.{'\n'}
+              Start "{startSprintTarget?.name}"? This will make it the active sprint.
+            </Text>
+            <Text variant="bodySmall" style={{ marginTop: 8, color: theme.colors.onSurfaceVariant }}>
               Only one sprint can be active at a time.
             </Text>
           </Dialog.Content>
@@ -511,144 +484,592 @@ const BacklogScreen = ({ route, navigation }) => {
   );
 };
 
+const IssueListRow = ({ issue, theme, onPress }) => {
+  const typeColor = getIssueTypeColor(issue.type);
+  const priorityColor = getPriorityColor(issue.priority);
+  const statusColor = issue.status?.color || theme.colors.onSurfaceVariant;
+
+  return (
+    <TouchableOpacity
+      style={[styles.issueRow, { borderBottomColor: theme.colors.outlineVariant }]}
+      onPress={onPress}
+      activeOpacity={0.82}
+    >
+      <View style={[styles.issueTypeIcon, { backgroundColor: `${typeColor}14` }]}>
+        <MaterialCommunityIcons name={getIssueTypeIcon(issue.type)} size={15} color={typeColor} />
+      </View>
+
+      <View style={styles.issueTitleCell}>
+        <View style={styles.issueTitleLine}>
+          <Text style={[styles.issueKey, { color: theme.colors.onSurfaceVariant }]}>{issue.key}</Text>
+          <Text style={[styles.issueTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>{issue.title}</Text>
+        </View>
+        <View style={styles.issueMetaLine}>
+          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+          <Text style={[styles.issueMetaText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+            {issue.status?.name || 'Unknown'}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.assigneeCell}>
+        <Avatar user={issue.assignee} size={28} />
+        <Text style={[styles.assigneeText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+          {personName(issue.assignee)}
+        </Text>
+      </View>
+
+      <View style={styles.priorityCell}>
+        <MaterialCommunityIcons name={getPriorityIcon(issue.priority)} size={13} color={priorityColor} />
+        <Text style={[styles.priorityText, { color: priorityColor }]}>{PRIORITY_LABELS[issue.priority] || titleCase(issue.priority || 'Medium')}</Text>
+      </View>
+
+      <Text style={[styles.typeText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+        {ISSUE_TYPE_LABELS[issue.type] || titleCase(issue.type || 'Task')}
+      </Text>
+
+      <View style={styles.pointsCell}>
+        {issue.storyPoints != null ? (
+          <View style={[styles.pointsBadge, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+            <Text style={[styles.pointsText, { color: theme.colors.onSurface }]}>{issue.storyPoints}</Text>
+          </View>
+        ) : (
+          <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>-</Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+};
+
+const IssueListHeader = ({ theme }) => (
+  <View style={[styles.listHeader, { backgroundColor: theme.colors.background, borderBottomColor: theme.colors.outlineVariant }]}>
+    <View style={{ width: 34 }} />
+    <Text style={[styles.listHeaderText, { flex: 4, color: theme.colors.onSurfaceVariant }]}>Issue</Text>
+    <Text style={[styles.listHeaderText, { flex: 1.6, color: theme.colors.onSurfaceVariant }]}>Assignee</Text>
+    <Text style={[styles.listHeaderText, { flex: 1.1, color: theme.colors.onSurfaceVariant }]}>Priority</Text>
+    <Text style={[styles.listHeaderText, { flex: 0.9, color: theme.colors.onSurfaceVariant }]}>Type</Text>
+    <Text style={[styles.listHeaderText, { flex: 0.5, color: theme.colors.onSurfaceVariant, textAlign: 'center' }]}>Pts</Text>
+  </View>
+);
+
+const EmptySection = ({ icon, text, theme }) => (
+  <View style={styles.emptySection}>
+    <View style={[styles.emptyIconWrap, { backgroundColor: theme.colors.surfaceVariant }]}>
+      <MaterialCommunityIcons name={icon} size={24} color={theme.colors.onSurfaceVariant} />
+    </View>
+    <Text style={[styles.emptyText, { color: theme.colors.onSurfaceVariant }]}>{text}</Text>
+  </View>
+);
+
+const StatusPill = ({ active, theme, accent }) => (
+  <View style={[
+    styles.statusPill,
+    {
+      backgroundColor: active ? `${accent}12` : theme.colors.surfaceVariant,
+      borderColor: active ? `${accent}28` : theme.colors.outlineVariant,
+    },
+  ]}>
+    <View style={[styles.statusPillDot, { backgroundColor: active ? accent : theme.colors.onSurfaceVariant }]} />
+    <Text style={[styles.statusPillText, { color: active ? accent : theme.colors.onSurfaceVariant }]}>
+      {active ? 'Active' : 'Planned'}
+    </Text>
+  </View>
+);
+
+const FilterPill = ({ label, active, color, icon, theme, onPress }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={[
+      styles.filterPill,
+      {
+        backgroundColor: active ? `${color}12` : theme.colors.background,
+        borderColor: active ? `${color}32` : theme.colors.outlineVariant,
+      },
+    ]}
+  >
+    {!!icon && <MaterialCommunityIcons name={icon} size={13} color={active ? color : theme.colors.onSurfaceVariant} />}
+    <Text style={[styles.filterPillText, { color: active ? color : theme.colors.onSurfaceVariant }]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const MetricTile = ({ icon, value, label, tone, theme }) => (
+  <View style={[styles.metricTile, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
+    <View style={[styles.metricIcon, { backgroundColor: `${tone}14` }]}>
+      <MaterialCommunityIcons name={icon} size={16} color={tone} />
+    </View>
+    <View style={styles.metricText}>
+      <Text style={[styles.metricValue, { color: theme.colors.onSurface }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>{label}</Text>
+    </View>
+  </View>
+);
+
+const MetaPill = ({ icon, label, tone, theme }) => (
+  <View style={[
+    styles.metaPill,
+    {
+      backgroundColor: tone ? `${tone}12` : theme.colors.surfaceVariant,
+      borderColor: tone ? `${tone}28` : theme.colors.outlineVariant,
+    },
+  ]}>
+    <MaterialCommunityIcons name={icon} size={12} color={tone || theme.colors.onSurfaceVariant} />
+    <Text style={[styles.metaPillText, { color: tone || theme.colors.onSurfaceVariant }]} numberOfLines={1}>{label}</Text>
+  </View>
+);
+
 const styles = StyleSheet.create({
   root: { flex: 1 },
 
-  /* Toolbar */
-  toolbar: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingVertical: 8, borderBottomWidth: 1, gap: 16, flexWrap: 'wrap',
-    boxShadow: '0px 1px 4px rgba(6,43,111,0.05)',
+  backlogHeader: {
+    borderBottomWidth: 1,
+    paddingHorizontal: 28,
+    paddingTop: 18,
+    paddingBottom: 16,
+    gap: 16,
   },
-  toolbarLeft:   { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  toolbarRight:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
-  breadcrumb:    { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  breadcrumbText: { fontSize: 13, color: '#6B7280' },
-  searchWrap: {
-    flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1,
-    borderRadius: 8, paddingHorizontal: 10, height: 36, minWidth: 220,
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 20,
   },
-  filterLabel:    { fontSize: 11, fontWeight: '600' },
-  filterBtn:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 6, borderWidth: 1 },
-  filterBtnText:  { fontSize: 11, fontWeight: '600' },
-  sep:            { width: 1, height: 20 },
-  createBtn:   { borderRadius: 6, marginLeft: 8 },
+  headerTopCompact: {
+    flexDirection: 'column',
+  },
+  headerIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+  },
+  backBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  projectAvatar: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  projectAvatarText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
+    gap: 5,
+  },
+  headerEyebrow: {
+    fontSize: 11,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+  },
+  headerTitle: {
+    fontSize: 23,
+    fontWeight: '900',
+  },
+  headerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  metaPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    maxWidth: 180,
+  },
+  metaPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  headerButton: {
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  outlinedActionLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  containedActionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  headerStats: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  headerStatsWrap: {
+    flexWrap: 'wrap',
+  },
+  metricTile: {
+    flex: 1,
+    minWidth: 150,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+  },
+  metricIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  metricText: {
+    flex: 1,
+    minWidth: 0,
+  },
+  metricValue: {
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  metricLabel: {
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 1,
+  },
 
-  /* Table head */
-  tableHead: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 10,
+  filterPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    gap: 10,
+    flexWrap: 'wrap',
   },
-  colHead: {
-    fontSize: 10, fontWeight: '700', color: 'rgba(255,255,255,0.7)',
-    textTransform: 'uppercase', letterSpacing: 0.5, paddingHorizontal: 4,
+  searchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    height: 38,
+    minWidth: 260,
+  },
+  filterGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    flexWrap: 'wrap',
+  },
+  filterDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: colors.borderVariant,
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+  },
+  filterPillText: {
+    fontSize: 11,
+    fontWeight: '800',
   },
 
   scroll: { flex: 1 },
-
-  /* Sprint header */
-  sprintHeader: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderLeftWidth: 4,
+  scrollContent: {
+    padding: 28,
+    gap: 16,
+    paddingBottom: 52,
   },
-  sprintNameRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  sprintName: { fontSize: 13, fontWeight: '700' },
-  sprintBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8 },
-  sprintBadgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
-  sprintDates: { fontSize: 11 },
-  sprintProgressRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  progressTrack: { flex: 1, maxWidth: 180, height: 4, borderRadius: 2, overflow: 'hidden' },
-  progressFill:  { height: '100%', borderRadius: 2 },
-  progressText:  { fontSize: 11 },
-  sprintEmpty:   { fontSize: 11 },
-  sprintActions: { marginLeft: 12 },
-  sprintBtn:     { borderRadius: 6 },
-
-  emptyRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 52, paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  sectionCard: {
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+    boxShadow: '0 8px 20px rgba(20,33,61,0.06)',
   },
-  emptyRowText: { fontSize: 13 },
-
-  /* Backlog header */
-  backlogHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 20, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    marginTop: 10,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
   },
-  backlogTitle:     { fontSize: 13, fontWeight: '700' },
-  backlogCount:     { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
-  backlogCountText: { fontSize: 11, fontWeight: '700' },
-  backlogSub:       { fontSize: 12 },
-
-  /* Empty */
-  empty: {
-    alignItems: 'center', paddingVertical: 48, gap: 10,
+  sectionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
-  emptyIconWrap: { width: 60, height: 60, borderRadius: 30, justifyContent: 'center', alignItems: 'center' },
-  emptyTitle: { fontSize: 14, fontWeight: '700' },
-  emptySub:   { fontSize: 12, textAlign: 'center', maxWidth: 280 },
+  sectionTitleBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    minWidth: 0,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '900',
+    minWidth: 0,
+  },
+  sectionSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 3,
+  },
+  sectionProgressWrap: {
+    width: 180,
+    gap: 6,
+    flexShrink: 0,
+  },
+  progressText: {
+    fontSize: 11,
+    fontWeight: '800',
+    textAlign: 'right',
+  },
+  progressTrack: {
+    height: 6,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 8,
+  },
+  sectionButton: {
+    borderRadius: 8,
+    minWidth: 106,
+  },
+  sectionBody: {
+    borderTopWidth: 1,
+  },
+  statusPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statusPillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusPillText: {
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  countPill: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  countPillText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
 
-  /* Issue row */
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  listHeaderText: {
+    fontSize: 10,
+    fontWeight: '900',
+    textTransform: 'uppercase',
+  },
   issueRow: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 12, paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
     cursor: 'pointer',
   },
-  dragHandle:  { width: 28, alignItems: 'center' },
-  typeCell:    { width: 26, alignItems: 'center' },
-  titleCell:   { flex: 4, flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 12, flexWrap: 'wrap' },
-  issueKey:    { fontSize: 11, fontWeight: '600' },
-  issueTitle:  { fontSize: 13, fontWeight: '500', flex: 1 },
-  statusPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 6, paddingVertical: 2,
-    borderRadius: 8, borderWidth: 1,
+  issueTypeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
-  statusDot:     { width: 5, height: 5, borderRadius: 3 },
-  statusPillText: { fontSize: 10, fontWeight: '700' },
-  assigneeCell:   { flex: 2, flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 8 },
-  assigneeAvatar: { width: 26, height: 26, borderRadius: 13, justifyContent: 'center', alignItems: 'center' },
-  assigneeInitials: { fontSize: 9, fontWeight: '800' },
-  assigneeName: { fontSize: 12, flex: 1 },
-  unassigned:   { fontSize: 12 },
-  priorityCell: { flex: 1.2, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  priorityText: { fontSize: 12, fontWeight: '600' },
-  typeTextCell: { flex: 1 },
-  typeText:     { fontSize: 12 },
-  pointsCell:   { flex: 0.8, alignItems: 'center' },
-  pointsBadge:  { width: 28, height: 22, borderRadius: 4, justifyContent: 'center', alignItems: 'center', borderWidth: 1 },
-  pointsText:   { fontSize: 11, fontWeight: '700' },
+  issueTitleCell: {
+    flex: 4,
+    minWidth: 0,
+    gap: 4,
+  },
+  issueTitleLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+  },
+  issueKey: {
+    fontSize: 11,
+    fontWeight: '900',
+    flexShrink: 0,
+  },
+  issueTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    flex: 1,
+    minWidth: 0,
+  },
+  issueMetaLine: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+  },
+  issueMetaText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  assigneeCell: {
+    flex: 1.6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+  },
+  assigneeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    flex: 1,
+  },
+  priorityCell: {
+    flex: 1.1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  priorityText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  typeText: {
+    flex: 0.9,
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  pointsCell: {
+    flex: 0.5,
+    alignItems: 'center',
+  },
+  pointsBadge: {
+    minWidth: 30,
+    height: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pointsText: {
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  emptySection: {
+    minHeight: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 9,
+  },
+  emptyIconWrap: {
+    width: 46,
+    height: 46,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
 
-  /* Add row */
   addRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 44, paddingVertical: 14,
-    borderTopWidth: StyleSheet.hairlineWidth, cursor: 'pointer',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderTopWidth: 1,
+    cursor: 'pointer',
   },
-  addIcon:  { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
-  addLabel: { fontSize: 13, fontWeight: '600' },
-  addHint:  { fontSize: 12 },
-
-  /* Inline form */
+  addIcon: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addLabel: {
+    fontSize: 13,
+    fontWeight: '900',
+  },
   inlineForm: {
-    paddingHorizontal: 44, paddingVertical: 14,
-    borderTopWidth: 2, gap: 10,
+    borderTopWidth: 1,
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    gap: 10,
   },
-  inlineTypeRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap' },
-  typeChip: {
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderRadius: 14,
-    paddingHorizontal: 8, paddingVertical: 4,
+  inlineTypeRow: {
+    flexDirection: 'row',
+    gap: 7,
+    flexWrap: 'wrap',
   },
-  inlineActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-
+  inlineActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  dialog: {
+    maxWidth: 440,
+    alignSelf: 'center',
+    width: '100%',
+    borderRadius: 8,
+  },
 });
 
 export default BacklogScreen;
