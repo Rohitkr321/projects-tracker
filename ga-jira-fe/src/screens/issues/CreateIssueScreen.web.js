@@ -859,6 +859,7 @@ export default function CreateIssueScreen({ route, navigation }) {
                   id="ci-due-date"
                   type="date"
                   value={dueDate}
+                  min={new Date().toISOString().split('T')[0]}
                   onChange={e => setDueDate(e.target.value)}
                   style={{
                     position: 'absolute', top: '100%', left: 0,

@@ -69,6 +69,7 @@ export default function ProjectSettingsScreen({ route, navigation }) {
   const project = projectData?.data;
   const members = membersData?.data || [];
   const canManage = ['super_admin', 'org_admin', 'project_manager'].includes(me?.role);
+  const canDelete = ['super_admin', 'org_admin'].includes(me?.role);
 
   const [form, setForm] = useState({ name: '', description: '', type: '', key: '' });
   const [selectedColor, setSelectedColor] = useState(NAVY);
@@ -541,7 +542,7 @@ export default function ProjectSettingsScreen({ route, navigation }) {
                   <Text style={[styles.dangerTitle, { color: colors.danger }]}>Delete Project</Text>
                   <Text style={[styles.dangerSub, { color: theme.colors.onSurfaceVariant }]}>Permanently delete this project and all issues, sprints, and data.</Text>
                 </View>
-                <Button mode="contained" style={[styles.headerButton, { backgroundColor: colors.danger }]} onPress={() => { setDeleteDialog(true); setDeleteConfirm(''); }} icon="delete-outline" disabled={!canManage}>
+                <Button mode="contained" style={[styles.headerButton, { backgroundColor: colors.danger }]} onPress={() => { setDeleteDialog(true); setDeleteConfirm(''); }} icon="delete-outline" disabled={!canDelete}>
                   Delete
                 </Button>
               </View>

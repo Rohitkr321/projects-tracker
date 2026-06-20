@@ -6,6 +6,7 @@ const {
   sendCommentAddedEmail,
   sendSprintStartedEmail,
   sendSprintCompletedEmail,
+  sendDueDateReminderEmail,
 } = require('./email.service');
 
 /* ─── Helpers ─── */
@@ -153,6 +154,24 @@ const notifySprintCompleted = async (sprint, actorId) => {
   }
 };
 
+/* ─── Due date reminder ─── */
+const notifyDueDateReminder = async (issue, hoursUntilDue) => {
+  if (!issue.assigneeId) return;
+  await createNotification({
+    recipientId: issue.assigneeId,
+    actorId: issue.assigneeId, // system notification, use self so it's not filtered
+    type: 'due_date_reminder',
+    title: `Due date reminder: ${issue.key}`,
+    body: `"${issue.title}" is due ${hoursUntilDue <= 24 ? 'tomorrow' : `in ${Math.round(hoursUntilDue / 24)} days`}`,
+    data: { issueId: issue.id, issueKey: issue.key, dueDate: issue.dueDate },
+    link: `/issues/${issue.id}`,
+  });
+  const recipient = await getUser(issue.assigneeId);
+  if (recipient && wantsEmail(recipient)) {
+    sendDueDateReminderEmail(recipient, issue, hoursUntilDue).catch(() => {});
+  }
+};
+
 module.exports = {
   createNotification,
   notifyIssueAssigned,
@@ -162,4 +181,5 @@ module.exports = {
   notifyProjectMembers,
   notifySprintStarted,
   notifySprintCompleted,
+  notifyDueDateReminder,
 };

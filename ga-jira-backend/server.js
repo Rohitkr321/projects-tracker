@@ -13,6 +13,7 @@ const routes = require('./src/routes');
 const { errorHandler, notFound } = require('./src/middleware/errorHandler.middleware');
 const { apiLimiter } = require('./src/middleware/rateLimiter.middleware');
 const socketService = require('./src/services/socket.service');
+const { startDueDateReminderJob } = require('./src/jobs/dueDateReminder.job');
 
 const app = express();
 const httpServer = http.createServer(app);
@@ -82,6 +83,7 @@ const start = async () => {
       console.log(`GA Jira API running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);
       console.log(`Socket.io initialized`);
+      startDueDateReminderJob();
     });
   } catch (err) {
     console.error('Failed to start server:', err);

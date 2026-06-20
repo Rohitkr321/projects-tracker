@@ -9,6 +9,7 @@ import CreateIssueScreen from '../screens/issues/CreateIssueScreen';
 import IssueListScreen from '../screens/issues/IssueListScreen';
 import SprintScreen from '../screens/sprints/SprintScreen';
 import EpicsScreen from '../screens/epics/EpicsScreen';
+import TimelineScreen from '../screens/projects/TimelineScreen.web';
 
 const Stack = createStackNavigator();
 
@@ -25,6 +26,7 @@ const ProjectStackNavigator = () => (
     <Stack.Screen name="IssueDetail"      component={IssueDetailScreen} />
     <Stack.Screen name="CreateIssue"      component={CreateIssueScreen} />
     <Stack.Screen name="IssueList"        component={IssueListScreen} />
+    <Stack.Screen name="Timeline"         component={TimelineScreen} />
   </Stack.Navigator>
 );
 

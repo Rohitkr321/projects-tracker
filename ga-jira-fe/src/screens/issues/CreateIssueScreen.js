@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, ScrollView, StyleSheet, Alert, Platform,
   Image, TouchableOpacity, Modal,
@@ -31,6 +31,7 @@ const WebDateInput = ({ value, onChange, theme }) => {
       <input
         type="date"
         value={value || ''}
+        min={new Date().toISOString().split('T')[0]}
         onChange={(e) => onChange(e.target.value)}
         style={{
           flex: 1, border: 'none', outline: 'none',
@@ -55,6 +56,10 @@ const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 const NativeDatePicker = ({ value, onChange, theme }) => {
   const today = new Date();
+  const todayYear  = today.getFullYear();
+  const todayMonth = today.getMonth() + 1;
+  const todayDay   = today.getDate();
+
   const parsed = value ? new Date(value) : today;
   const [open, setOpen] = useState(false);
   const [year,  setYear]  = useState(parsed.getFullYear());
@@ -62,6 +67,25 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
   const [day,   setDay]   = useState(parsed.getDate());
 
   const daysInMonth = new Date(year, month, 0).getDate();
+  const minMonth = year === todayYear ? todayMonth : 1;
+  const minDay   = year === todayYear && month === todayMonth ? todayDay : 1;
+
+  // When year is changed to today's year, push month/day forward if they're in the past
+  useEffect(() => {
+    if (year === todayYear) {
+      setMonth(m => {
+        if (m < todayMonth) { setDay(todayDay); return todayMonth; }
+        return m;
+      });
+    }
+  }, [year]);
+
+  // When month is changed into the current month of today's year, push day forward
+  useEffect(() => {
+    if (year === todayYear && month === todayMonth) {
+      setDay(d => Math.max(d, todayDay));
+    }
+  }, [month]);
 
   const open_ = () => {
     const d = value ? new Date(value) : today;
@@ -72,7 +96,7 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
   };
 
   const confirm = () => {
-    const safeDay = clamp(day, 1, new Date(year, month, 0).getDate());
+    const safeDay = clamp(day, minDay, new Date(year, month, 0).getDate());
     const mm = String(month).padStart(2, '0');
     const dd = String(safeDay).padStart(2, '0');
     onChange(`${year}-${mm}-${dd}`);
@@ -123,14 +147,14 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
                 v={MONTHS[month - 1]}
                 width={56}
                 onInc={() => setMonth(m => m === 12 ? 1 : m + 1)}
-                onDec={() => setMonth(m => m === 1 ? 12 : m - 1)}
+                onDec={() => setMonth(m => Math.max(minMonth, m > 1 ? m - 1 : m))}
               />
               <View style={[dpStyles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
               <Step
                 label="Day"
                 v={String(day).padStart(2, '0')}
-                onInc={() => setDay(d => d >= daysInMonth ? 1 : d + 1)}
-                onDec={() => setDay(d => d <= 1 ? daysInMonth : d - 1)}
+                onInc={() => setDay(d => d >= daysInMonth ? minDay : d + 1)}
+                onDec={() => setDay(d => Math.max(minDay, d > 1 ? d - 1 : d))}
               />
               <View style={[dpStyles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
               <Step
@@ -138,7 +162,7 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
                 v={year}
                 width={64}
                 onInc={() => setYear(y => y + 1)}
-                onDec={() => setYear(y => y - 1)}
+                onDec={() => setYear(y => Math.max(todayYear, y - 1))}
               />
             </View>
 

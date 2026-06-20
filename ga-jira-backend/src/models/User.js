@@ -7,7 +7,7 @@ const User = sequelize.define('User', {
   organizationId: { type: DataTypes.UUID, allowNull: true, references: { model: 'organizations', key: 'id' } },
   firstName: { type: DataTypes.STRING(100), allowNull: false },
   lastName: { type: DataTypes.STRING(100), allowNull: false },
-  email: { type: DataTypes.STRING(255), allowNull: false, unique: true },
+  email: { type: DataTypes.STRING(255), allowNull: false },
   password: { type: DataTypes.STRING(255), allowNull: false },
   avatar: { type: DataTypes.STRING(500) },
   role: {
@@ -28,6 +28,7 @@ const User = sequelize.define('User', {
   },
 }, {
   tableName: 'users',
+  indexes: [{ unique: true, fields: ['email'], name: 'email' }],
   hooks: {
     beforeCreate: async (user) => {
       if (user.password) user.password = await bcrypt.hash(user.password, 12);

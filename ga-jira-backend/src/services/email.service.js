@@ -189,6 +189,29 @@ const sendInvitation = async (email, inviterName, orgName, inviteUrl) => {
   });
 };
 
+/* ─── Due date reminder ─── */
+const sendDueDateReminderEmail = async (recipient, issue, hoursUntilDue) => {
+  const urgency = hoursUntilDue <= 24 ? 'tomorrow' : `in ${Math.round(hoursUntilDue / 24)} days`;
+  await sendEmail({
+    to: recipient.email,
+    subject: `[GA Jira] Due date reminder — ${issue.key} is due ${urgency}`,
+    html: layout(`
+      <h2 style="margin:0 0 8px;font-size:20px;color:#DC2626;">⏰ Due Date Reminder</h2>
+      <p style="margin:0 0 20px;color:#64748B;">An issue assigned to you is due <strong>${urgency}</strong>.</p>
+      <div style="background:#FEF2F2;border-radius:10px;padding:18px 20px;border-left:4px solid #DC2626;margin-bottom:20px;">
+        <div style="font-size:16px;font-weight:700;color:#0F172A;margin-bottom:10px;">${issue.title}</div>
+        <table cellpadding="0" cellspacing="0">
+          ${metaRow('Key', issue.key)}
+          ${metaRow('Priority', issue.priority || 'Medium')}
+          ${metaRow('Due Date', new Date(issue.dueDate).toDateString())}
+          ${issue.status?.name ? metaRow('Status', issue.status.name) : ''}
+        </table>
+      </div>
+      ${btn(`${APP_URL}/issues/${issue.id}`, 'View Issue →')}
+    `),
+  });
+};
+
 module.exports = {
   sendEmail,
   sendPasswordReset,
@@ -198,4 +221,5 @@ module.exports = {
   sendCommentAddedEmail,
   sendSprintStartedEmail,
   sendSprintCompletedEmail,
+  sendDueDateReminderEmail,
 };

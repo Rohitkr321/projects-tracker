@@ -1,8 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
-import { Text, useTheme, Button, Surface, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
+import { Text, useTheme, Button, Surface, Portal, Dialog, ActivityIndicator, Divider, Menu } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useGetIssuesQuery, useCreateIssueMutation } from '../../api/issueApi';
+import { useGetIssuesQuery, useCreateIssueMutation, useBulkUpdateIssuesMutation, useMoveIssuesToSprintMutation } from '../../api/issueApi';
 import { useGetSprintsQuery, useStartSprintMutation } from '../../api/sprintApi';
 import { useGetProjectQuery, useGetProjectWorkflowQuery } from '../../api/projectApi';
 import Avatar from '../../components/common/Avatar';
@@ -61,6 +61,9 @@ const BacklogScreen = ({ route, navigation }) => {
   const [inlineTitle, setInlineTitle] = useState('');
   const [inlineType, setInlineType] = useState('task');
   const titleRef = useRef(null);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkPriorityOpen, setBulkPriorityOpen] = useState(false);
+  const [bulkSprintOpen, setBulkSprintOpen] = useState(false);
 
   const issueParams = { projectId, limit: 500 };
   if (search) issueParams.search = search;
@@ -73,6 +76,8 @@ const BacklogScreen = ({ route, navigation }) => {
   const { data: workflowData } = useGetProjectWorkflowQuery(projectId, { skip: !projectId });
   const [createIssue, { isLoading: creating }] = useCreateIssueMutation();
   const [startSprint, { isLoading: startingSprint }] = useStartSprintMutation();
+  const [bulkUpdate] = useBulkUpdateIssuesMutation();
+  const [moveToSprint] = useMoveIssuesToSprintMutation();
 
   const project = projectResp?.data || projectResp || {};
   const accent = project.color || NAVY;
@@ -150,6 +155,29 @@ const BacklogScreen = ({ route, navigation }) => {
     setFilterPriority(null);
   };
 
+  const toggleSelect = (id) =>
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const clearSelection = () => setSelected(new Set());
+
+  const handleBulkPriority = async (priority) => {
+    try {
+      await bulkUpdate({ issueIds: [...selected], priority }).unwrap();
+      setSnackType('success'); setSnack(`Priority updated for ${selected.size} issue${selected.size !== 1 ? 's' : ''}`);
+      clearSelection(); refetch();
+    } catch { setSnackType('error'); setSnack('Failed to update priority'); }
+    setBulkPriorityOpen(false);
+  };
+
+  const handleBulkMoveToSprint = async (sprintId) => {
+    try {
+      await moveToSprint({ issueIds: [...selected], sprintId }).unwrap();
+      setSnackType('success');
+      setSnack(sprintId ? `${selected.size} issue${selected.size !== 1 ? 's' : ''} moved to sprint` : `${selected.size} issue${selected.size !== 1 ? 's' : ''} moved to backlog`);
+      clearSelection(); refetch(); refetchSprints();
+    } catch { setSnackType('error'); setSnack('Failed to move issues'); }
+    setBulkSprintOpen(false);
+  };
+
   if (isLoading) return <LoadingScreen />;
 
   const renderIssueRow = (issue) => (
@@ -157,6 +185,8 @@ const BacklogScreen = ({ route, navigation }) => {
       key={issue.id}
       issue={issue}
       theme={theme}
+      selected={selected.has(issue.id)}
+      onToggle={() => toggleSelect(issue.id)}
       onPress={() => navigation.navigate('IssueDetail', { issueId: issue.id })}
     />
   );
@@ -198,6 +228,16 @@ const BacklogScreen = ({ route, navigation }) => {
               labelStyle={[styles.outlinedActionLabel, { color: accent }]}
             >
               Board
+            </Button>
+            <Button
+              icon="chart-gantt"
+              mode="outlined"
+              compact
+              onPress={() => navigation.navigate('Timeline', { projectId })}
+              style={[styles.headerButton, { borderColor: theme.colors.outlineVariant }]}
+              labelStyle={[styles.outlinedActionLabel, { color: accent }]}
+            >
+              Timeline
             </Button>
             <Button
               icon="plus"
@@ -457,6 +497,59 @@ const BacklogScreen = ({ route, navigation }) => {
         </Surface>
       </ScrollView>
 
+      {selected.size > 0 && (
+        <View style={[styles.bulkBar, { backgroundColor: NAVY }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={styles.bulkCountBadge}>
+              <Text style={styles.bulkCountText}>{selected.size}</Text>
+            </View>
+            <Text style={styles.bulkBarLabel}>{selected.size} issue{selected.size !== 1 ? 's' : ''} selected</Text>
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <Menu
+              visible={bulkSprintOpen}
+              onDismiss={() => setBulkSprintOpen(false)}
+              anchor={
+                <Button compact mode="outlined" icon="lightning-bolt-outline"
+                  onPress={() => setBulkSprintOpen(true)}
+                  style={{ borderColor: 'rgba(255,255,255,0.35)', borderRadius: 8 }} textColor="#fff">
+                  Move to Sprint
+                </Button>
+              }
+            >
+              <Menu.Item title="Backlog (remove from sprint)" leadingIcon="tray-full"
+                onPress={() => handleBulkMoveToSprint(null)} />
+              <Divider />
+              {sprints.map(s => (
+                <Menu.Item key={s.id} title={s.name}
+                  leadingIcon={s.status === 'active' ? 'lightning-bolt' : 'lightning-bolt-outline'}
+                  onPress={() => handleBulkMoveToSprint(s.id)} />
+              ))}
+            </Menu>
+            <Menu
+              visible={bulkPriorityOpen}
+              onDismiss={() => setBulkPriorityOpen(false)}
+              anchor={
+                <Button compact mode="outlined" icon="flag-outline"
+                  onPress={() => setBulkPriorityOpen(true)}
+                  style={{ borderColor: 'rgba(255,255,255,0.35)', borderRadius: 8 }} textColor="#fff">
+                  Set Priority
+                </Button>
+              }
+            >
+              {PRIORITY_VALUES.map(p => (
+                <Menu.Item key={p} title={PRIORITY_LABELS[p]}
+                  leadingIcon={getPriorityIcon(p)}
+                  onPress={() => handleBulkPriority(p)} />
+              ))}
+            </Menu>
+            <TouchableOpacity onPress={clearSelection} style={styles.bulkClearBtn}>
+              <MaterialCommunityIcons name="close" size={16} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       <Portal>
         <Dialog
           visible={!!startSprintTarget}
@@ -484,65 +577,70 @@ const BacklogScreen = ({ route, navigation }) => {
   );
 };
 
-const IssueListRow = ({ issue, theme, onPress }) => {
+const IssueListRow = ({ issue, theme, selected, onToggle, onPress }) => {
   const typeColor = getIssueTypeColor(issue.type);
   const priorityColor = getPriorityColor(issue.priority);
   const statusColor = issue.status?.color || theme.colors.onSurfaceVariant;
 
   return (
-    <TouchableOpacity
-      style={[styles.issueRow, { borderBottomColor: theme.colors.outlineVariant }]}
-      onPress={onPress}
-      activeOpacity={0.82}
-    >
-      <View style={[styles.issueTypeIcon, { backgroundColor: `${typeColor}14` }]}>
-        <MaterialCommunityIcons name={getIssueTypeIcon(issue.type)} size={15} color={typeColor} />
-      </View>
-
-      <View style={styles.issueTitleCell}>
-        <View style={styles.issueTitleLine}>
-          <Text style={[styles.issueKey, { color: theme.colors.onSurfaceVariant }]}>{issue.key}</Text>
-          <Text style={[styles.issueTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>{issue.title}</Text>
+    <View style={[styles.issueRow, { borderBottomColor: theme.colors.outlineVariant }, selected && { backgroundColor: theme.colors.primaryContainer }]}>
+      <TouchableOpacity onPress={onToggle} style={styles.checkboxWrap} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <View style={[styles.checkbox, { borderColor: selected ? theme.colors.primary : theme.colors.outlineVariant, backgroundColor: selected ? theme.colors.primary : 'transparent' }]}>
+          {selected && <MaterialCommunityIcons name="check" size={11} color="#fff" />}
         </View>
-        <View style={styles.issueMetaLine}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.issueMetaText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
-            {issue.status?.name || 'Unknown'}
+      </TouchableOpacity>
+
+      <TouchableOpacity style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 }} onPress={onPress} activeOpacity={0.82}>
+        <View style={[styles.issueTypeIcon, { backgroundColor: `${typeColor}14` }]}>
+          <MaterialCommunityIcons name={getIssueTypeIcon(issue.type)} size={15} color={typeColor} />
+        </View>
+
+        <View style={styles.issueTitleCell}>
+          <View style={styles.issueTitleLine}>
+            <Text style={[styles.issueKey, { color: theme.colors.onSurfaceVariant }]}>{issue.key}</Text>
+            <Text style={[styles.issueTitle, { color: theme.colors.onSurface }]} numberOfLines={1}>{issue.title}</Text>
+          </View>
+          <View style={styles.issueMetaLine}>
+            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <Text style={[styles.issueMetaText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+              {issue.status?.name || 'Unknown'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.assigneeCell}>
+          <Avatar user={issue.assignee} size={28} />
+          <Text style={[styles.assigneeText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+            {personName(issue.assignee)}
           </Text>
         </View>
-      </View>
 
-      <View style={styles.assigneeCell}>
-        <Avatar user={issue.assignee} size={28} />
-        <Text style={[styles.assigneeText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
-          {personName(issue.assignee)}
+        <View style={styles.priorityCell}>
+          <MaterialCommunityIcons name={getPriorityIcon(issue.priority)} size={13} color={priorityColor} />
+          <Text style={[styles.priorityText, { color: priorityColor }]}>{PRIORITY_LABELS[issue.priority] || titleCase(issue.priority || 'Medium')}</Text>
+        </View>
+
+        <Text style={[styles.typeText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+          {ISSUE_TYPE_LABELS[issue.type] || titleCase(issue.type || 'Task')}
         </Text>
-      </View>
 
-      <View style={styles.priorityCell}>
-        <MaterialCommunityIcons name={getPriorityIcon(issue.priority)} size={13} color={priorityColor} />
-        <Text style={[styles.priorityText, { color: priorityColor }]}>{PRIORITY_LABELS[issue.priority] || titleCase(issue.priority || 'Medium')}</Text>
-      </View>
-
-      <Text style={[styles.typeText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
-        {ISSUE_TYPE_LABELS[issue.type] || titleCase(issue.type || 'Task')}
-      </Text>
-
-      <View style={styles.pointsCell}>
-        {issue.storyPoints != null ? (
-          <View style={[styles.pointsBadge, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
-            <Text style={[styles.pointsText, { color: theme.colors.onSurface }]}>{issue.storyPoints}</Text>
-          </View>
-        ) : (
-          <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>-</Text>
-        )}
-      </View>
-    </TouchableOpacity>
+        <View style={styles.pointsCell}>
+          {issue.storyPoints != null ? (
+            <View style={[styles.pointsBadge, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+              <Text style={[styles.pointsText, { color: theme.colors.onSurface }]}>{issue.storyPoints}</Text>
+            </View>
+          ) : (
+            <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>-</Text>
+          )}
+        </View>
+      </TouchableOpacity>
+    </View>
   );
 };
 
 const IssueListHeader = ({ theme }) => (
   <View style={[styles.listHeader, { backgroundColor: theme.colors.background, borderBottomColor: theme.colors.outlineVariant }]}>
+    <View style={{ width: 36 }} />
     <View style={{ width: 34 }} />
     <Text style={[styles.listHeaderText, { flex: 4, color: theme.colors.onSurfaceVariant }]}>Issue</Text>
     <Text style={[styles.listHeaderText, { flex: 1.6, color: theme.colors.onSurfaceVariant }]}>Assignee</Text>
@@ -803,7 +901,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: 28,
     gap: 16,
-    paddingBottom: 52,
+    paddingBottom: 80,
   },
   sectionCard: {
     borderWidth: 1,
@@ -916,11 +1014,24 @@ const styles = StyleSheet.create({
   issueRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderBottomWidth: 1,
+  },
+  checkboxWrap: {
+    width: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
     cursor: 'pointer',
+  },
+  checkbox: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   issueTypeIcon: {
     width: 34,
@@ -1063,6 +1174,40 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  bulkBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    gap: 12,
+    zIndex: 100,
+    flexWrap: 'wrap',
+    boxShadow: '0 -4px 20px rgba(0,0,0,0.18)',
+  },
+  bulkCountBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.22)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bulkCountText: { color: '#fff', fontSize: 12, fontWeight: '900' },
+  bulkBarLabel: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  bulkClearBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    cursor: 'pointer',
   },
   dialog: {
     maxWidth: 440,

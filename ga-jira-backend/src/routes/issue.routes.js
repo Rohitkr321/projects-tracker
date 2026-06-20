@@ -5,6 +5,8 @@ const { authenticate } = require('../middleware/auth.middleware');
 router.use(authenticate);
 router.get('/', ctrl.getAll);
 router.post('/', ctrl.create);
+router.put('/bulk', ctrl.bulkUpdate);
+router.post('/move-to-sprint', ctrl.moveToSprint);
 router.get('/:issueId', ctrl.getById);
 router.patch('/:issueId', ctrl.update);
 router.delete('/:issueId', ctrl.delete);

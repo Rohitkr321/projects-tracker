@@ -89,9 +89,9 @@ const TopBar = ({ screenName = '' }) => {
           style={[topBarStyles.searchHint, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}
         >
           <MaterialCommunityIcons name="magnify" size={14} color={theme.colors.onSurfaceVariant} />
-          <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant, marginLeft: 5, marginRight: 6 }}>Search…</Text>
+          <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant, marginLeft: 5, marginRight: 6 }}>Search...</Text>
           <View style={[topBarStyles.kbdHint, { borderColor: theme.colors.outlineVariant }]}>
-            <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant }}>⌘K</Text>
+            <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant }}>Ctrl K</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -274,20 +274,21 @@ const TopBar = ({ screenName = '' }) => {
 
 const topBarStyles = StyleSheet.create({
   bar: {
-    height: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 14, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 10,
+    height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 10,
+    boxShadow: '0 1px 0 rgba(20,33,61,0.04)',
   },
-  left:        { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  left:        { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
   searchHint: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1,
-    cursor: 'pointer',
+    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, borderWidth: 1,
+    minWidth: 150, cursor: 'pointer', outlineStyle: 'none',
   },
-  kbdHint: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
+  kbdHint: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
   right:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconBtn:     { width: 32, height: 32, justifyContent: 'center', alignItems: 'center', borderRadius: 16, position: 'relative' },
+  iconBtn:     { width: 34, height: 34, justifyContent: 'center', alignItems: 'center', borderRadius: 17, position: 'relative', outlineStyle: 'none' },
   badge:       { position: 'absolute', top: 0, right: 0 },
-  profileBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
+  profileBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, outlineStyle: 'none' },
   avatar:      { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
   avatarText:  { color: '#fff', fontSize: 11, fontWeight: '800' },
   profileInfo: { alignItems: 'flex-start' },
@@ -295,7 +296,7 @@ const topBarStyles = StyleSheet.create({
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 },
   // Profile dropdown
   profileDropdown: {
-    position: 'absolute', top: 44, right: 8, width: 248,
+    position: 'absolute', top: 48, right: 8, width: 248,
     borderRadius: 8, borderWidth: 1,
     shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24,
     elevation: 16, zIndex: 200, overflow: 'hidden',
@@ -307,7 +308,7 @@ const topBarStyles = StyleSheet.create({
   dropdownItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
   // Notification dropdown
   notifDropdown: {
-    position: 'absolute', top: 44, right: 8, width: 368,
+    position: 'absolute', top: 48, right: 8, width: 368,
     borderRadius: 8, borderWidth: 1,
     shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24,
     elevation: 16, zIndex: 200, overflow: 'hidden',
@@ -397,33 +398,53 @@ const WebSidebarContent = ({ state, navigation }) => {
   );
 
   return (
-    <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outline }]}>
+    <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outlineVariant }]}>
       {/* Brand */}
       <View style={[styles.sidebarBrand, { borderBottomColor: theme.colors.outlineVariant }]}>
-        <BrandLogo width={176} height={70} />
+        <View style={[styles.brandPlate, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
+          <BrandLogo width={178} height={68} />
+        </View>
       </View>
 
       {/* Nav items */}
       <View style={styles.navSection}>
+        <Text style={[styles.navGroupLabel, { color: theme.colors.onSurfaceVariant }]}>Workspace</Text>
         {visibleNavItems.map((item) => {
           const isActive = sidebarActive === item.name;
           return (
             <TouchableOpacity
               key={item.name}
               onPress={() => navigation.navigate(item.name)}
-              style={[styles.navItem, isActive && { backgroundColor: theme.colors.primaryContainer }]}
+              activeOpacity={0.82}
+              style={[
+                styles.navItem,
+                {
+                  backgroundColor: isActive ? theme.colors.primaryContainer : 'transparent',
+                  borderColor: isActive ? theme.colors.primary : 'transparent',
+                },
+              ]}
             >
-              <MaterialCommunityIcons
-                name={isActive ? item.activeIcon : item.icon}
-                size={20}
-                color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
-              />
+              <View style={[
+                styles.navIconBox,
+                { backgroundColor: isActive ? theme.colors.surface : theme.colors.surfaceVariant },
+              ]}>
+                <MaterialCommunityIcons
+                  name={isActive ? item.activeIcon : item.icon}
+                  size={18}
+                  color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                />
+              </View>
               <Text
                 variant="bodyMedium"
-                style={[styles.navLabel, { color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant }, isActive && { fontWeight: '600' }]}
+                style={[
+                  styles.navLabel,
+                  { color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant },
+                  isActive && { fontWeight: '800' },
+                ]}
               >
                 {item.label}
               </Text>
+              {isActive && <View style={[styles.activeRail, { backgroundColor: theme.colors.primary }]} />}
             </TouchableOpacity>
           );
         })}
@@ -432,8 +453,14 @@ const WebSidebarContent = ({ state, navigation }) => {
       {/* Sign Out */}
       <View style={styles.sidebarFooter}>
         <Divider style={{ marginBottom: 8 }} />
-        <TouchableOpacity style={styles.navItem} onPress={logout}>
-          <MaterialCommunityIcons name="logout-variant" size={20} color={theme.colors.error} />
+        <TouchableOpacity
+          style={[styles.signOutItem, { borderColor: theme.colors.outlineVariant }]}
+          onPress={logout}
+          activeOpacity={0.82}
+        >
+          <View style={[styles.navIconBox, { backgroundColor: theme.colors.errorContainer }]}>
+            <MaterialCommunityIcons name="logout-variant" size={18} color={theme.colors.error} />
+          </View>
           <Text variant="bodyMedium" style={[styles.navLabel, { color: theme.colors.error }]}>Sign Out</Text>
         </TouchableOpacity>
       </View>
@@ -449,9 +476,9 @@ const MainWebDrawer = () => {
       drawerContent={(props) => <WebSidebarContent {...props} />}
       screenOptions={{
         drawerType: 'permanent',
-        drawerStyle: { width: 248 },
+        drawerStyle: { width: 260 },
         headerShown: true,
-        header: () => <TopBar />,
+        header: (props) => <TopBar screenName={props.route.name} />,
         overlayColor: 'transparent',
       }}
     >
@@ -540,30 +567,82 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
   },
   sidebarBrand: {
-    alignItems: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 18,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  brandPlate: {
+    width: '100%',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navSection: {
     flex: 1,
-    paddingTop: 12,
-    paddingHorizontal: 12,
-    gap: 4,
+    paddingTop: 14,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  navGroupLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0,
+    paddingHorizontal: 10,
+    marginBottom: 2,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 10,
+    minHeight: 48,
+    outlineStyle: 'none',
+    cursor: 'pointer',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  navIconBox: {
+    width: 30,
+    height: 30,
     borderRadius: 8,
-    gap: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
   navLabel: {
     flex: 1,
   },
+  activeRail: {
+    position: 'absolute',
+    left: 0,
+    top: 9,
+    bottom: 9,
+    width: 3,
+    borderTopRightRadius: 3,
+    borderBottomRightRadius: 3,
+  },
   sidebarFooter: {
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
+  },
+  signOutItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 10,
+    minHeight: 48,
+    outlineStyle: 'none',
+    cursor: 'pointer',
   },
 });
 

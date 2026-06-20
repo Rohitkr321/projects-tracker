@@ -7,7 +7,13 @@ exports.getAll = async (req, res, next) => {
     const { page = 1, limit = 20, search, status } = req.query;
     const where = { organizationId: req.user.organizationId };
     if (search) where.name = { [Op.like]: `%${search}%` };
-    if (status) where.status = status;
+    // Never expose deleted projects. If a specific status is requested (e.g. 'archived'), use it.
+    // Default (no filter): show only active and on_hold.
+    if (status && status !== 'deleted') {
+      where.status = status;
+    } else {
+      where.status = { [Op.in]: ['active', 'on_hold'] };
+    }
 
     // org_admin and project_manager at org level see all org projects
     if (!['super_admin', 'org_admin', 'project_manager'].includes(req.user.role)) {
@@ -67,7 +73,7 @@ exports.getById = async (req, res, next) => {
         { model: ProjectMember, as: 'memberships', include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName', 'avatar', 'role'] }] },
       ],
     });
-    if (!project) return errorResponse(res, 'Project not found', 404);
+    if (!project || project.status === 'deleted') return errorResponse(res, 'Project not found', 404);
     successResponse(res, project);
   } catch (err) {
     next(err);
@@ -129,8 +135,8 @@ exports.update = async (req, res, next) => {
 exports.delete = async (req, res, next) => {
   try {
     const project = await Project.findByPk(req.params.projectId);
-    if (!project) return errorResponse(res, 'Project not found', 404);
-    await project.destroy();
+    if (!project || project.status === 'deleted') return errorResponse(res, 'Project not found', 404);
+    await project.update({ status: 'deleted' });
     successResponse(res, null, 'Project deleted');
   } catch (err) {
     next(err);

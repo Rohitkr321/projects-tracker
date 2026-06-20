@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
   },
   pageTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   titleAccent:  { width: 4, height: 28, borderRadius: 2, backgroundColor: NAVY },
-  pageTitle:    { fontSize: 20, fontWeight: '800', letterSpacing: -0.3 },
+  pageTitle:    { fontSize: 20, fontWeight: '800', letterSpacing: 0 },
   pageSub:      { fontSize: 12, marginTop: 2 },
 
   filterRow:  { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -888,7 +888,7 @@ const styles = StyleSheet.create({
     position: 'absolute', bottom: 2, right: 2,
     width: 12, height: 12, borderRadius: 6, borderWidth: 2.5,
   },
-  identityName:  { fontSize: 15, fontWeight: '800', letterSpacing: -0.1 },
+  identityName:  { fontSize: 15, fontWeight: '800', letterSpacing: 0 },
   identityEmail: { fontSize: 11, marginTop: 3 },
   identityStatusBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,

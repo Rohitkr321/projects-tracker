@@ -183,8 +183,7 @@ const ProjectsScreen = ({ navigation }) => {
   const [toast, setToast]         = useState('');
   const [toastType, setToastType] = useState('success');
 
-  const queryParams = { search };
-  if (!showArchived) queryParams.status = 'active';
+  const queryParams = { search, status: showArchived ? 'archived' : 'active' };
 
   const isDark = theme.dark;
   const { data, isLoading, refetch } = useGetProjectsQuery(queryParams);
@@ -469,7 +468,7 @@ const styles = StyleSheet.create({
   },
   pageHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   titleAccent: { width: 4, height: 28, borderRadius: 2, backgroundColor: colors.brand.navy },
-  pageTitle: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
+  pageTitle: { fontSize: 20, fontWeight: '800', letterSpacing: 0 },
   pageSubtitle: { fontSize: 12, marginTop: 2 },
   pageHeaderRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   searchWrap: {
@@ -518,7 +517,7 @@ const styles = StyleSheet.create({
 
   cardBody: { padding: 16, gap: 0 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 6 },
-  cardName: { fontSize: 14, fontWeight: '700', flex: 1, letterSpacing: -0.2 },
+  cardName: { fontSize: 14, fontWeight: '700', flex: 1, letterSpacing: 0 },
   keyChip: {
     borderRadius: 6, borderWidth: 1,
     paddingHorizontal: 7, paddingVertical: 2,

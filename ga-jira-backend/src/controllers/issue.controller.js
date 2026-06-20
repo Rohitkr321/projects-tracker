@@ -341,6 +341,42 @@ exports.uploadAttachments = async (req, res, next) => {
   }
 };
 
+/* ─── Bulk update (priority, status, assignee, etc.) ─── */
+exports.bulkUpdate = async (req, res, next) => {
+  try {
+    const { issueIds, ...fields } = req.body;
+    if (!Array.isArray(issueIds) || issueIds.length === 0)
+      return errorResponse(res, 'issueIds array is required', 400);
+
+    const allowedFields = ['priority', 'type', 'assigneeId', 'workflowStatusId', 'sprintId', 'epicId'];
+    const updateData = {};
+    for (const f of allowedFields) {
+      if (fields[f] !== undefined) updateData[f] = fields[f];
+    }
+    if (Object.keys(updateData).length === 0)
+      return errorResponse(res, 'No valid fields to update', 400);
+
+    await Issue.update(updateData, { where: { id: { [Op.in]: issueIds } } });
+    successResponse(res, { updated: issueIds.length }, `${issueIds.length} issues updated`);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ─── Move issues to sprint (or backlog when sprintId is null) ─── */
+exports.moveToSprint = async (req, res, next) => {
+  try {
+    const { issueIds, sprintId } = req.body;
+    if (!Array.isArray(issueIds) || issueIds.length === 0)
+      return errorResponse(res, 'issueIds array is required', 400);
+
+    await Issue.update({ sprintId: sprintId || null }, { where: { id: { [Op.in]: issueIds } } });
+    successResponse(res, { moved: issueIds.length }, `${issueIds.length} issues ${sprintId ? 'moved to sprint' : 'moved to backlog'}`);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.deleteAttachment = async (req, res, next) => {
   try {
     const att = await Attachment.findByPk(req.params.attachmentId);

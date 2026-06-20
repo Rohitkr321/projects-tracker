@@ -11,7 +11,7 @@ const Project = sequelize.define('Project', {
   description: { type: DataTypes.TEXT },
   avatar: { type: DataTypes.STRING(500) },
   type: { type: DataTypes.ENUM('scrum', 'kanban'), defaultValue: 'scrum' },
-  status: { type: DataTypes.ENUM('active', 'archived', 'on_hold'), defaultValue: 'active' },
+  status: { type: DataTypes.ENUM('active', 'archived', 'on_hold', 'deleted'), defaultValue: 'active' },
   startDate: { type: DataTypes.DATEONLY },
   endDate: { type: DataTypes.DATEONLY },
   issueCounter: { type: DataTypes.INTEGER, defaultValue: 0 },

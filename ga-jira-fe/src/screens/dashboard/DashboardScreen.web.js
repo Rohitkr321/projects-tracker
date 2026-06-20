@@ -35,7 +35,7 @@ const StatTile = ({ icon, iconBg, iconColor, label, value, sub, onPress }) => {
       style={[styles.tile, {
         backgroundColor: theme.colors.surface,
         borderColor: theme.colors.outlineVariant,
-        borderBottomColor: iconColor,
+        borderLeftColor: iconColor,
       }]}
     >
       <View style={styles.tileRow}>
@@ -180,24 +180,47 @@ const DashboardScreen = ({ navigation }) => {
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero greeting banner ── */}
-        <View style={styles.hero}>
+        <View style={[styles.hero, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
           <View style={styles.heroLeft}>
-            <Text style={styles.heroGreeting}>{greeting()},</Text>
-            <Text style={styles.heroName}>{user?.firstName} {user?.lastName}</Text>
-            <View style={styles.heroMetaRow}>
-              <View style={styles.heroBadge}>
-                <Text style={styles.heroBadgeText}>{ROLE_LABELS[user?.role] || user?.role}</Text>
+            <View style={[styles.heroIconBadge, { backgroundColor: theme.colors.primaryContainer }]}>
+              <MaterialCommunityIcons name="view-dashboard" size={22} color={theme.colors.primary} />
+            </View>
+            <View style={styles.heroCopy}>
+              <Text style={[styles.heroGreeting, { color: theme.colors.onSurfaceVariant }]}>Operational dashboard</Text>
+              <Text style={[styles.heroName, { color: theme.colors.onSurface }]}>{greeting()}, {user?.firstName} {user?.lastName}</Text>
+              <View style={styles.heroMetaRow}>
+              <View style={[styles.heroBadge, { backgroundColor: colors.secondaryContainer, borderColor: colors.secondaryLight }]}>
+                <Text style={[styles.heroBadgeText, { color: colors.secondaryDark }]}>{ROLE_LABELS[user?.role] || user?.role}</Text>
               </View>
               <Text style={styles.heroDot}>·</Text>
-              <Text style={styles.heroOrg}>General Aeronautics</Text>
+              <Text style={[styles.heroOrg, { color: theme.colors.onSurfaceVariant }]}>General Aeronautics</Text>
             </View>
           </View>
+          </View>
           <View style={styles.heroRight}>
-            <View style={styles.heroAvatar}>
+            <View style={[styles.heroPulseCard, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
+              <Text style={[styles.heroPulseLabel, { color: theme.colors.onSurfaceVariant }]}>Workload</Text>
+              <Text style={[styles.heroPulseValue, { color: theme.colors.onSurface }]}>{m.totalIssues || 0} issues</Text>
+              <View style={styles.heroPulseRow}>
+                <View style={styles.heroPulseItem}>
+                  <View style={[styles.heroPulseDot, { backgroundColor: colors.success }]} />
+                  <Text style={[styles.heroPulseText, { color: theme.colors.onSurfaceVariant }]}>{m.doneCount || 0} done</Text>
+                </View>
+                <View style={styles.heroPulseItem}>
+                  <View style={[styles.heroPulseDot, { backgroundColor: colors.warning }]} />
+                  <Text style={[styles.heroPulseText, { color: theme.colors.onSurfaceVariant }]}>{m.overdueCount || 0} overdue</Text>
+                </View>
+              </View>
+            </View>
+            <View style={[styles.heroAvatar, { backgroundColor: colors.brand.navy }]}>
               <Text style={styles.heroAvatarText}>{initials(user)}</Text>
             </View>
-            <TouchableOpacity onPress={handleRefresh} style={styles.heroRefreshBtn}>
-              <MaterialCommunityIcons name="refresh" size={16} color="rgba(255,255,255,0.7)" />
+            <TouchableOpacity
+              onPress={handleRefresh}
+              style={[styles.heroRefreshBtn, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}
+              activeOpacity={0.82}
+            >
+              <MaterialCommunityIcons name="refresh" size={17} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
           </View>
         </View>
@@ -385,47 +408,57 @@ const styles = StyleSheet.create({
   /* Hero */
   hero: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: colors.brand.navy,
-    paddingHorizontal: 28, paddingVertical: 20,
+    paddingHorizontal: 28, paddingVertical: 16,
+    borderBottomWidth: 1,
+    gap: 20,
   },
-  heroLeft: { flex: 1 },
-  heroGreeting: { fontSize: 13, color: 'rgba(255,255,255,0.65)', fontWeight: '400', marginBottom: 2 },
-  heroName: { fontSize: 22, color: '#FFFFFF', fontWeight: '800', letterSpacing: -0.5, marginBottom: 8 },
-  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  heroBadge: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  heroBadgeText: { color: colors.brand.goldLight, fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
-  heroDot: { color: 'rgba(255,255,255,0.3)', fontSize: 12 },
-  heroOrg: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
+  heroLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 },
+  heroIconBadge: { width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  heroCopy: { flex: 1, minWidth: 0 },
+  heroGreeting: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0, marginBottom: 3 },
+  heroName: { fontSize: 23, fontWeight: '900', letterSpacing: 0, marginBottom: 8 },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  heroBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 4 },
+  heroBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0 },
+  heroDot: { display: 'none' },
+  heroOrgPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 8, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 4 },
+  heroOrg: { fontSize: 11, fontWeight: '700' },
   heroRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroPulseCard: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, minWidth: 170 },
+  heroPulseLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0 },
+  heroPulseValue: { fontSize: 16, fontWeight: '900', marginTop: 1 },
+  heroPulseRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
+  heroPulseItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  heroPulseDot: { width: 7, height: 7, borderRadius: 4 },
+  heroPulseText: { fontSize: 11, fontWeight: '700' },
   heroAvatar: {
     width: 44, height: 44, borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.18)',
     justifyContent: 'center', alignItems: 'center',
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.25)',
   },
-  heroAvatarText: { color: '#FFFFFF', fontWeight: '800', fontSize: 15, letterSpacing: 0.5 },
+  heroAvatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15, letterSpacing: 0 },
   heroRefreshBtn: {
-    width: 32, height: 32, borderRadius: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: 36, height: 36, borderRadius: 9, borderWidth: 1,
     justifyContent: 'center', alignItems: 'center',
+    outlineStyle: 'none',
   },
 
   /* Stats */
-  statsSection: { paddingHorizontal: 24, paddingTop: 20, paddingBottom: 4, gap: 12 },
+  statsSection: { paddingHorizontal: 28, paddingTop: 18, paddingBottom: 4, gap: 12 },
   statsRow: { flexDirection: 'row', gap: 12 },
   tile: {
     flex: 1, borderRadius: 10, padding: 16,
-    borderWidth: 1, borderBottomWidth: 3,
+    borderWidth: 1, borderLeftWidth: 3,
     boxShadow: '0px 2px 8px rgba(6,43,111,0.06)',
+    outlineStyle: 'none',
   },
   tileRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  tileValue: { fontSize: 28, fontWeight: '800', lineHeight: 34, color: colors.brand.navy, letterSpacing: -0.5 },
+  tileValue: { fontSize: 28, fontWeight: '800', lineHeight: 34, color: colors.brand.navy, letterSpacing: 0 },
   tileLabel: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   tileSub: { fontSize: 11, marginTop: 3 },
   tileIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
 
   /* Two-column */
-  twoCol: { flexDirection: 'row', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40, gap: 20 },
+  twoCol: { flexDirection: 'row', paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40, gap: 20 },
   col: { flex: 3, gap: 0 },
   colNarrow: { flex: 2, gap: 0 },
   section: { marginBottom: 24 },
@@ -434,7 +467,7 @@ const styles = StyleSheet.create({
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sectionAccentBar: { width: 3, height: 16, borderRadius: 2, backgroundColor: colors.brand.navy },
-  sectionTitle: { fontWeight: '700', fontSize: 14, letterSpacing: -0.2 },
+  sectionTitle: { fontWeight: '700', fontSize: 14, letterSpacing: 0 },
   viewAllLabel: { fontSize: 12 },
 
   /* Sprint card */

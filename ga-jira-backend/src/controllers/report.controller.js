@@ -116,8 +116,8 @@ exports.dashboard = async (req, res, next) => {
     const isAdmin = ['super_admin', 'org_admin', 'project_manager'].includes(req.user.role);
 
     if (isAdmin && orgId) {
-      // Org-wide stats for supervisors / PMs
-      const orgProjects = await Project.findAll({ where: { organizationId: orgId }, attributes: ['id'] });
+      // Org-wide stats for supervisors / PMs (exclude deleted and archived)
+      const orgProjects = await Project.findAll({ where: { organizationId: orgId, status: { [Op.in]: ['active', 'on_hold'] } }, attributes: ['id'] });
       const projectIds = orgProjects.map(p => p.id);
 
       const todoStatuses = await WorkflowStatus.findAll({ where: { category: 'todo' }, attributes: ['id'] });
@@ -135,7 +135,7 @@ exports.dashboard = async (req, res, next) => {
         todoCount, doneCount, activeSprintsCount, totalMembers,
         myTasks, myInProgress, inReviewCount,
       ] = await Promise.all([
-        Project.count({ where: { organizationId: orgId } }),
+        Project.count({ where: { organizationId: orgId, status: { [Op.in]: ['active', 'on_hold'] } } }),
         Issue.count({ where: baseWhere }),
         Issue.count({ where: { ...baseWhere, workflowStatusId: { [Op.in]: inProgressIds.length ? inProgressIds : ['none'] } } }),
         Issue.count({ where: { ...baseWhere, dueDate: { [Op.lt]: new Date() }, resolvedAt: null } }),
