@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, TextInput as RNTextInput, Alert, Keyboard
 import { Text, useTheme, Chip, Button, Card, ActivityIndicator, Menu, Portal, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
-import { useGetIssueQuery, useUpdateIssueMutation, useAddCommentMutation, useWatchIssueMutation, useUnwatchIssueMutation } from '../../api/issueApi';
+import { useGetIssueQuery, useUpdateIssueMutation, useAddCommentMutation, useWatchIssueMutation, useUnwatchIssueMutation, useGetAttachmentsQuery } from '../../api/issueApi';
 import { useGetProjectWorkflowQuery, useGetProjectMembersQuery } from '../../api/projectApi';
 import { useAuth } from '../../hooks/useAuth';
 import { formatRelative, formatDate, formatDuration } from '../../utils/dateUtils';
@@ -20,6 +20,8 @@ const IssueDetailScreen = ({ route, navigation }) => {
   const commentRef = useRef(null);
   const [statusMenuVisible, setStatusMenuVisible] = useState(false);
   const [assigneeMenuVisible, setAssigneeMenuVisible] = useState(false);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionDraft, setDescriptionDraft] = useState('');
 
   const { data, isLoading, refetch } = useGetIssueQuery(issueId);
 
@@ -31,6 +33,9 @@ const IssueDetailScreen = ({ route, navigation }) => {
 
   const issue = data?.data;
   const projectId = issue?.projectId;
+
+  const { data: attachmentsData } = useGetAttachmentsQuery(issueId, { skip: !issueId });
+  const attachments = attachmentsData?.data || issue?.attachments || [];
 
   const { data: workflowData } = useGetProjectWorkflowQuery(projectId, { skip: !projectId });
   const { data: membersData } = useGetProjectMembersQuery(projectId, { skip: !projectId });
@@ -85,6 +90,16 @@ const IssueDetailScreen = ({ route, navigation }) => {
     } catch {}
   };
 
+  const handleSaveDescription = async () => {
+    try {
+      await updateIssue({ id: issueId, description: descriptionDraft }).unwrap();
+      setEditingDescription(false);
+      refetch();
+    } catch {
+      Alert.alert('Error', 'Failed to update description');
+    }
+  };
+
   if (isLoading) return <View style={styles.loading}><ActivityIndicator size="large" /></View>;
   if (!issue) return null;
 
@@ -96,6 +111,27 @@ const IssueDetailScreen = ({ route, navigation }) => {
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, { backgroundColor: theme.colors.surface }]}>
+          {/* Breadcrumb: project > parent > current issue */}
+          <View style={styles.breadcrumb}>
+            {issue.project && (
+              <>
+                <TouchableOpacity onPress={() => navigation.navigate('ProjectDetail', { projectId: issue.project.id })}>
+                  <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>{issue.project.name}</Text>
+                </TouchableOpacity>
+                <MaterialCommunityIcons name="chevron-right" size={15} color={theme.colors.onSurfaceVariant} />
+              </>
+            )}
+            {issue.parent && (
+              <>
+                <TouchableOpacity onPress={() => navigation.push('IssueDetail', { issueId: issue.parent.id })}>
+                  <Text style={{ color: theme.colors.primary, fontSize: 13 }}>{issue.parent.key}</Text>
+                </TouchableOpacity>
+                <MaterialCommunityIcons name="chevron-right" size={15} color={theme.colors.onSurfaceVariant} />
+              </>
+            )}
+            <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>{issue.key}</Text>
+          </View>
+
           <View style={styles.headerTop}>
             <Chip compact style={{ backgroundColor: theme.colors.background }}>
               <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>{issue.key}</Text>
@@ -205,36 +241,67 @@ const IssueDetailScreen = ({ route, navigation }) => {
           </Card.Content>
         </Card>
 
-        {issue.description && (
-          <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
-            <Card.Content>
-              <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Description</Text>
-              <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, lineHeight: 22 }}>{issue.description}</Text>
-            </Card.Content>
-          </Card>
-        )}
+        <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+          <Card.Content>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface, marginBottom: 0 }]}>Description</Text>
+              {!editingDescription && (
+                <TouchableOpacity onPress={() => { setDescriptionDraft(issue.description || ''); setEditingDescription(true); }}>
+                  <MaterialCommunityIcons name="pencil-outline" size={18} color={theme.colors.primary} />
+                </TouchableOpacity>
+              )}
+            </View>
+            {editingDescription ? (
+              <>
+                <RNTextInput
+                  style={[styles.descInput, { color: theme.colors.onSurface, borderColor: theme.colors.outline, backgroundColor: theme.colors.background }]}
+                  value={descriptionDraft}
+                  onChangeText={setDescriptionDraft}
+                  multiline
+                  autoFocus
+                  placeholder="Add a description..."
+                  placeholderTextColor={theme.colors.onSurfaceVariant}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <Button mode="contained" compact onPress={handleSaveDescription} loading={isUpdating}>Save</Button>
+                  <Button mode="text" compact onPress={() => setEditingDescription(false)}>Cancel</Button>
+                </View>
+              </>
+            ) : (
+              <Text variant="bodyMedium" style={{ color: issue.description ? theme.colors.onSurface : theme.colors.onSurfaceVariant, lineHeight: 22 }}>
+                {issue.description || 'No description. Tap pencil to add one.'}
+              </Text>
+            )}
+          </Card.Content>
+        </Card>
 
-        {issue.attachments?.length > 0 && (
+        {attachments.length > 0 && (
           <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
             <Card.Content>
               <Text variant="titleSmall" style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>
-                Attachments ({issue.attachments.length})
+                Attachments ({attachments.length})
               </Text>
               <View style={styles.attachmentGrid}>
-                {issue.attachments.map((att) => {
-                  const src = att.url?.startsWith('http') ? att.url : `${WS_URL}${att.url}`;
+                {attachments.map((att) => {
+                  // viewUrl is a presigned S3 URL; fall back to att.url if it's already http
+                  const src = att.viewUrl || (att.url?.startsWith('http') ? att.url : null);
                   const isImage = att.mimeType?.startsWith('image/');
                   return (
                     <TouchableOpacity
                       key={att.id}
                       style={[styles.attachmentItem, { backgroundColor: theme.colors.surfaceVariant }]}
-                      onPress={() => Linking.openURL(src)}
+                      onPress={() => src && Linking.openURL(src)}
+                      activeOpacity={src ? 0.75 : 1}
                     >
-                      {isImage ? (
+                      {isImage && src ? (
                         <Image source={{ uri: src }} style={styles.attachmentImage} resizeMode="cover" />
                       ) : (
                         <View style={[styles.fileIconWrap, { backgroundColor: theme.colors.primaryContainer }]}>
-                          <MaterialCommunityIcons name="file-outline" size={28} color={theme.colors.primary} />
+                          <MaterialCommunityIcons
+                            name={isImage ? 'image-outline' : 'file-document-outline'}
+                            size={28}
+                            color={theme.colors.primary}
+                          />
                         </View>
                       )}
                       <Text
@@ -323,7 +390,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   loading: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: { padding: 16, marginBottom: 8 },
+  breadcrumb: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12, flexWrap: 'wrap' },
+  backBtn: { marginRight: 4 },
   headerTop: { flexDirection: 'row', gap: 8, marginBottom: 8, alignItems: 'center' },
+  descInput: { borderWidth: 1, borderRadius: 8, padding: 10, minHeight: 80, fontSize: 14, lineHeight: 20 },
   title: { fontWeight: '700', lineHeight: 28, marginBottom: 8 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 },
   statusAnchor: { flexDirection: 'row', alignItems: 'center' },

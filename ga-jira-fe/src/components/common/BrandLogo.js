@@ -3,7 +3,8 @@ import { Image, View, StyleSheet, Text } from 'react-native';
 import { useSelector } from 'react-redux';
 import { selectIsDarkMode } from '../../store/authSlice';
 
-const LOGO = require('../../../assets/ga-logo.png');
+const LOGO = require('../../../assets/ga-logo-full.jpg');
+const LOGO_FULL = require('../../../assets/ga-logo-full.jpg');
 
 const BrandLogo = ({
   width = 200,
@@ -19,7 +20,7 @@ const BrandLogo = ({
       <View style={[styles.sidebarLockup, { width, height }, style]}>
         <View style={styles.sidebarLogoFrame}>
           <Image
-            source={LOGO}
+            source={LOGO_FULL}
             style={{ width: width - 42, height: Math.max(42, height - 38) }}
             resizeMode="contain"
           />
@@ -36,20 +37,8 @@ const BrandLogo = ({
     return (
       <View style={[styles.markWrap, { width: size, height: size, borderRadius: size * 0.22 }, style]}>
         <Image
-          source={LOGO}
-          style={{ width: size * 0.9, height: size * 0.9 }}
-          resizeMode="contain"
-        />
-      </View>
-    );
-  }
-
-  if (isDarkMode) {
-    return (
-      <View style={[styles.darkWrap, { width, height: height - 8 }, style]}>
-        <Image
-          source={LOGO}
-          style={{ width: width - 24, height: height - 8 }}
+          source={LOGO_FULL}
+          style={{ width: size * 0.95, height: size * 0.95 }}
           resizeMode="contain"
         />
       </View>
@@ -57,11 +46,13 @@ const BrandLogo = ({
   }
 
   return (
-    <Image
-      source={LOGO}
-      style={[{ width, height }, style]}
-      resizeMode="contain"
-    />
+    <View style={[styles.darkWrap, { width, height: height - 8, backgroundColor: isDarkMode ? '#FFFFFF' : 'transparent' }, style]}>
+      <Image
+        source={LOGO_FULL}
+        style={{ width: width - 16, height: height - 8 }}
+        resizeMode="contain"
+      />
+    </View>
   );
 };
 

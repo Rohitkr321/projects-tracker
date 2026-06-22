@@ -26,13 +26,17 @@ const TAB_BOARD = 'board';
 const TAB_BACKLOG = 'backlog';
 const TAB_SPRINTS = 'sprints';
 const TAB_MEMBERS = 'members';
+const TAB_ROADMAP = 'roadmap';
+const TAB_CALENDAR = 'calendar';
 
-const tabs = [TAB_OVERVIEW, TAB_BOARD, TAB_BACKLOG, TAB_SPRINTS, TAB_MEMBERS];
+const tabs = [TAB_OVERVIEW, TAB_BOARD, TAB_BACKLOG, TAB_SPRINTS, TAB_ROADMAP, TAB_CALENDAR, TAB_MEMBERS];
 const TAB_LABEL = {
   overview: 'Overview',
   board: 'Board',
   backlog: 'Backlog',
   sprints: 'Sprints',
+  roadmap: 'Roadmap',
+  calendar: 'Calendar',
   members: 'Members',
 };
 const TAB_ICON = {
@@ -40,6 +44,8 @@ const TAB_ICON = {
   board: 'view-column-outline',
   backlog: 'format-list-bulleted',
   sprints: 'lightning-bolt-outline',
+  roadmap: 'chart-gantt',
+  calendar: 'calendar-month-outline',
   members: 'account-group-outline',
 };
 
@@ -236,6 +242,14 @@ const ProjectDetailScreen = ({ route, navigation }) => {
     }
     if (tab === TAB_BACKLOG) {
       navigation.navigate('Backlog', { projectId });
+      return;
+    }
+    if (tab === TAB_ROADMAP) {
+      navigation.navigate('Roadmap', { projectId });
+      return;
+    }
+    if (tab === TAB_CALENDAR) {
+      navigation.navigate('Calendar', { projectId });
       return;
     }
     setActiveTab(tab);

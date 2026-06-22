@@ -371,11 +371,6 @@ export default function IssueDetailScreen({ route, navigation }) {
 
       {/* Top bar */}
       <View style={[styles.topBar, { backgroundColor: surf, borderBottomColor: border }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <MaterialCommunityIcons name="chevron-left" size={18} color={theme.colors.onSurfaceVariant} />
-          <Text style={{ color: theme.colors.onSurfaceVariant, marginLeft: 2, fontSize: 13 }}>Back</Text>
-        </TouchableOpacity>
-
         <View style={styles.breadcrumb}>
           {/* Project name (non-subtasks show project; subtasks show parent's project via parent) */}
           {issue.project && (

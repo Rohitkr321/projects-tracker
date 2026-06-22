@@ -405,6 +405,8 @@ const linking = {
               IssueDetail: 'issue/:issueId',
               CreateIssue: 'project/:projectId/create-issue',
               IssueList: 'issues',
+              Roadmap: 'project/:projectId/roadmap',
+              Calendar: 'project/:projectId/calendar',
             },
           },
         },

@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import {
   Text,
@@ -20,7 +21,8 @@ import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useForgotPasswordMutation } from '../../api/authApi';
-import BrandLogo from '../../components/common/BrandLogo';
+
+const LOGO = require('../../../assets/ga-logo-full.jpg');
 
 const validationSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email address').required('Email is required'),
@@ -58,7 +60,9 @@ const ForgotPasswordScreen = ({ navigation }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <BrandLogo width={200} height={80} />
+          <View style={styles.logoContainer}>
+            <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+          </View>
           <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
             <MaterialCommunityIcons
               name="lock-reset"
@@ -163,6 +167,8 @@ const ForgotPasswordScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60, justifyContent: 'center' },
+  logoContainer: { width: 220, height: 88, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#B8AA6E', borderBottomWidth: 3, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  logoImg: { width: 190, height: 76 },
   backButton: { position: 'absolute', top: 60, left: 24, zIndex: 1 },
   header: { alignItems: 'center', marginBottom: 32, gap: 10 },
   iconContainer: {

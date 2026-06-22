@@ -13,8 +13,8 @@ import {
   Dialog,
   Portal,
   TextInput,
+  IconButton,
 } from 'react-native-paper';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetProjectQuery, useGetProjectMembersQuery } from '../../api/projectApi';
 import { useGetSprintsQuery, useGetActiveSprintQuery, useCreateSprintMutation } from '../../api/sprintApi';
 import { useGetProjectIssuesQuery } from '../../api/issueApi';
@@ -27,6 +27,8 @@ const TAB_OVERVIEW = 'overview';
 const TAB_BOARD = 'board';
 const TAB_BACKLOG = 'backlog';
 const TAB_SPRINTS = 'sprints';
+const TAB_ROADMAP = 'roadmap';
+const TAB_CALENDAR = 'calendar';
 const TAB_MEMBERS = 'members';
 
 const ProjectDetailScreen = ({ route, navigation }) => {
@@ -67,8 +69,8 @@ const ProjectDetailScreen = ({ route, navigation }) => {
   const sprintsList = sprintsResp?.data?.data || [];
   const issuesList = issuesResp?.data?.data || [];
 
-  const tabs = [TAB_OVERVIEW, TAB_BOARD, TAB_BACKLOG, TAB_SPRINTS, TAB_MEMBERS];
-  const tabLabels = { overview: 'Overview', board: 'Board', backlog: 'Backlog', sprints: 'Sprints', members: 'Members' };
+  const tabs = [TAB_OVERVIEW, TAB_BOARD, TAB_BACKLOG, TAB_SPRINTS, TAB_ROADMAP, TAB_CALENDAR, TAB_MEMBERS];
+  const tabLabels = { overview: 'Overview', board: 'Board', backlog: 'Backlog', sprints: 'Sprints', roadmap: 'Roadmap', calendar: 'Calendar', members: 'Members' };
 
   const sprintProgress = activeSprint
     ? getSprintProgress(activeSprint.startDate, activeSprint.endDate)
@@ -99,14 +101,12 @@ const ProjectDetailScreen = ({ route, navigation }) => {
             </Text>
           </View>
         </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity
-            onPress={() => navigation.navigate('ProjectSettings', { projectId })}
-            style={styles.settingsBtn}
-          >
-            <MaterialCommunityIcons name="cog" size={22} color={theme.colors.onSurfaceVariant} />
-          </TouchableOpacity>
-        </View>
+        <IconButton
+          icon="cog-outline"
+          size={22}
+          iconColor={theme.colors.onSurfaceVariant}
+          onPress={() => navigation.navigate('ProjectSettings', { projectId })}
+        />
       </Surface>
 
       {/* Tabs */}
@@ -124,6 +124,10 @@ const ProjectDetailScreen = ({ route, navigation }) => {
                 navigation.navigate('Board', { projectId });
               } else if (tab === TAB_BACKLOG) {
                 navigation.navigate('Backlog', { projectId });
+              } else if (tab === TAB_ROADMAP) {
+                navigation.navigate('Roadmap', { projectId });
+              } else if (tab === TAB_CALENDAR) {
+                navigation.navigate('Calendar', { projectId });
               } else {
                 setActiveTab(tab);
               }
@@ -376,8 +380,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   projectAvatarText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
-  headerActions: { flexDirection: 'row', gap: 8 },
-  settingsBtn: { padding: 4 },
   tabBar: { maxHeight: 48 },
   tabContent: { paddingHorizontal: 16 },
   tab: { paddingVertical: 12, paddingHorizontal: 16, marginRight: 4 },

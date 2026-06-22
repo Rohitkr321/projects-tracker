@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert, Clipboard, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Avatar, Card, List, Divider, Button, Switch, TextInput, Menu, Portal, Dialog, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
 import { useLogoutMutation } from '../../api/authApi';
+import { toggleDarkMode, selectIsDarkMode } from '../../store/authSlice';
 import { useCreateInviteMutation, useListInvitesQuery, useRevokeInviteMutation } from '../../api/inviteApi';
 import { ROLE_LABELS } from '../../constants';
 import { formatDate } from '../../utils/dateUtils';
@@ -16,9 +18,11 @@ const INVITABLE_ROLES = [
   { value: 'project_manager', label: 'Project Manager' },
 ];
 
-const ProfileScreen = () => {
+const ProfileScreen = ({ navigation }) => {
   const theme = useTheme();
   const { user, logout } = useAuth();
+  const dispatch = useDispatch();
+  const isDarkMode = useSelector(selectIsDarkMode);
   const [logoutMutation, { isLoading: loggingOut }] = useLogoutMutation();
   const [notifications, setNotifications] = useState(user?.notificationPreferences?.inApp ?? true);
 
@@ -117,9 +121,32 @@ const ProfileScreen = () => {
         </Card.Content>
       </Card>
 
+      {canInvite && (
+        <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+          <Card.Content>
+            <List.Item
+              title="Team Members"
+              description="View and manage org members"
+              left={(p) => <List.Icon {...p} icon="account-group-outline" />}
+              right={(p) => <List.Icon {...p} icon="chevron-right" />}
+              onPress={() => navigation.navigate('Team')}
+              style={{ paddingLeft: 0 }}
+            />
+          </Card.Content>
+        </Card>
+      )}
+
       <Card style={[styles.card, { backgroundColor: theme.colors.surface }]}>
         <Card.Content>
           <Text variant="titleSmall" style={{ fontWeight: '700', color: theme.colors.onSurface, marginBottom: 8 }}>Preferences</Text>
+          <View style={styles.prefRow}>
+            <View>
+              <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>Dark Mode</Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Switch app appearance</Text>
+            </View>
+            <Switch value={isDarkMode} onValueChange={() => dispatch(toggleDarkMode())} />
+          </View>
+          <Divider style={{ marginVertical: 4 }} />
           <View style={styles.prefRow}>
             <View>
               <Text variant="bodyMedium" style={{ color: theme.colors.onSurface }}>In-App Notifications</Text>

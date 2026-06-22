@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import {
   Text,
@@ -22,7 +23,8 @@ import * as Yup from 'yup';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRegisterMutation } from '../../api/authApi';
 import { useAuth } from '../../hooks/useAuth';
-import BrandLogo from '../../components/common/BrandLogo';
+
+const LOGO = require('../../../assets/ga-logo-full.jpg');
 
 const validationSchema = Yup.object().shape({
   name: Yup.string().min(2, 'Name too short').required('Name is required'),
@@ -78,7 +80,9 @@ const RegisterScreen = ({ navigation, route }) => {
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <BrandLogo width={210} height={84} />
+          <View style={styles.logoContainer}>
+            <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+          </View>
           <Text variant="headlineMedium" style={[styles.title, { color: theme.colors.onSurface }]}>
             Create Account
           </Text>
@@ -247,6 +251,8 @@ const RegisterScreen = ({ navigation, route }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60 },
+  logoContainer: { width: 240, height: 96, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#B8AA6E', borderBottomWidth: 3, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
+  logoImg: { width: 200, height: 80 },
   backButton: { position: 'absolute', top: 60, left: 24, zIndex: 1 },
   header: { alignItems: 'center', marginBottom: 18, marginTop: 28, gap: 6 },
   title: { fontWeight: '700', marginBottom: 4 },

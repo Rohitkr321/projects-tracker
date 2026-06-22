@@ -8,7 +8,7 @@ const { generateIssueKey } = require('../utils/issueKey');
 const { notifyIssueAssigned, notifyIssueUpdated, notifyCommentAdded } = require('../services/notification.service');
 const { emitToProject, emitToIssue } = require('../services/socket.service');
 const { triggerWebhooks } = require('../services/webhook.service');
-const { getPresignedPutUrl, getPresignedGetUrl, deleteObject } = require('../services/s3.service');
+const { getPresignedPutUrl, getPresignedGetUrl, deleteObject, uploadFileToS3 } = require('../services/s3.service');
 
 const ISSUE_INCLUDES = [
   { model: User, as: 'assignee', attributes: ['id', 'firstName', 'lastName', 'avatar'] },
@@ -68,9 +68,14 @@ exports.getById = async (req, res, next) => {
     });
     if (!issue) return errorResponse(res, 'Issue not found', 404);
     const data = issue.toJSON();
+    const serverBase = `${req.protocol}://${req.get('host')}`;
     await Promise.all((data.attachments || []).map(async (att) => {
       if (att.mimeType !== 'link' && att.filename) {
-        try { att.viewUrl = await getPresignedGetUrl(att.filename); } catch (_) {}
+        if (att.filename.includes('/')) {
+          try { att.viewUrl = await getPresignedGetUrl(att.filename); } catch (_) {}
+        } else {
+          att.viewUrl = `${serverBase}/uploads/${att.filename}`;
+        }
       }
     }));
     successResponse(res, data);
@@ -118,6 +123,21 @@ exports.create = async (req, res, next) => {
         size: null,
         url: l.url,
       })));
+    }
+
+    if (req.files?.length) {
+      await Promise.all(req.files.map(async (file) => {
+        const s3Key = await uploadFileToS3(file.path, issue.id, file.originalname, file.mimetype);
+        return Attachment.create({
+          issueId:      issue.id,
+          uploadedById: req.user.id,
+          filename:     s3Key,
+          originalName: file.originalname,
+          mimeType:     file.mimetype,
+          size:         file.size,
+          url:          s3Key,
+        });
+      }));
     }
 
     await ActivityLog.create({ issueId: issue.id, projectId, actorId: req.user.id, action: 'created' });
@@ -266,10 +286,15 @@ exports.getAttachments = async (req, res, next) => {
       include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }],
       order: [['createdAt', 'DESC']],
     });
+    const serverBase = `${req.protocol}://${req.get('host')}`;
     const data = await Promise.all(attachments.map(async (att) => {
       const a = att.toJSON();
       if (a.mimeType !== 'link' && a.filename) {
-        try { a.viewUrl = await getPresignedGetUrl(a.filename); } catch (_) {}
+        if (a.filename.includes('/')) {
+          try { a.viewUrl = await getPresignedGetUrl(a.filename); } catch (_) {}
+        } else {
+          a.viewUrl = `${serverBase}/uploads/${a.filename}`;
+        }
       }
       return a;
     }));

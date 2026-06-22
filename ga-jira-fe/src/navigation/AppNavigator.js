@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { Platform, PermissionsAndroid } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
 import { setCredentials, setLoading, setDarkMode } from '../store/authSlice';
@@ -8,6 +9,7 @@ import { storage } from '../utils/storage';
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
 import ProjectStackNavigator from './ProjectStackNavigator';
+import TeamScreen from '../screens/team/TeamScreen';
 import LoadingScreen from '../components/common/LoadingScreen';
 
 const linking = {
@@ -66,6 +68,9 @@ const AppNavigator = () => {
         if (accessToken && user) {
           dispatch(setCredentials({ user, accessToken, refreshToken }));
         }
+        if (Platform.OS === 'android' && Platform.Version >= 33) {
+          PermissionsAndroid.request('android.permission.POST_NOTIFICATIONS').catch(() => {});
+        }
       } catch (error) {
         console.error('Bootstrap error:', error);
       } finally {
@@ -85,10 +90,11 @@ const AppNavigator = () => {
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={AuthNavigator} />
         ) : (
-          <>
+          <Stack.Group>
             <Stack.Screen name="Main" component={MainTabNavigator} />
             <Stack.Screen name="ProjectStack" component={ProjectStackNavigator} />
-          </>
+            <Stack.Screen name="Team" component={TeamScreen} />
+          </Stack.Group>
         )}
       </Stack.Navigator>
     </NavigationContainer>

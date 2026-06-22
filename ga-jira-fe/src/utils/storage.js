@@ -13,8 +13,10 @@ const getItem = async (key) => {
 
 const setItem = async (key, value) => {
   const k = sanitizeKey(key);
-  if (Platform.OS === 'web') { localStorage.setItem(k, value); return; }
-  return SecureStore.setItemAsync(k, value);
+  if (value === null || value === undefined) return;
+  const strValue = typeof value === 'string' ? value : JSON.stringify(value);
+  if (Platform.OS === 'web') { localStorage.setItem(k, strValue); return; }
+  return SecureStore.setItemAsync(k, strValue);
 };
 
 const removeItem = async (key) => {

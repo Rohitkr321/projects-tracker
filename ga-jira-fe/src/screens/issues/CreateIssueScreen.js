@@ -1,31 +1,49 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, ScrollView, StyleSheet, Alert, Platform,
-  Image, TouchableOpacity, Modal,
+  Image, TouchableOpacity, Modal, ActivityIndicator,
 } from 'react-native';
 import { Text, useTheme, TextInput, Button, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
-import { useSelector } from 'react-redux';
-import { useDispatch } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { useCreateIssueMutation } from '../../api/issueApi';
 import { issueApi } from '../../api/issueApi';
 import { useGetProjectWorkflowQuery } from '../../api/projectApi';
-import { ISSUE_TYPE_LABELS, PRIORITY_LABELS, API_BASE_URL } from '../../constants';
+import { API_BASE_URL } from '../../constants';
+
+const NAVY = '#0F2557';
+
+const TYPE_CONFIG = {
+  bug:     { icon: 'bug',                            color: '#E53935', label: 'Bug' },
+  story:   { icon: 'book-open-page-variant-outline', color: '#7C4DFF', label: 'Story' },
+  task:    { icon: 'checkbox-marked-circle-outline', color: '#1976D2', label: 'Task' },
+  epic:    { icon: 'lightning-bolt',                 color: '#F57C00', label: 'Epic' },
+  subtask: { icon: 'subdirectory-arrow-right',       color: '#546E7A', label: 'Subtask' },
+};
+
+const PRIORITY_CONFIG = {
+  highest: { icon: 'arrow-up-bold',   color: '#D32F2F', label: 'Highest' },
+  high:    { icon: 'arrow-up',        color: '#F57C00', label: 'High' },
+  medium:  { icon: 'minus',           color: '#FBC02D', label: 'Medium' },
+  low:     { icon: 'arrow-down',      color: '#388E3C', label: 'Low' },
+  lowest:  { icon: 'arrow-down-bold', color: '#757575', label: 'Lowest' },
+};
 
 const schema = Yup.object({
-  title: Yup.string().required('Title is required').min(3, 'Title too short'),
-  type: Yup.string().required('Type is required'),
+  title:    Yup.string().required('Title is required').min(3, 'Title too short'),
+  type:     Yup.string().required('Type is required'),
   priority: Yup.string().required('Priority is required'),
 });
 
-// ─── Web date input ──────────────────────────────────────────────────────────
+// ─── Web date input ───────────────────────────────────────────────────────────
 const WebDateInput = ({ value, onChange, theme }) => {
   if (Platform.OS !== 'web') return null;
   return (
-    <View style={[wDateStyles.wrapper, { borderColor: theme.colors.outline, backgroundColor: theme.colors.surface }]}>
+    <View style={[wDateStyles.wrapper, { borderColor: theme.colors.outline, backgroundColor: theme.colors.surfaceVariant }]}>
       <MaterialCommunityIcons name="calendar" size={18} color={theme.colors.onSurfaceVariant} style={{ marginRight: 8 }} />
       <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginRight: 8 }}>Due Date</Text>
       <input
@@ -45,13 +63,12 @@ const WebDateInput = ({ value, onChange, theme }) => {
 const wDateStyles = StyleSheet.create({
   wrapper: {
     flexDirection: 'row', alignItems: 'center', borderWidth: 1,
-    borderRadius: 4, paddingHorizontal: 12, paddingVertical: 14, marginTop: 4,
+    borderRadius: 10, paddingHorizontal: 14, paddingVertical: 14,
   },
 });
 
-// ─── Pure-JS date picker (no native modules) ─────────────────────────────────
+// ─── Native date picker ────────────────────────────────────────────────────────
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
 const NativeDatePicker = ({ value, onChange, theme }) => {
@@ -63,14 +80,13 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
   const parsed = value ? new Date(value) : today;
   const [open, setOpen] = useState(false);
   const [year,  setYear]  = useState(parsed.getFullYear());
-  const [month, setMonth] = useState(parsed.getMonth() + 1);   // 1-12
+  const [month, setMonth] = useState(parsed.getMonth() + 1);
   const [day,   setDay]   = useState(parsed.getDate());
 
   const daysInMonth = new Date(year, month, 0).getDate();
   const minMonth = year === todayYear ? todayMonth : 1;
   const minDay   = year === todayYear && month === todayMonth ? todayDay : 1;
 
-  // When year is changed to today's year, push month/day forward if they're in the past
   useEffect(() => {
     if (year === todayYear) {
       setMonth(m => {
@@ -80,7 +96,6 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
     }
   }, [year]);
 
-  // When month is changed into the current month of today's year, push day forward
   useEffect(() => {
     if (year === todayYear && month === todayMonth) {
       setDay(d => Math.max(d, todayDay));
@@ -118,19 +133,28 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
     </View>
   );
 
+  const displayValue = value
+    ? (() => { const [y, m, d] = value.split('-'); return `${MONTHS[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`; })()
+    : '';
+
   return (
     <>
-      <TouchableOpacity onPress={open_} activeOpacity={0.7}>
-        <TextInput
-          label="Due Date"
-          value={value ? (() => { const [y, m, d] = value.split('-'); return `${MONTHS[parseInt(m, 10) - 1]} ${parseInt(d, 10)}, ${y}`; })() : ''}
-          mode="outlined"
-          editable={false}
-          pointerEvents="none"
-          style={styles.input}
-          placeholder="Select a date"
-          right={<TextInput.Icon icon="calendar" onPress={open_} />}
-        />
+      <TouchableOpacity
+        onPress={open_}
+        activeOpacity={0.75}
+        style={[dpStyles.trigger, { borderColor: theme.colors.outline, backgroundColor: theme.colors.surfaceVariant }]}
+      >
+        <MaterialCommunityIcons name="calendar-outline" size={18} color={theme.colors.primary} />
+        <Text style={[dpStyles.triggerText, { color: displayValue ? theme.colors.onSurface : theme.colors.onSurfaceVariant }]}>
+          {displayValue || 'Select due date'}
+        </Text>
+        {displayValue ? (
+          <TouchableOpacity onPress={() => onChange('')} hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}>
+            <MaterialCommunityIcons name="close-circle" size={16} color={theme.colors.onSurfaceVariant} />
+          </TouchableOpacity>
+        ) : (
+          <MaterialCommunityIcons name="chevron-right" size={16} color={theme.colors.onSurfaceVariant} />
+        )}
       </TouchableOpacity>
 
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -140,34 +164,26 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
             <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700', textAlign: 'center', marginBottom: 16 }}>
               Select Due Date
             </Text>
-
             <View style={dpStyles.row}>
               <Step
-                label="Month"
-                v={MONTHS[month - 1]}
-                width={56}
+                label="Month" v={MONTHS[month - 1]} width={56}
                 onInc={() => setMonth(m => m === 12 ? 1 : m + 1)}
                 onDec={() => setMonth(m => Math.max(minMonth, m > 1 ? m - 1 : m))}
               />
               <View style={[dpStyles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
               <Step
-                label="Day"
-                v={String(day).padStart(2, '0')}
+                label="Day" v={String(day).padStart(2, '0')}
                 onInc={() => setDay(d => d >= daysInMonth ? minDay : d + 1)}
                 onDec={() => setDay(d => Math.max(minDay, d > 1 ? d - 1 : d))}
               />
               <View style={[dpStyles.divider, { backgroundColor: theme.colors.outlineVariant }]} />
               <Step
-                label="Year"
-                v={year}
-                width={64}
+                label="Year" v={year} width={64}
                 onInc={() => setYear(y => y + 1)}
                 onDec={() => setYear(y => Math.max(todayYear, y - 1))}
               />
             </View>
-
             <Divider style={{ marginVertical: 16 }} />
-
             <View style={{ flexDirection: 'row', gap: 12 }}>
               <Button mode="outlined" style={{ flex: 1 }} onPress={() => setOpen(false)}>Cancel</Button>
               <Button mode="contained" style={{ flex: 1 }} onPress={confirm}>Confirm</Button>
@@ -180,6 +196,11 @@ const NativeDatePicker = ({ value, onChange, theme }) => {
 };
 
 const dpStyles = StyleSheet.create({
+  trigger: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 14,
+  },
+  triggerText: { flex: 1, fontSize: 14 },
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.45)' },
   sheet: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   card: { width: 320, borderRadius: 16, padding: 24, elevation: 8, shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 16, shadowOffset: { width: 0, height: 4 } },
@@ -189,7 +210,28 @@ const dpStyles = StyleSheet.create({
   divider: { width: 1, height: 80, marginHorizontal: 4 },
 });
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
+// ─── Section Card ─────────────────────────────────────────────────────────────
+const SectionCard = ({ title, icon, iconColor, children, theme }) => (
+  <View style={[scStyles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
+    <View style={[scStyles.hdr, { borderBottomColor: theme.colors.outlineVariant }]}>
+      <View style={[scStyles.iconBadge, { backgroundColor: (iconColor || theme.colors.primary) + '22' }]}>
+        <MaterialCommunityIcons name={icon} size={15} color={iconColor || theme.colors.primary} />
+      </View>
+      <Text style={[scStyles.hdrLabel, { color: theme.colors.onSurface }]}>{title}</Text>
+    </View>
+    <View style={scStyles.body}>{children}</View>
+  </View>
+);
+
+const scStyles = StyleSheet.create({
+  card: { borderRadius: 14, borderWidth: 1, overflow: 'hidden', elevation: 1, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
+  hdr: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
+  iconBadge: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  hdrLabel: { fontSize: 13, fontWeight: '700', letterSpacing: 0.3 },
+  body: { padding: 14, gap: 12 },
+});
+
+// ─── Main screen ───────────────────────────────────────────────────────────────
 const CreateIssueScreen = ({ route, navigation }) => {
   const { projectId, sprintId, epicId } = route.params || {};
   const theme = useTheme();
@@ -222,18 +264,27 @@ const CreateIssueScreen = ({ route, navigation }) => {
     }
   };
 
-  const removeAttachment = (index) => {
-    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  const pickFiles = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: '*/*', multiple: true, copyToCacheDirectory: true });
+      if (!result.canceled) {
+        const docs = result.assets.map((a) => ({
+          uri: a.uri, mimeType: a.mimeType || 'application/octet-stream',
+          fileName: a.name || 'file', isDocument: true,
+        }));
+        setAttachments((prev) => [...prev, ...docs].slice(0, 10));
+      }
+    } catch {
+      Alert.alert('Error', 'Could not open file picker');
+    }
   };
+
+  const removeAttachment = (index) => setAttachments((prev) => prev.filter((_, i) => i !== index));
 
   const handleSubmit = async (values) => {
     const workflowStatusId = statuses[0]?.id;
 
     if (attachments.length > 0) {
-      // ── FormData path: use XMLHttpRequest ──────────────────────────────────
-      // React Native's XHR uses the native bridge and reliably handles
-      // { uri, type, name } file parts. The newer fetch() in RN 0.76+ changed
-      // its FormData serialisation and throws "Unsupported FormDataPart".
       setUploading(true);
       try {
         const formData = new FormData();
@@ -274,7 +325,6 @@ const CreateIssueScreen = ({ route, navigation }) => {
           xhr.send(formData);
         });
 
-        // Invalidate RTK Query cache so issue lists refresh
         dispatch(issueApi.util.invalidateTags([
           'Issue',
           { type: 'Issue', id: `project-${projectId}` },
@@ -290,7 +340,6 @@ const CreateIssueScreen = ({ route, navigation }) => {
         setUploading(false);
       }
     } else {
-      // ── Plain JSON path: use RTK Query mutation ────────────────────────────
       try {
         const result = await createIssue({
           ...values,
@@ -316,6 +365,7 @@ const CreateIssueScreen = ({ route, navigation }) => {
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
       <Formik
         initialValues={{ title: '', description: '', type: 'task', priority: 'medium', storyPoints: '', dueDate: '' }}
@@ -325,125 +375,219 @@ const CreateIssueScreen = ({ route, navigation }) => {
         {({ values, errors, touched, handleChange, handleBlur, handleSubmit: formSubmit, setFieldValue }) => (
           <View style={styles.form}>
 
-            {/* Issue Type */}
-            <Text variant="titleSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Issue Type</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-              {Object.entries(ISSUE_TYPE_LABELS).map(([value, label]) => (
-                <Button
-                  key={value}
-                  mode={values.type === value ? 'contained' : 'outlined'}
-                  compact
-                  onPress={() => setFieldValue('type', value)}
-                  style={styles.typeBtn}
-                >
-                  {label}
-                </Button>
-              ))}
-            </ScrollView>
-
-            {/* Title */}
-            <TextInput
-              label="Title *"
-              value={values.title}
-              onChangeText={handleChange('title')}
-              onBlur={handleBlur('title')}
-              mode="outlined"
-              error={touched.title && !!errors.title}
-              style={styles.input}
-            />
-            {touched.title && errors.title && (
-              <Text variant="bodySmall" style={{ color: theme.colors.error }}>{errors.title}</Text>
-            )}
-
-            {/* Description */}
-            <TextInput
-              label="Description"
-              value={values.description}
-              onChangeText={handleChange('description')}
-              mode="outlined"
-              multiline
-              numberOfLines={4}
-              style={styles.input}
-            />
-
-            {/* Priority */}
-            <Text variant="titleSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>Priority</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-              {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-                <Button
-                  key={value}
-                  mode={values.priority === value ? 'contained' : 'outlined'}
-                  compact
-                  onPress={() => setFieldValue('priority', value)}
-                  style={styles.typeBtn}
-                >
-                  {label}
-                </Button>
-              ))}
-            </ScrollView>
-
-            {/* Story Points */}
-            <TextInput
-              label="Story Points"
-              value={values.storyPoints}
-              onChangeText={handleChange('storyPoints')}
-              mode="outlined"
-              keyboardType="numeric"
-              style={styles.input}
-            />
-
-            {/* Due Date */}
-            {Platform.OS === 'web' ? (
-              <WebDateInput
-                value={values.dueDate}
-                onChange={(val) => setFieldValue('dueDate', val)}
-                theme={theme}
-              />
-            ) : (
-              <NativeDatePicker
-                value={values.dueDate}
-                onChange={(val) => setFieldValue('dueDate', val)}
-                theme={theme}
-              />
-            )}
-
-            {/* Attachments — native only */}
-            {Platform.OS !== 'web' && (
-              <View>
-                <Text variant="titleSmall" style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
-                  Attachments{attachments.length > 0 ? ` (${attachments.length})` : ''}
-                </Text>
-                <Button mode="outlined" icon="image-plus" onPress={pickImages} style={styles.attachBtn}>
-                  Attach Images
-                </Button>
-                {attachments.length > 0 && (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.thumbRow}>
-                    {attachments.map((asset, index) => (
-                      <View key={index} style={styles.thumbWrap}>
-                        <Image source={{ uri: asset.uri }} style={styles.thumb} resizeMode="cover" />
-                        <TouchableOpacity
-                          style={[styles.thumbRemove, { backgroundColor: theme.colors.error }]}
-                          onPress={() => removeAttachment(index)}
-                        >
-                          <MaterialCommunityIcons name="close" size={12} color="#fff" />
-                        </TouchableOpacity>
+            {/* ── Issue Type ── */}
+            <SectionCard title="Issue Type" icon="layers-outline" iconColor={TYPE_CONFIG[values.type]?.color} theme={theme}>
+              <View style={styles.typeGrid}>
+                {Object.entries(TYPE_CONFIG).map(([value, cfg]) => {
+                  const selected = values.type === value;
+                  return (
+                    <TouchableOpacity
+                      key={value}
+                      onPress={() => setFieldValue('type', value)}
+                      activeOpacity={0.75}
+                      style={[styles.typeChip, {
+                        backgroundColor: selected ? cfg.color + '14' : theme.colors.background,
+                        borderColor: selected ? cfg.color : theme.colors.outlineVariant,
+                        borderWidth: selected ? 2 : 1,
+                      }]}
+                    >
+                      <View style={[styles.typeIconBadge, { backgroundColor: cfg.color + (selected ? '28' : '18') }]}>
+                        <MaterialCommunityIcons name={cfg.icon} size={17} color={cfg.color} />
                       </View>
-                    ))}
-                  </ScrollView>
+                      <Text style={[styles.typeChipLabel, { color: selected ? cfg.color : theme.colors.onSurface, fontWeight: selected ? '700' : '500' }]}>
+                        {cfg.label}
+                      </Text>
+                      {selected && (
+                        <MaterialCommunityIcons name="check-circle" size={14} color={cfg.color} style={{ marginLeft: 'auto' }} />
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </SectionCard>
+
+            {/* ── Details ── */}
+            <SectionCard title="Details" icon="text-box-outline" iconColor={NAVY} theme={theme}>
+              <TextInput
+                label="Title *"
+                value={values.title}
+                onChangeText={handleChange('title')}
+                onBlur={handleBlur('title')}
+                mode="outlined"
+                error={touched.title && !!errors.title}
+                style={styles.input}
+              />
+              {touched.title && errors.title && (
+                <Text variant="bodySmall" style={{ color: theme.colors.error, marginTop: -6 }}>{errors.title}</Text>
+              )}
+              <TextInput
+                label="Description"
+                value={values.description}
+                onChangeText={handleChange('description')}
+                mode="outlined"
+                multiline
+                numberOfLines={4}
+                style={styles.input}
+              />
+            </SectionCard>
+
+            {/* ── Properties ── */}
+            <SectionCard title="Properties" icon="tune-vertical-variant" iconColor="#6366F1" theme={theme}>
+
+              {/* Priority */}
+              <View>
+                <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>Priority</Text>
+                <View style={styles.priorityRow}>
+                  {Object.entries(PRIORITY_CONFIG).map(([value, cfg]) => {
+                    const selected = values.priority === value;
+                    return (
+                      <TouchableOpacity
+                        key={value}
+                        onPress={() => setFieldValue('priority', value)}
+                        activeOpacity={0.75}
+                        style={[styles.priorityChip, {
+                          backgroundColor: selected ? cfg.color : theme.colors.background,
+                          borderColor: selected ? cfg.color : theme.colors.outlineVariant,
+                        }]}
+                      >
+                        <MaterialCommunityIcons name={cfg.icon} size={13} color={selected ? '#fff' : cfg.color} />
+                        <Text style={[styles.priorityLabel, { color: selected ? '#fff' : theme.colors.onSurface }]}>
+                          {cfg.label}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+
+              {/* Story Points */}
+              <View style={styles.storyRow}>
+                <View style={[styles.storyIconBadge, { backgroundColor: '#6366F122' }]}>
+                  <MaterialCommunityIcons name="poker-chip" size={15} color="#6366F1" />
+                </View>
+                <Text style={[styles.storyLabel, { color: theme.colors.onSurface }]}>Story Points</Text>
+                <View style={styles.stepperRow}>
+                  <TouchableOpacity
+                    style={[styles.stepperBtn, { borderColor: theme.colors.outlineVariant }]}
+                    onPress={() => {
+                      const v = parseInt(values.storyPoints, 10);
+                      if (!isNaN(v) && v > 0) setFieldValue('storyPoints', String(v - 1));
+                    }}
+                  >
+                    <MaterialCommunityIcons name="minus" size={14} color={theme.colors.onSurface} />
+                  </TouchableOpacity>
+                  <TextInput
+                    value={values.storyPoints}
+                    onChangeText={handleChange('storyPoints')}
+                    mode="flat"
+                    keyboardType="numeric"
+                    style={styles.spInput}
+                    contentStyle={styles.spInputContent}
+                    placeholder="0"
+                    dense
+                  />
+                  <TouchableOpacity
+                    style={[styles.stepperBtn, { borderColor: theme.colors.outlineVariant }]}
+                    onPress={() => {
+                      const v = parseInt(values.storyPoints, 10);
+                      setFieldValue('storyPoints', isNaN(v) ? '1' : String(v + 1));
+                    }}
+                  >
+                    <MaterialCommunityIcons name="plus" size={14} color={theme.colors.onSurface} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+
+              {/* Due Date */}
+              <View>
+                <Text style={[styles.fieldLabel, { color: theme.colors.onSurfaceVariant }]}>Due Date</Text>
+                {Platform.OS === 'web' ? (
+                  <WebDateInput value={values.dueDate} onChange={(val) => setFieldValue('dueDate', val)} theme={theme} />
+                ) : (
+                  <NativeDatePicker value={values.dueDate} onChange={(val) => setFieldValue('dueDate', val)} theme={theme} />
                 )}
               </View>
+
+            </SectionCard>
+
+            {/* ── Attachments (native only) ── */}
+            {Platform.OS !== 'web' && (
+              <SectionCard
+                title={`Attachments${attachments.length > 0 ? ` · ${attachments.length}/10` : ''}`}
+                icon="paperclip"
+                iconColor="#0097A7"
+                theme={theme}
+              >
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <TouchableOpacity
+                    onPress={pickImages}
+                    style={[styles.attachBtn, { borderColor: '#0097A7', backgroundColor: '#0097A714' }]}
+                    activeOpacity={0.75}
+                  >
+                    <MaterialCommunityIcons name="image-plus" size={18} color="#0097A7" />
+                    <Text style={[styles.attachBtnLabel, { color: '#0097A7' }]}>Photos</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={pickFiles}
+                    style={[styles.attachBtn, { borderColor: '#6366F1', backgroundColor: '#6366F114' }]}
+                    activeOpacity={0.75}
+                  >
+                    <MaterialCommunityIcons name="file-plus-outline" size={18} color="#6366F1" />
+                    <Text style={[styles.attachBtnLabel, { color: '#6366F1' }]}>Files</Text>
+                  </TouchableOpacity>
+                </View>
+                {attachments.length > 0 && (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                    <View style={{ flexDirection: 'row', gap: 10 }}>
+                      {attachments.map((asset, index) => (
+                        <View key={index} style={styles.thumbWrap}>
+                          {asset.isDocument ? (
+                            <View style={[styles.thumb, styles.docThumb, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}>
+                              <MaterialCommunityIcons name="file-document-outline" size={26} color={theme.colors.primary} />
+                              <Text style={{ fontSize: 9, color: theme.colors.onSurfaceVariant, textAlign: 'center', paddingHorizontal: 4 }} numberOfLines={2}>
+                                {asset.fileName}
+                              </Text>
+                            </View>
+                          ) : (
+                            <Image source={{ uri: asset.uri }} style={styles.thumb} resizeMode="cover" />
+                          )}
+                          <TouchableOpacity
+                            style={[styles.thumbRemove, { backgroundColor: theme.colors.error }]}
+                            onPress={() => removeAttachment(index)}
+                          >
+                            <MaterialCommunityIcons name="close" size={12} color="#fff" />
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
+                  </ScrollView>
+                )}
+              </SectionCard>
             )}
 
-            <Button
-              mode="contained"
+            {/* ── Submit ── */}
+            <TouchableOpacity
               onPress={formSubmit}
-              loading={isSubmitting}
               disabled={isSubmitting}
-              style={styles.submitBtn}
-              contentStyle={styles.submitBtnContent}
+              activeOpacity={0.85}
+              style={[styles.submitBtn, {
+                backgroundColor: isSubmitting ? theme.colors.surfaceVariant : NAVY,
+                opacity: isSubmitting ? 0.75 : 1,
+              }]}
             >
-              {uploading ? 'Uploading…' : 'Create Issue'}
-            </Button>
+              {isSubmitting ? (
+                <View style={styles.submitInner}>
+                  <ActivityIndicator size={18} color="#fff" />
+                  <Text style={styles.submitLabel}>{uploading ? 'Uploading…' : 'Creating…'}</Text>
+                </View>
+              ) : (
+                <View style={styles.submitInner}>
+                  <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#fff" />
+                  <Text style={styles.submitLabel}>Create Issue</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
           </View>
         )}
       </Formik>
@@ -453,22 +597,59 @@ const CreateIssueScreen = ({ route, navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  form: { padding: 16, gap: 12 },
-  label: { fontWeight: '600', marginBottom: 4 },
-  chipRow: { marginBottom: 4 },
-  typeBtn: { marginRight: 8, borderRadius: 20 },
+  form: { padding: 16, gap: 14, paddingBottom: 32 },
+
+  // Type selector
+  typeGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  typeChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderRadius: 10, borderWidth: 1,
+    flexBasis: '48%', flexGrow: 1,
+  },
+  typeIconBadge: { width: 30, height: 30, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  typeChipLabel: { fontSize: 13, flex: 1 },
+
+  // Priority
+  fieldLabel: { fontSize: 12, fontWeight: '600', marginBottom: 8, letterSpacing: 0.3 },
+  priorityRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  priorityChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1,
+  },
+  priorityLabel: { fontSize: 12, fontWeight: '600' },
+
+  // Story Points
+  storyRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  storyIconBadge: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  storyLabel: { fontSize: 14, fontWeight: '500', flex: 1 },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  stepperBtn: { width: 32, height: 32, borderRadius: 8, borderWidth: 1, justifyContent: 'center', alignItems: 'center' },
+  spInput: { backgroundColor: 'transparent', width: 56, textAlign: 'center' },
+  spInputContent: { textAlign: 'center', paddingHorizontal: 0 },
+
   input: { backgroundColor: 'transparent' },
-  attachBtn: { borderRadius: 8 },
-  thumbRow: { marginTop: 8 },
-  thumbWrap: { position: 'relative', marginRight: 8 },
-  thumb: { width: 72, height: 72, borderRadius: 8 },
+
+  // Attachments
+  attachBtn: {
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, borderWidth: 1, borderRadius: 10, paddingVertical: 13,
+  },
+  attachBtnLabel: { fontSize: 14, fontWeight: '600' },
+  thumbWrap: { position: 'relative' },
+  thumb: { width: 80, height: 80, borderRadius: 10 },
+  docThumb: { justifyContent: 'center', alignItems: 'center', gap: 4, borderWidth: 1 },
   thumbRemove: {
-    position: 'absolute', top: 2, right: 2,
-    width: 18, height: 18, borderRadius: 9,
+    position: 'absolute', top: 4, right: 4,
+    width: 20, height: 20, borderRadius: 10,
     justifyContent: 'center', alignItems: 'center',
   },
-  submitBtn: { marginTop: 8, borderRadius: 8 },
-  submitBtnContent: { height: 48 },
+
+  // Submit
+  submitBtn: { borderRadius: 14, marginTop: 4, overflow: 'hidden' },
+  submitInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16 },
+  submitLabel: { color: '#fff', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 });
 
 export default CreateIssueScreen;

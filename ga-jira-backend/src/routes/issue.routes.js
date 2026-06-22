@@ -1,10 +1,11 @@
 const router = require('express').Router();
 const ctrl = require('../controllers/issue.controller');
 const { authenticate } = require('../middleware/auth.middleware');
+const upload = require('../middleware/upload.middleware');
 
 router.use(authenticate);
 router.get('/', ctrl.getAll);
-router.post('/', ctrl.create);
+router.post('/', upload.array('attachments', 10), ctrl.create);
 router.put('/bulk', ctrl.bulkUpdate);
 router.post('/move-to-sprint', ctrl.moveToSprint);
 router.get('/:issueId', ctrl.getById);

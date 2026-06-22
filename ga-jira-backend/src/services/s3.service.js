@@ -2,6 +2,7 @@ const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = re
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const fs = require('fs');
 
 const REGION     = process.env.AWS_REGION      || 'ap-south-1';
 const BUCKET     = process.env.AWS_BUCKET_NAME || 'ga-backend-repo';
@@ -36,6 +37,28 @@ exports.getPresignedPutUrl = async (type, issueId, originalFilename, contentType
 exports.getPresignedGetUrl = async (key, expiresIn = 3600) => {
   const command = new GetObjectCommand({ Bucket: BUCKET, Key: key });
   return getSignedUrl(s3, command, { expiresIn });
+};
+
+// Upload a locally-saved file to S3 (used after multer writes to disk).
+// Returns the S3 key. Deletes the local file after a successful upload.
+exports.uploadFileToS3 = async (localPath, issueId, originalFilename, mimeType) => {
+  const ext    = path.extname(originalFilename) || '';
+  const folder = mimeType && mimeType.startsWith('image/') ? 'images' : 'files';
+  const key    = `IssuesTracker/${folder}/${issueId}/${uuidv4()}${ext}`;
+
+  const stats = fs.statSync(localPath);
+  const body  = fs.createReadStream(localPath);
+
+  await s3.send(new PutObjectCommand({
+    Bucket:        BUCKET,
+    Key:           key,
+    Body:          body,
+    ContentType:   mimeType || 'application/octet-stream',
+    ContentLength: stats.size,
+  }));
+
+  try { fs.unlinkSync(localPath); } catch (_) {}
+  return key;
 };
 
 exports.deleteObject = async (key) => {
