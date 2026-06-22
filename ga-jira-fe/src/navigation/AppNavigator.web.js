@@ -1,17 +1,28 @@
 import React, { useEffect, useState, useContext, createContext, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
 import { Text, useTheme, Divider, Badge, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSelector, useDispatch } from 'react-redux';
-import { selectIsAuthenticated, setCredentials, setLoading } from '../store/authSlice';
+import { selectIsAuthenticated, setCredentials, setLoading, setDarkMode } from '../store/authSlice';
 import { selectUnreadCount, markAllAsRead } from '../store/notificationSlice';
 import { storage } from '../utils/storage';
 import { useAuth } from '../hooks/useAuth';
 import { useGetNotificationsQuery, useMarkAllNotificationsReadMutation } from '../api/notificationApi';
-import BrandLogo from '../components/common/BrandLogo';
+
+const GA_LOGO_FULL = require('../../assets/ga-logo-full.jpg');
+
+const SHELL_BG = '#0B1425';
+const SHELL_PANEL = '#101B2F';
+const SHELL_PANEL_2 = '#13233C';
+const SHELL_BORDER = '#263852';
+const SHELL_TEXT = '#F5F7FB';
+const SHELL_MUTED = '#A8B4C7';
+const SHELL_ACTIVE = '#082A63';
+const SHELL_ACCENT = '#2F6EB7';
+const SHELL_GOLD = '#B7AA70';
 
 const avatarHue = (str = '') => {
   let h = 0;
@@ -76,22 +87,30 @@ const TopBar = ({ screenName = '' }) => {
   const hue      = avatarHue(user?.email);
 
   return (
-    <View style={[topBarStyles.bar, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
+    <View style={[topBarStyles.bar, { backgroundColor: SHELL_BG, borderBottomColor: SHELL_BORDER }]}>
       {/* Left: current page title + search shortcut */}
       <View style={topBarStyles.left}>
         {!!screenName && (
-          <Text variant="titleMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }}>
-            {SCREEN_LABELS[screenName] || screenName}
-          </Text>
+          <View style={topBarStyles.titleWrap}>
+            <View style={topBarStyles.titleMark}>
+              <MaterialCommunityIcons name="radar" size={15} color={SHELL_GOLD} />
+            </View>
+            <View>
+              <Text variant="labelSmall" style={topBarStyles.titleKicker}>CONTROL CENTER</Text>
+              <Text variant="titleMedium" style={topBarStyles.titleText}>
+                {SCREEN_LABELS[screenName] || screenName}
+              </Text>
+            </View>
+          </View>
         )}
         <TouchableOpacity
           onPress={openPalette}
-          style={[topBarStyles.searchHint, { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }]}
+          style={topBarStyles.searchHint}
         >
-          <MaterialCommunityIcons name="magnify" size={14} color={theme.colors.onSurfaceVariant} />
-          <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant, marginLeft: 5, marginRight: 6 }}>Search...</Text>
-          <View style={[topBarStyles.kbdHint, { borderColor: theme.colors.outlineVariant }]}>
-            <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant }}>Ctrl K</Text>
+          <MaterialCommunityIcons name="magnify" size={15} color={SHELL_MUTED} />
+          <Text style={topBarStyles.searchText}>Search issues, projects, people...</Text>
+          <View style={topBarStyles.kbdHint}>
+            <Text style={topBarStyles.kbdText}>Ctrl K</Text>
           </View>
         </TouchableOpacity>
       </View>
@@ -100,13 +119,13 @@ const TopBar = ({ screenName = '' }) => {
       <View style={topBarStyles.right}>
         {/* Notification bell */}
         <TouchableOpacity
-          style={[topBarStyles.iconBtn, notifOpen && { backgroundColor: theme.colors.primaryContainer }]}
+          style={[topBarStyles.iconBtn, notifOpen && topBarStyles.iconBtnActive]}
           onPress={() => { setNotifOpen(v => !v); setProfileOpen(false); }}
         >
           <MaterialCommunityIcons
             name={unreadCount > 0 ? 'bell' : 'bell-outline'}
             size={20}
-            color={notifOpen ? theme.colors.primary : theme.colors.onSurfaceVariant}
+            color={notifOpen ? '#D7E7FA' : SHELL_MUTED}
           />
           {unreadCount > 0 && (
             <Badge size={16} style={topBarStyles.badge}>{unreadCount > 9 ? '9+' : unreadCount}</Badge>
@@ -114,25 +133,25 @@ const TopBar = ({ screenName = '' }) => {
         </TouchableOpacity>
 
         {/* Divider */}
-        <View style={{ width: 1, height: 24, backgroundColor: '#E2E8F0', marginHorizontal: 4 }} />
+        <View style={topBarStyles.divider} />
 
         {/* Profile button */}
         <TouchableOpacity
-          style={[topBarStyles.profileBtn, profileOpen && { backgroundColor: theme.colors.surfaceVariant }]}
+          style={[topBarStyles.profileBtn, profileOpen && topBarStyles.profileBtnActive]}
           onPress={() => { setProfileOpen(v => !v); setNotifOpen(false); }}
         >
           <View style={[topBarStyles.avatar, { backgroundColor: `hsl(${hue},52%,44%)` }]}>
             <Text style={topBarStyles.avatarText}>{initials || '?'}</Text>
           </View>
           <View style={topBarStyles.profileInfo}>
-            <Text variant="labelMedium" style={{ color: theme.colors.onSurface, fontWeight: '700' }} numberOfLines={1}>
+            <Text variant="labelMedium" style={topBarStyles.profileName} numberOfLines={1}>
               {user?.firstName} {user?.lastName}
             </Text>
-            <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, textTransform: 'capitalize' }} numberOfLines={1}>
+            <Text variant="labelSmall" style={topBarStyles.profileRole} numberOfLines={1}>
               {user?.role?.replace(/_/g, ' ')}
             </Text>
           </View>
-          <MaterialCommunityIcons name={profileOpen ? 'chevron-up' : 'chevron-down'} size={16} color={theme.colors.onSurfaceVariant} />
+          <MaterialCommunityIcons name={profileOpen ? 'chevron-up' : 'chevron-down'} size={16} color={SHELL_MUTED} />
         </TouchableOpacity>
       </View>
 
@@ -274,29 +293,47 @@ const TopBar = ({ screenName = '' }) => {
 
 const topBarStyles = StyleSheet.create({
   bar: {
-    height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 18, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 10,
-    boxShadow: '0 1px 0 rgba(20,33,61,0.04)',
+    height: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 22, borderBottomWidth: 1, zIndex: 10,
+    boxShadow: '0 10px 24px rgba(0,0,0,0.16)',
   },
-  left:        { flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 },
+  left:        { flexDirection: 'row', alignItems: 'center', gap: 20, flex: 1, minWidth: 0 },
+  titleWrap:   { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0 },
+  titleMark:   { width: 32, height: 32, borderRadius: 8, backgroundColor: SHELL_PANEL_2, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: SHELL_BORDER },
+  titleKicker: { color: SHELL_MUTED, fontSize: 9, fontWeight: '800', letterSpacing: 0, textTransform: 'uppercase' },
+  titleText:   { color: SHELL_TEXT, fontWeight: '800', lineHeight: 20 },
   searchHint: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 11, paddingVertical: 6, borderRadius: 8, borderWidth: 1,
-    minWidth: 150, cursor: 'pointer', outlineStyle: 'none',
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, borderWidth: 1,
+    borderColor: SHELL_BORDER, backgroundColor: SHELL_PANEL,
+    minWidth: 240, maxWidth: 420, flexShrink: 1, cursor: 'pointer', outlineStyle: 'none',
   },
-  kbdHint: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  right:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconBtn:     { width: 34, height: 34, justifyContent: 'center', alignItems: 'center', borderRadius: 17, position: 'relative', outlineStyle: 'none' },
+  searchText: {
+    flex: 1,
+    color: SHELL_MUTED,
+    fontSize: 12,
+    marginLeft: 7,
+    marginRight: 10,
+  },
+  kbdHint: { borderWidth: 1, borderColor: SHELL_BORDER, backgroundColor: '#0A1220', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
+  kbdText: { color: SHELL_MUTED, fontSize: 10, fontWeight: '700' },
+  right:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  iconBtn:     { width: 38, height: 38, justifyContent: 'center', alignItems: 'center', borderRadius: 8, position: 'relative', outlineStyle: 'none', borderWidth: 1, borderColor: 'transparent' },
+  iconBtnActive: { backgroundColor: SHELL_PANEL_2, borderColor: SHELL_BORDER },
   badge:       { position: 'absolute', top: 0, right: 0 },
-  profileBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, outlineStyle: 'none' },
-  avatar:      { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },
+  divider:     { width: 1, height: 32, backgroundColor: SHELL_BORDER, marginHorizontal: 2 },
+  profileBtn:  { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, outlineStyle: 'none', borderWidth: 1, borderColor: 'transparent' },
+  profileBtnActive: { backgroundColor: SHELL_PANEL_2, borderColor: SHELL_BORDER },
+  avatar:      { width: 34, height: 34, borderRadius: 17, justifyContent: 'center', alignItems: 'center' },
   avatarText:  { color: '#fff', fontSize: 11, fontWeight: '800' },
-  profileInfo: { alignItems: 'flex-start' },
+  profileInfo: { alignItems: 'flex-start', minWidth: 122 },
+  profileName: { color: SHELL_TEXT, fontWeight: '800' },
+  profileRole: { color: SHELL_MUTED, textTransform: 'capitalize' },
   // Backdrop covers full screen to close dropdowns on outside tap
   backdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99 },
   // Profile dropdown
   profileDropdown: {
-    position: 'absolute', top: 48, right: 8, width: 248,
+    position: 'absolute', top: 62, right: 14, width: 268,
     borderRadius: 8, borderWidth: 1,
     shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24,
     elevation: 16, zIndex: 200, overflow: 'hidden',
@@ -308,7 +345,7 @@ const topBarStyles = StyleSheet.create({
   dropdownItem:       { flexDirection: 'row', alignItems: 'center', paddingVertical: 13, paddingHorizontal: 16 },
   // Notification dropdown
   notifDropdown: {
-    position: 'absolute', top: 48, right: 8, width: 368,
+    position: 'absolute', top: 62, right: 14, width: 388,
     borderRadius: 8, borderWidth: 1,
     shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 24,
     elevation: 16, zIndex: 200, overflow: 'hidden',
@@ -397,18 +434,25 @@ const WebSidebarContent = ({ state, navigation }) => {
     item => item.name !== 'Team' || TEAM_VISIBLE_ROLES.includes(user?.role)
   );
 
+  const initials = user ? `${(user.firstName || '')[0] || ''}${(user.lastName || '')[0] || ''}`.toUpperCase() : '?';
+  const fullName  = user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : '';
+  const roleLabel = user?.role ? user.role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
+  const hue       = avatarHue(fullName);
+
   return (
-    <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderRightColor: theme.colors.outlineVariant }]}>
-      {/* Brand */}
-      <View style={[styles.sidebarBrand, { borderBottomColor: theme.colors.outlineVariant }]}>
-        <View style={[styles.brandPlate, { backgroundColor: theme.colors.background, borderColor: theme.colors.outlineVariant }]}>
-          <BrandLogo width={178} height={68} />
+    <View style={[styles.sidebar, { backgroundColor: SHELL_BG, borderRightColor: SHELL_BORDER }]}>
+
+      {/* ── Brand / Logo ── */}
+      <View style={styles.sidebarBrand}>
+        <View style={styles.logoCard}>
+          <Image source={GA_LOGO_FULL} style={styles.logoImg} resizeMode="contain" />
         </View>
+        <View style={styles.goldDivider} />
       </View>
 
-      {/* Nav items */}
+      {/* ── Nav items ── */}
       <View style={styles.navSection}>
-        <Text style={[styles.navGroupLabel, { color: theme.colors.onSurfaceVariant }]}>Workspace</Text>
+        <Text style={styles.navGroupLabel}>Workspace</Text>
         {visibleNavItems.map((item) => {
           const isActive = sidebarActive === item.name;
           return (
@@ -419,49 +463,67 @@ const WebSidebarContent = ({ state, navigation }) => {
               style={[
                 styles.navItem,
                 {
-                  backgroundColor: isActive ? theme.colors.primaryContainer : 'transparent',
-                  borderColor: isActive ? theme.colors.primary : 'transparent',
+                  backgroundColor: isActive ? SHELL_ACTIVE : 'transparent',
+                  borderColor: isActive ? SHELL_ACCENT : 'transparent',
                 },
               ]}
             >
               <View style={[
                 styles.navIconBox,
-                { backgroundColor: isActive ? theme.colors.surface : theme.colors.surfaceVariant },
+                { backgroundColor: isActive ? '#0D3B84' : SHELL_PANEL },
               ]}>
                 <MaterialCommunityIcons
                   name={isActive ? item.activeIcon : item.icon}
                   size={18}
-                  color={isActive ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                  color={isActive ? '#D7E7FA' : SHELL_MUTED}
                 />
               </View>
               <Text
                 variant="bodyMedium"
                 style={[
                   styles.navLabel,
-                  { color: isActive ? theme.colors.primary : theme.colors.onSurfaceVariant },
+                  { color: isActive ? '#D7E7FA' : SHELL_MUTED },
                   isActive && { fontWeight: '800' },
                 ]}
               >
                 {item.label}
               </Text>
-              {isActive && <View style={[styles.activeRail, { backgroundColor: theme.colors.primary }]} />}
+              {isActive && <View style={styles.activeRail} />}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* Sign Out */}
+      {/* ── User card + Sign Out ── */}
       <View style={styles.sidebarFooter}>
-        <Divider style={{ marginBottom: 8 }} />
+        <View style={styles.footerDivider} />
+
+        {/* User info card */}
         <TouchableOpacity
-          style={[styles.signOutItem, { borderColor: theme.colors.outlineVariant }]}
+          style={styles.userCard}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Profile')}
+        >
+          <View style={[styles.userAvatar, { backgroundColor: `hsl(${hue},52%,38%)` }]}>
+            <Text style={styles.userAvatarText}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Text style={styles.userName} numberOfLines={1}>{fullName}</Text>
+            <Text style={styles.userRole} numberOfLines={1}>{roleLabel}</Text>
+          </View>
+          <MaterialCommunityIcons name="cog-outline" size={15} color={SHELL_MUTED} />
+        </TouchableOpacity>
+
+        {/* Sign Out */}
+        <TouchableOpacity
+          style={styles.signOutItem}
           onPress={logout}
           activeOpacity={0.82}
         >
-          <View style={[styles.navIconBox, { backgroundColor: theme.colors.errorContainer }]}>
-            <MaterialCommunityIcons name="logout-variant" size={18} color={theme.colors.error} />
+          <View style={[styles.navIconBox, { backgroundColor: '#3B1720' }]}>
+            <MaterialCommunityIcons name="logout-variant" size={18} color="#FCA5A5" />
           </View>
-          <Text variant="bodyMedium" style={[styles.navLabel, { color: theme.colors.error }]}>Sign Out</Text>
+          <Text variant="bodyMedium" style={[styles.navLabel, { color: '#FCA5A5' }]}>Sign Out</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -476,7 +538,7 @@ const MainWebDrawer = () => {
       drawerContent={(props) => <WebSidebarContent {...props} />}
       screenOptions={{
         drawerType: 'permanent',
-        drawerStyle: { width: 260 },
+        drawerStyle: { width: 292 },
         headerShown: true,
         header: (props) => <TopBar screenName={props.route.name} />,
         overlayColor: 'transparent',
@@ -526,11 +588,13 @@ const AppNavigator = () => {
   useEffect(() => {
     const bootstrapAsync = async () => {
       try {
-        const [accessToken, refreshToken, user] = await Promise.all([
+        const [accessToken, refreshToken, user, savedTheme] = await Promise.all([
           storage.getAccessToken(),
           storage.getRefreshToken(),
           storage.getUser(),
+          storage.getTheme(),
         ]);
+        if (savedTheme) dispatch(setDarkMode(savedTheme === 'dark'));
         if (accessToken && user) {
           dispatch(setCredentials({ user, accessToken, refreshToken }));
         }
@@ -563,28 +627,40 @@ const AppNavigator = () => {
 const styles = StyleSheet.create({
   sidebar: {
     flex: 1,
-    borderRightWidth: StyleSheet.hairlineWidth,
-    paddingBottom: 8,
+    borderRightWidth: 1,
+    paddingBottom: 12,
   },
   sidebarBrand: {
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 4,
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 14,
   },
-  brandPlate: {
-    width: '100%',
-    borderWidth: 1,
+  logoCard: {
+    backgroundColor: '#FFFFFF',
     borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
+    borderBottomWidth: 3,
+    borderBottomColor: SHELL_GOLD,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+  },
+  logoImg: {
+    width: 172,
+    height: 58,
+  },
+  goldDivider: {
+    alignSelf: 'stretch',
+    height: 1,
+    backgroundColor: SHELL_BORDER,
   },
   navSection: {
     flex: 1,
-    paddingTop: 14,
-    paddingHorizontal: 10,
+    paddingTop: 12,
+    paddingHorizontal: 12,
     gap: 6,
   },
   navGroupLabel: {
@@ -592,26 +668,27 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textTransform: 'uppercase',
     letterSpacing: 0,
+    color: SHELL_MUTED,
     paddingHorizontal: 10,
-    marginBottom: 2,
+    marginBottom: 4,
   },
   navItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 8,
     borderWidth: 1,
     gap: 10,
-    minHeight: 48,
+    minHeight: 50,
     outlineStyle: 'none',
     cursor: 'pointer',
     position: 'relative',
     overflow: 'hidden',
   },
   navIconBox: {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
@@ -623,26 +700,72 @@ const styles = StyleSheet.create({
   activeRail: {
     position: 'absolute',
     left: 0,
-    top: 9,
-    bottom: 9,
+    top: 10,
+    bottom: 10,
     width: 3,
+    backgroundColor: SHELL_GOLD,
     borderTopRightRadius: 3,
     borderBottomRightRadius: 3,
   },
   sidebarFooter: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
+    gap: 8,
+  },
+  footerDivider: {
+    height: 1,
+    backgroundColor: SHELL_BORDER,
+    marginBottom: 2,
+  },
+  userCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: SHELL_PANEL,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: SHELL_BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    cursor: 'pointer',
+    outlineStyle: 'none',
+  },
+  userAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  userAvatarText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  userName: {
+    color: SHELL_TEXT,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  userRole: {
+    color: SHELL_MUTED,
+    fontSize: 11,
+    marginTop: 1,
   },
   signOutItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 10,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    borderRadius: 8,
     borderWidth: 1,
+    borderColor: '#3B1720',
+    backgroundColor: '#1A0C10',
     gap: 10,
-    minHeight: 48,
+    minHeight: 46,
     outlineStyle: 'none',
     cursor: 'pointer',
+    marginBottom: 4,
   },
 });
 

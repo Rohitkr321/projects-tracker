@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
-import { Text, useTheme, Button, TextInput, Menu, Divider, Switch, Portal, Dialog } from 'react-native-paper';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Animated, Image } from 'react-native';
+import { Text, useTheme, Button, TextInput, Menu, Divider, Switch, Portal, Dialog, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
-import { useLogoutMutation, useChangePasswordMutation } from '../../api/authApi';
+import {
+  useLogoutMutation, useChangePasswordMutation, useUpdateProfileMutation,
+  useGet2faStatusQuery, useSetup2faMutation, useEnable2faMutation, useDisable2faMutation,
+} from '../../api/authApi';
 import { useCreateInviteMutation, useListInvitesQuery, useRevokeInviteMutation } from '../../api/inviteApi';
 import { ROLE_LABELS } from '../../constants';
 import { formatDate } from '../../utils/dateUtils';
+import { setDarkMode, selectIsDarkMode, setUser } from '../../store/authSlice';
+import { storage } from '../../utils/storage';
 import UserManualSection from './UserManualSection.web';
 
 const Toast = ({ message, isError, onDone }) => {
@@ -27,10 +33,11 @@ const Toast = ({ message, isError, onDone }) => {
 };
 
 const SECTIONS = [
-  { key: 'account',  label: 'Account',        icon: 'account-edit-outline' },
-  { key: 'invite',   label: 'Invite Members',  icon: 'account-plus-outline', adminOnly: true },
-  { key: 'security', label: 'Security',        icon: 'shield-lock-outline' },
-  { key: 'manual',   label: 'User Manual',     icon: 'book-open-outline' },
+  { key: 'account',     label: 'Account',        icon: 'account-edit-outline' },
+  { key: 'preferences', label: 'Preferences',    icon: 'tune-variant' },
+  { key: 'invite',      label: 'Invite Members', icon: 'account-plus-outline', adminOnly: true },
+  { key: 'security',    label: 'Security',       icon: 'shield-lock-outline' },
+  { key: 'manual',      label: 'User Manual',    icon: 'book-open-outline' },
 ];
 
 const INVITABLE_ROLES = [
@@ -69,15 +76,23 @@ const BigAvatar = ({ user, size = 96 }) => {
 
 export default function ProfileScreen() {
   const theme = useTheme();
+  const dispatch = useDispatch();
   const { user, logout } = useAuth();
+  const isDarkMode = useSelector(selectIsDarkMode);
   const canInvite = ['super_admin', 'org_admin', 'project_manager'].includes(user?.role);
 
   const [section, setSection] = useState('account');
-  const [logoutMutation, { isLoading: loggingOut }]           = useLogoutMutation();
-  const [changePassword, { isLoading: changingPw }]           = useChangePasswordMutation();
+  const [logoutMutation,  { isLoading: loggingOut }]  = useLogoutMutation();
+  const [changePassword,  { isLoading: changingPw }]  = useChangePasswordMutation();
+  const [updateProfile,   { isLoading: savingProfile }] = useUpdateProfileMutation();
+  const [setup2fa,        { isLoading: settingUp2fa }]  = useSetup2faMutation();
+  const [enable2fa,       { isLoading: enabling2fa }]   = useEnable2faMutation();
+  const [disable2fa,      { isLoading: disabling2fa }]  = useDisable2faMutation();
+  const { data: twoFaStatus, refetch: refetch2fa }       = useGet2faStatusQuery();
+  const is2faEnabled = twoFaStatus?.data?.twoFactorEnabled ?? false;
 
   // Toast
-  const [toast, setToast]             = useState(null); // { msg, isError }
+  const [toast, setToast]             = useState(null);
 
   // Dialogs
   const [signOutDialog, setSignOutDialog] = useState(false);
@@ -86,14 +101,28 @@ export default function ProfileScreen() {
   const [firstName, setFirstName]     = useState(user?.firstName || '');
   const [lastName, setLastName]       = useState(user?.lastName || '');
   const [timezone, setTimezone]       = useState(user?.timezone || 'UTC');
-  const [notifications, setNotifications] = useState(user?.notificationPreferences?.inApp ?? true);
   const [dirty, setDirty]             = useState(false);
-  const [saving, setSaving]           = useState(false);
+
+  // Notification prefs
+  const [notifEmail,       setNotifEmail]       = useState(user?.notificationPreferences?.email ?? true);
+  const [notifInApp,       setNotifInApp]       = useState(user?.notificationPreferences?.inApp ?? true);
+  const [notifMentions,    setNotifMentions]    = useState(user?.notificationPreferences?.mentions ?? true);
+  const [notifAssignments, setNotifAssignments] = useState(user?.notificationPreferences?.assignments ?? true);
+  const [notifComments,    setNotifComments]    = useState(user?.notificationPreferences?.comments ?? true);
 
   // Password form
   const [currentPw, setCurrentPw]     = useState('');
   const [newPw, setNewPw]             = useState('');
   const [confirmPw, setConfirmPw]     = useState('');
+
+  // 2FA setup state
+  const [twoFaQr,       setTwoFaQr]       = useState(null);
+  const [twoFaSecret,   setTwoFaSecret]   = useState('');
+  const [twoFaCode,     setTwoFaCode]     = useState('');
+  const [twoFaBackups,  setTwoFaBackups]  = useState([]);
+  const [showSetup,     setShowSetup]     = useState(false);
+  const [disablePw,     setDisablePw]     = useState('');
+  const [showDisable,   setShowDisable]   = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -108,13 +137,73 @@ export default function ProfileScreen() {
   const showToast = (msg, isError = false) => setToast({ msg, isError });
 
   const handleSave = async () => {
-    setSaving(true);
     try {
+      const result = await updateProfile({ firstName, lastName, timezone }).unwrap();
+      dispatch(setUser(result.data));
       showToast('Profile updated successfully.');
       setDirty(false);
     } catch {
       showToast('Failed to save profile', true);
-    } finally { setSaving(false); }
+    }
+  };
+
+  const handleSaveNotifPrefs = async () => {
+    try {
+      const result = await updateProfile({
+        notificationPreferences: {
+          email: notifEmail,
+          inApp: notifInApp,
+          mentions: notifMentions,
+          assignments: notifAssignments,
+          comments: notifComments,
+        },
+      }).unwrap();
+      dispatch(setUser(result.data));
+      showToast('Notification preferences saved.');
+    } catch {
+      showToast('Failed to save preferences', true);
+    }
+  };
+
+  const handleThemeToggle = async (value) => {
+    dispatch(setDarkMode(value));
+    await storage.setTheme(value ? 'dark' : 'light');
+  };
+
+  const handleSetup2fa = async () => {
+    try {
+      const result = await setup2fa().unwrap();
+      setTwoFaQr(result.data?.qrCode);
+      setTwoFaSecret(result.data?.secret);
+      setShowSetup(true);
+    } catch (err) {
+      showToast(err?.data?.message || 'Failed to set up 2FA', true);
+    }
+  };
+
+  const handleEnable2fa = async () => {
+    try {
+      const result = await enable2fa({ code: twoFaCode }).unwrap();
+      setTwoFaBackups(result.data?.backupCodes || []);
+      setTwoFaCode('');
+      setShowSetup(false);
+      refetch2fa();
+      showToast('Two-factor authentication enabled!');
+    } catch (err) {
+      showToast(err?.data?.message || 'Invalid code — please try again', true);
+    }
+  };
+
+  const handleDisable2fa = async () => {
+    try {
+      await disable2fa({ password: disablePw }).unwrap();
+      setDisablePw('');
+      setShowDisable(false);
+      refetch2fa();
+      showToast('Two-factor authentication disabled.');
+    } catch (err) {
+      showToast(err?.data?.message || 'Incorrect password', true);
+    }
   };
 
   const handleChangePassword = async () => {
@@ -298,24 +387,13 @@ export default function ProfileScreen() {
                 <Button
                   mode="contained"
                   onPress={handleSave}
-                  loading={saving}
-                  disabled={!dirty || saving}
+                  loading={savingProfile}
+                  disabled={!dirty || savingProfile}
                   style={{ borderRadius: 8 }}
                 >
                   Save Changes
                 </Button>
                 {dirty && <Text variant="labelSmall" style={{ color: theme.colors.primary, marginLeft: 12 }}>Unsaved changes</Text>}
-              </View>
-            </View>
-
-            <View style={[styles.card, { backgroundColor: surf }]}>
-              <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Preferences</Text>
-              <View style={styles.prefRow}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>In-App Notifications</Text>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>Receive activity notifications inside GA Tracker</Text>
-                </View>
-                <Switch value={notifications} onValueChange={setNotifications} />
               </View>
             </View>
           </>
@@ -447,6 +525,62 @@ export default function ProfileScreen() {
           </>
         )}
 
+        {/* ── PREFERENCES ── */}
+        {section === 'preferences' && (
+          <>
+            <SectionHeader title="Preferences" desc="Customize your appearance and notification settings." theme={theme} />
+
+            {/* Appearance */}
+            <View style={[styles.card, { backgroundColor: surf }]}>
+              <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Appearance</Text>
+              <View style={[styles.prefRow, { paddingVertical: 4 }]}>
+                <View style={{ flex: 1 }}>
+                  <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>Dark Mode</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>Switch between light and dark theme</Text>
+                </View>
+                <Switch value={isDarkMode} onValueChange={handleThemeToggle} />
+              </View>
+            </View>
+
+            {/* Email Notifications */}
+            <View style={[styles.card, { backgroundColor: surf }]}>
+              <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Email Notifications</Text>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20 }}>
+                Control which email notifications you receive.
+              </Text>
+
+              {[
+                { label: 'Email Notifications', desc: 'Master toggle for all email alerts', value: notifEmail, setter: setNotifEmail },
+                { label: 'In-App Notifications', desc: 'Show alerts inside the app', value: notifInApp, setter: setNotifInApp },
+                { label: 'Mentions', desc: 'When someone @mentions you', value: notifMentions, setter: setNotifMentions },
+                { label: 'Assignments', desc: 'When an issue is assigned to you', value: notifAssignments, setter: setNotifAssignments },
+                { label: 'Comments', desc: 'When someone comments on your issue', value: notifComments, setter: setNotifComments },
+              ].map((pref, i, arr) => (
+                <View key={pref.label}>
+                  <View style={[styles.prefRow, { paddingVertical: 10 }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text variant="bodyMedium" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>{pref.label}</Text>
+                      <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>{pref.desc}</Text>
+                    </View>
+                    <Switch
+                      value={pref.value}
+                      onValueChange={(v) => pref.setter(v)}
+                      disabled={pref.label !== 'Email Notifications' && !notifEmail}
+                    />
+                  </View>
+                  {i < arr.length - 1 && <Divider />}
+                </View>
+              ))}
+
+              <View style={[styles.saveRow, { borderTopColor: theme.colors.outlineVariant }]}>
+                <Button mode="contained" icon="content-save-outline" onPress={handleSaveNotifPrefs} style={{ borderRadius: 8 }}>
+                  Save Preferences
+                </Button>
+              </View>
+            </View>
+          </>
+        )}
+
         {/* ── USER MANUAL ── */}
         {section === 'manual' && (
           <>
@@ -462,10 +596,54 @@ export default function ProfileScreen() {
         {/* ── SECURITY ── */}
         {section === 'security' && (
           <>
-            <SectionHeader title="Security" desc="Manage your password and active sessions." theme={theme} />
+            <SectionHeader title="Security" desc="Manage password, two-factor authentication, and active sessions." theme={theme} />
+
+            <View style={[styles.securityHero, {
+              backgroundColor: is2faEnabled ? '#ECFDF5' : theme.colors.surface,
+              borderColor: is2faEnabled ? '#A7F3D0' : theme.colors.outlineVariant,
+            }]}>
+              <View style={[styles.securityHeroIcon, { backgroundColor: is2faEnabled ? '#D1FAE5' : theme.colors.primaryContainer }]}>
+                <MaterialCommunityIcons
+                  name={is2faEnabled ? 'shield-check' : 'shield-lock-outline'}
+                  size={24}
+                  color={is2faEnabled ? '#047857' : theme.colors.primary}
+                />
+              </View>
+              <View style={styles.securityHeroCopy}>
+                <Text variant="titleMedium" style={{ color: is2faEnabled ? '#065F46' : theme.colors.onSurface, fontWeight: '800' }}>
+                  {is2faEnabled ? 'Account protection is active' : 'Add a second verification step'}
+                </Text>
+                <Text variant="bodySmall" style={{ color: is2faEnabled ? '#047857' : theme.colors.onSurfaceVariant, marginTop: 3, lineHeight: 18 }}>
+                  {is2faEnabled
+                    ? 'Two-factor authentication is enabled for this account.'
+                    : 'Use an authenticator app to protect sign-ins with a one-time code.'}
+                </Text>
+              </View>
+              <View style={[styles.twoFaBadge, is2faEnabled
+                ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                : { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }
+              ]}>
+                <MaterialCommunityIcons
+                  name={is2faEnabled ? 'check-circle-outline' : 'alert-circle-outline'}
+                  size={13}
+                  color={is2faEnabled ? '#15803D' : theme.colors.onSurfaceVariant}
+                />
+                <Text variant="labelSmall" style={{ color: is2faEnabled ? '#15803D' : theme.colors.onSurfaceVariant, fontWeight: '800', marginLeft: 4 }}>
+                  {is2faEnabled ? 'Enabled' : 'Not enabled'}
+                </Text>
+              </View>
+            </View>
 
             <View style={[styles.card, { backgroundColor: surf }]}>
-              <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Change Password</Text>
+              <View style={styles.securityCardHeader}>
+                <View style={[styles.sessionIcon, { backgroundColor: theme.colors.primaryContainer }]}>
+                  <MaterialCommunityIcons name="lock-reset" size={18} color={theme.colors.primary} />
+                </View>
+                <View style={styles.securityTitleGroup}>
+                  <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface, marginBottom: 0 }]}>Change Password</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>Update the credential used for direct sign-in.</Text>
+                </View>
+              </View>
               <TextInput
                 label="Current Password"
                 value={currentPw}
@@ -494,22 +672,196 @@ export default function ProfileScreen() {
                 mode="contained" icon="lock-reset"
                 style={{ borderRadius: 8, alignSelf: 'flex-start' }}
                 loading={changingPw}
-                disabled={changingPw || !currentPw || !newPw || !confirmPw}
+                disabled={changingPw}
                 onPress={handleChangePassword}
               >
                 Update Password
               </Button>
             </View>
 
+            {/* Two-Factor Authentication */}
             <View style={[styles.card, { backgroundColor: surf }]}>
-              <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface }]}>Sessions</Text>
+              <View style={styles.securityCardHeader}>
+                <View style={[styles.sessionIcon, { backgroundColor: is2faEnabled ? '#DCFCE7' : theme.colors.primaryContainer }]}>
+                  <MaterialCommunityIcons name={is2faEnabled ? 'shield-check' : 'shield-plus-outline'} size={18} color={is2faEnabled ? '#15803D' : theme.colors.primary} />
+                </View>
+                <View style={styles.securityTitleGroup}>
+                  <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface, marginBottom: 0 }]}>Two-Factor Authentication</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>Authenticator app verification for every login.</Text>
+                </View>
+                <View style={[styles.twoFaBadge, is2faEnabled
+                  ? { backgroundColor: '#DCFCE7', borderColor: '#86EFAC' }
+                  : { backgroundColor: theme.colors.surfaceVariant, borderColor: theme.colors.outlineVariant }
+                ]}>
+                  <MaterialCommunityIcons
+                    name={is2faEnabled ? 'shield-check' : 'shield-off-outline'}
+                    size={13}
+                    color={is2faEnabled ? '#15803D' : theme.colors.onSurfaceVariant}
+                  />
+                  <Text variant="labelSmall" style={{ color: is2faEnabled ? '#15803D' : theme.colors.onSurfaceVariant, fontWeight: '700', marginLeft: 4 }}>
+                    {is2faEnabled ? 'Enabled' : 'Disabled'}
+                  </Text>
+                </View>
+              </View>
+              <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 20, lineHeight: 20 }}>
+                Protect your account with an authenticator app like Google Authenticator or Authy.
+                {is2faEnabled ? ' Your account is protected.' : ' Adding 2FA makes your account significantly more secure.'}
+              </Text>
+
+              {/* Setup flow */}
+              {!is2faEnabled && !showSetup && (
+                <Button mode="contained" icon="shield-plus-outline" onPress={handleSetup2fa} loading={settingUp2fa} disabled={settingUp2fa} style={{ borderRadius: 8, alignSelf: 'flex-start' }}>
+                  Set Up 2FA
+                </Button>
+              )}
+
+              {!is2faEnabled && showSetup && (
+                <View style={[styles.twoFaSetupBox, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.surfaceVariant }]}>
+                  <Text variant="titleSmall" style={{ color: theme.colors.onSurface, fontWeight: '700', marginBottom: 12 }}>Scan QR Code</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 16, lineHeight: 18 }}>
+                    Open your authenticator app and scan the code below, then enter the 6-digit code to verify.
+                  </Text>
+
+                  {twoFaQr && (
+                    <View style={{ alignItems: 'center', marginBottom: 16 }}>
+                      <Image source={{ uri: twoFaQr }} style={{ width: 180, height: 180, borderRadius: 8 }} />
+                    </View>
+                  )}
+
+                  {twoFaSecret && (
+                    <View style={[styles.twoFaSecretBox, { backgroundColor: surf, borderColor: theme.colors.outlineVariant }]}>
+                      <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant, marginBottom: 4 }}>Manual entry key</Text>
+                      <Text style={{ fontFamily: 'monospace', fontSize: 13, color: theme.colors.onSurface, letterSpacing: 1 }}>
+                        {twoFaSecret.match(/.{1,4}/g)?.join(' ')}
+                      </Text>
+                    </View>
+                  )}
+
+                  <TextInput
+                    label="Verification Code"
+                    value={twoFaCode}
+                    onChangeText={setTwoFaCode}
+                    mode="outlined"
+                    keyboardType="numeric"
+                    maxLength={6}
+                    dense
+                    left={<TextInput.Icon icon="numeric" />}
+                    style={{ marginTop: 16, marginBottom: 16 }}
+                    placeholder="000000"
+                  />
+
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <Button
+                      mode="contained" icon="check-circle-outline"
+                      onPress={handleEnable2fa}
+                      loading={enabling2fa}
+                      disabled={enabling2fa || twoFaCode.length < 6}
+                      style={{ borderRadius: 8, flex: 1 }}
+                    >
+                      Verify & Enable
+                    </Button>
+                    <Button
+                      mode="outlined"
+                      onPress={() => { setShowSetup(false); setTwoFaCode(''); setTwoFaQr(null); setTwoFaSecret(''); }}
+                      style={{ borderRadius: 8 }}
+                    >
+                      Cancel
+                    </Button>
+                  </View>
+                </View>
+              )}
+
+              {/* Backup codes shown after successful enable */}
+              {twoFaBackups.length > 0 && (
+                <View style={[styles.twoFaSetupBox, { borderColor: '#FCD34D', backgroundColor: '#FFFBEB', marginTop: 16 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#92400E" />
+                    <Text variant="titleSmall" style={{ color: '#92400E', fontWeight: '700' }}>Save Your Backup Codes</Text>
+                  </View>
+                  <Text variant="bodySmall" style={{ color: '#92400E', marginBottom: 16, lineHeight: 18 }}>
+                    Store these codes somewhere safe. Each code can only be used once if you lose access to your authenticator.
+                  </Text>
+                  <View style={styles.backupGrid}>
+                    {twoFaBackups.map((code) => (
+                      <View key={code} style={[styles.backupCode, { backgroundColor: '#FEF9C3', borderColor: '#FDE047' }]}>
+                        <Text style={{ fontFamily: 'monospace', fontSize: 12, color: '#78350F', fontWeight: '700' }}>{code}</Text>
+                      </View>
+                    ))}
+                  </View>
+                  <Button
+                    mode="outlined" compact icon="close"
+                    style={{ borderRadius: 8, alignSelf: 'flex-start', marginTop: 12, borderColor: '#D97706' }}
+                    textColor="#92400E"
+                    onPress={() => setTwoFaBackups([])}
+                  >
+                    I've saved these codes
+                  </Button>
+                </View>
+              )}
+
+              {/* Disable flow */}
+              {is2faEnabled && !showDisable && (
+                <Button
+                  mode="outlined" icon="shield-remove-outline"
+                  textColor={theme.colors.error}
+                  style={{ borderColor: theme.colors.error, borderRadius: 8, alignSelf: 'flex-start' }}
+                  onPress={() => setShowDisable(true)}
+                >
+                  Disable 2FA
+                </Button>
+              )}
+
+              {is2faEnabled && showDisable && (
+                <View style={[styles.twoFaSetupBox, { borderColor: theme.colors.error + '40', backgroundColor: theme.colors.errorContainer + '30' }]}>
+                  <Text variant="titleSmall" style={{ color: theme.colors.error, fontWeight: '700', marginBottom: 8 }}>Confirm Disable 2FA</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurface, marginBottom: 16, lineHeight: 18 }}>
+                    Enter your current password to disable two-factor authentication.
+                  </Text>
+                  <TextInput
+                    label="Current Password"
+                    value={disablePw}
+                    onChangeText={setDisablePw}
+                    mode="outlined"
+                    secureTextEntry
+                    dense
+                    left={<TextInput.Icon icon="lock-outline" />}
+                    style={{ marginBottom: 16 }}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <Button
+                      mode="contained" buttonColor={theme.colors.error}
+                      onPress={handleDisable2fa}
+                      loading={disabling2fa}
+                      disabled={disabling2fa || !disablePw}
+                      style={{ borderRadius: 8 }}
+                    >
+                      Confirm Disable
+                    </Button>
+                    <Button mode="outlined" onPress={() => { setShowDisable(false); setDisablePw(''); }} style={{ borderRadius: 8 }}>
+                      Cancel
+                    </Button>
+                  </View>
+                </View>
+              )}
+            </View>
+
+            <View style={[styles.card, { backgroundColor: surf }]}>
+              <View style={styles.securityCardHeader}>
+                <View style={[styles.sessionIcon, { backgroundColor: theme.colors.primaryContainer }]}>
+                  <MaterialCommunityIcons name="web" size={18} color={theme.colors.primary} />
+                </View>
+                <View style={styles.securityTitleGroup}>
+                  <Text variant="titleSmall" style={[styles.cardTitle, { color: theme.colors.onSurface, marginBottom: 0 }]}>Sessions</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant, marginTop: 2 }}>Review active access for this account.</Text>
+                </View>
+              </View>
               <View style={styles.sessionRow}>
                 <View style={[styles.sessionIcon, { backgroundColor: theme.colors.primaryContainer }]}>
                   <MaterialCommunityIcons name="web" size={18} color={theme.colors.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text variant="bodySmall" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>This session — Web Browser</Text>
-                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>Current · Active now</Text>
+                  <Text variant="bodySmall" style={{ color: theme.colors.onSurface, fontWeight: '600' }}>This session - Web Browser</Text>
+                  <Text variant="labelSmall" style={{ color: theme.colors.onSurfaceVariant }}>Current - Active now</Text>
                 </View>
                 <View style={[styles.activeDot, { backgroundColor: '#10B981' }]} />
               </View>
@@ -604,8 +956,8 @@ const styles = StyleSheet.create({
   contentInner: { padding: 28, paddingBottom: 56 },
 
   card: {
-    borderRadius: 14, padding: 24, marginBottom: 20,
-    boxShadow: '0px 1px 4px rgba(0,0,0,0.06)',
+    borderRadius: 8, padding: 24, marginBottom: 20,
+    boxShadow: '0px 8px 22px rgba(15, 23, 42, 0.06)',
   },
   cardTitle: { fontWeight: '700', fontSize: 14, marginBottom: 20 },
 
@@ -634,7 +986,27 @@ const styles = StyleSheet.create({
   countBadge: { width: 22, height: 22, borderRadius: 11, justifyContent: 'center', alignItems: 'center' },
   emptyInvites: { alignItems: 'center', paddingVertical: 32 },
 
+  securityHero: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 18,
+    marginBottom: 20,
+  },
+  securityHeroIcon: { width: 52, height: 52, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  securityHeroCopy: { flex: 1, minWidth: 0 },
+  securityCardHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
+  securityTitleGroup: { flex: 1, minWidth: 0 },
+
   sessionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  sessionIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  sessionIcon: { width: 40, height: 40, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   activeDot: { width: 8, height: 8, borderRadius: 4 },
+
+  twoFaBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  twoFaSetupBox: { borderWidth: 1, borderRadius: 8, padding: 20 },
+  twoFaSecretBox: { borderWidth: 1, borderRadius: 8, padding: 12 },
+  backupGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  backupCode: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6, borderWidth: 1 },
 });

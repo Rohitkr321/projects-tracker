@@ -13,7 +13,7 @@ import { ROLE_LABELS } from '../../constants';
 const NAVY  = '#0F2557';
 const GOLD  = '#B8AA6E';
 const PANEL = '#0B1A3B';
-const LOGO  = require('../../../assets/ga-logo.png');
+const LOGO  = require('../../../assets/ga-logo-full.jpg');
 
 const validationSchema = Yup.object().shape({
   name:            Yup.string().min(2, 'Name too short').required('Name is required'),
@@ -72,9 +72,17 @@ export default function RegisterScreen({ navigation, route }) {
         <View style={styles.bgCircle1} />
         <View style={styles.bgCircle2} />
 
-        {/* ── Floating logo card ── */}
+        {/* ── Logo card ── */}
         <View style={styles.logoCard}>
-          <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
+          <View style={styles.logoGoldBar} />
+          <View style={styles.logoInner}>
+            <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
+          </View>
+          <View style={styles.logoOrgBadge}>
+            <View style={styles.logoBadgeDot} />
+            <Text style={styles.logoOrgText}>GENERAL AERONAUTICS</Text>
+            <View style={styles.logoBadgeDot} />
+          </View>
         </View>
 
         {/* ── Gold accent ── */}
@@ -354,15 +362,43 @@ const styles = StyleSheet.create({
 
   /* Logo card */
   logoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 28,
-    paddingVertical: 20,
-    alignItems: 'center',
     alignSelf: 'stretch',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 16px 48px rgba(0,0,0,0.45)',
   },
-  logoImage: { width: 220, height: 86 },
+  logoGoldBar: {
+    height: 4,
+    backgroundColor: GOLD,
+  },
+  logoInner: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 28,
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  logoImage: { width: 220, height: 84 },
+  logoOrgBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: NAVY,
+    paddingVertical: 8,
+  },
+  logoBadgeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: GOLD,
+    opacity: 0.7,
+  },
+  logoOrgText: {
+    color: GOLD,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 2,
+  },
 
   goldRule: { width: 44, height: 4, backgroundColor: GOLD, borderRadius: 2 },
 

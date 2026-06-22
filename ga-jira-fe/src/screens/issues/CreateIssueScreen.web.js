@@ -56,12 +56,12 @@ const MiniAvatar = ({ user, size = 22 }) => (
 );
 
 /* Sidebar section header */
-const SideLabel = ({ icon, iconColor, iconBg, text }) => (
+const SideLabel = ({ icon, iconColor, iconBg, text, theme }) => (
   <View style={ss.labelRow}>
     <View style={[ss.labelIcon, { backgroundColor: iconBg }]}>
       <MaterialCommunityIcons name={icon} size={12} color={iconColor} />
     </View>
-    <Text style={ss.labelText}>{text}</Text>
+    <Text style={[ss.labelText, theme && { color: theme.colors.onSurfaceVariant }]}>{text}</Text>
   </View>
 );
 
@@ -381,15 +381,20 @@ export default function CreateIssueScreen({ route, navigation }) {
             <Text style={[styles.cancelBtnText, { color: theme.colors.onSurfaceVariant }]}>Cancel</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.submitBtn, { backgroundColor: title.trim().length >= 3 && !uploading ? NAVY : '#94A3B8' }]}
+            style={[styles.submitBtn, {
+              backgroundColor: title.trim().length >= 3 && !uploading
+                ? theme.colors.primary
+                : theme.colors.surfaceVariant,
+              opacity: uploading ? 0.7 : 1,
+            }]}
             onPress={handleSubmit}
             disabled={uploading}
           >
             {uploading
-              ? <ActivityIndicator size={14} color="#fff" animating />
-              : <MaterialCommunityIcons name="plus" size={16} color="#fff" />
+              ? <ActivityIndicator size={14} color={theme.colors.onPrimary} animating />
+              : <MaterialCommunityIcons name="plus" size={16} color={title.trim().length >= 3 ? theme.colors.onPrimary : theme.colors.onSurfaceVariant} />
             }
-            <Text style={styles.submitBtnText}>
+            <Text style={[styles.submitBtnText, { color: title.trim().length >= 3 ? theme.colors.onPrimary : theme.colors.onSurfaceVariant }]}>
               {uploading ? (uploadStatus || 'Please wait…') : 'Create Issue'}
             </Text>
           </TouchableOpacity>
@@ -408,8 +413,8 @@ export default function CreateIssueScreen({ route, navigation }) {
               style={styles.templateHeader}
               onPress={() => setShowTemplates(v => !v)}
             >
-              <MaterialCommunityIcons name="file-document-multiple-outline" size={16} color={NAVY} />
-              <Text style={{ color: NAVY, fontWeight: '700', fontSize: 13, marginLeft: 8, flex: 1 }}>
+              <MaterialCommunityIcons name="file-document-multiple-outline" size={16} color={theme.colors.primary} />
+              <Text style={{ color: theme.colors.primary, fontWeight: '700', fontSize: 13, marginLeft: 8, flex: 1 }}>
                 Start from a template
               </Text>
               <MaterialCommunityIcons
@@ -485,7 +490,7 @@ export default function CreateIssueScreen({ route, navigation }) {
           {/* Description */}
           <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
             <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="text-box-outline" size={15} color={NAVY} />
+              <MaterialCommunityIcons name="text-box-outline" size={15} color={theme.colors.primary} />
               <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Description</Text>
             </View>
             <textarea
@@ -505,10 +510,10 @@ export default function CreateIssueScreen({ route, navigation }) {
           {/* Attachments — images + files combined */}
           <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
             <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="paperclip" size={15} color={NAVY} />
+              <MaterialCommunityIcons name="paperclip" size={15} color={theme.colors.primary} />
               <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Attachments</Text>
               {attachments.length > 0 && (
-                <View style={[styles.attachCount, { backgroundColor: NAVY }]}>
+                <View style={[styles.attachCount, { backgroundColor: theme.colors.primary }]}>
                   <Text style={styles.attachCountText}>{attachments.length}</Text>
                 </View>
               )}
@@ -522,11 +527,11 @@ export default function CreateIssueScreen({ route, navigation }) {
               style={{ cursor: 'pointer' }}
             >
               <View style={[styles.imgDropZone, {
-                borderColor:     dragOver ? NAVY : theme.colors.outlineVariant,
-                backgroundColor: dragOver ? '#EFF6FF' : theme.colors.background,
+                borderColor:     dragOver ? theme.colors.primary : theme.colors.outlineVariant,
+                backgroundColor: dragOver ? theme.colors.primaryContainer : theme.colors.background,
               }]}>
-                <MaterialCommunityIcons name="tray-arrow-up" size={22} color={dragOver ? NAVY : theme.colors.onSurfaceVariant} />
-                <Text style={{ color: dragOver ? NAVY : theme.colors.onSurface, fontSize: 13, fontWeight: '600', marginTop: 6 }}>
+                <MaterialCommunityIcons name="tray-arrow-up" size={22} color={dragOver ? theme.colors.primary : theme.colors.onSurfaceVariant} />
+                <Text style={{ color: dragOver ? theme.colors.primary : theme.colors.onSurface, fontSize: 13, fontWeight: '600', marginTop: 6 }}>
                   {dragOver ? 'Release to add' : 'Click or drag files here'}
                 </Text>
                 <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11, marginTop: 2 }}>
@@ -587,10 +592,10 @@ export default function CreateIssueScreen({ route, navigation }) {
           {/* Links / Attachments */}
           <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
             <View style={styles.sectionHeader}>
-              <MaterialCommunityIcons name="link-variant" size={15} color={NAVY} />
+              <MaterialCommunityIcons name="link-variant" size={15} color={theme.colors.primary} />
               <Text style={[styles.sectionTitle, { color: theme.colors.onSurface }]}>Links</Text>
               {links.length > 0 && (
-                <View style={[styles.attachCount, { backgroundColor: NAVY }]}>
+                <View style={[styles.attachCount, { backgroundColor: theme.colors.primary }]}>
                   <Text style={styles.attachCountText}>{links.length}</Text>
                 </View>
               )}
@@ -629,10 +634,10 @@ export default function CreateIssueScreen({ route, navigation }) {
               <TouchableOpacity
                 onPress={handleAddLink}
                 disabled={!linkUrl.trim()}
-                style={[styles.addLinkBtn, { backgroundColor: linkUrl.trim() ? NAVY : theme.colors.surfaceVariant }]}
+                style={[styles.addLinkBtn, { backgroundColor: linkUrl.trim() ? theme.colors.primary : theme.colors.surfaceVariant }]}
               >
-                <MaterialCommunityIcons name="plus" size={14} color={linkUrl.trim() ? '#fff' : theme.colors.onSurfaceVariant} />
-                <Text style={{ color: linkUrl.trim() ? '#fff' : theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' }}>Add</Text>
+                <MaterialCommunityIcons name="plus" size={14} color={linkUrl.trim() ? theme.colors.onPrimary : theme.colors.onSurfaceVariant} />
+                <Text style={{ color: linkUrl.trim() ? theme.colors.onPrimary : theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' }}>Add</Text>
               </TouchableOpacity>
             </View>
 
@@ -641,8 +646,8 @@ export default function CreateIssueScreen({ route, navigation }) {
               <View style={styles.linkList}>
                 {links.map((lnk, idx) => (
                   <View key={idx} style={[styles.linkRow, { borderColor: theme.colors.outlineVariant, backgroundColor: theme.colors.background }]}>
-                    <View style={[styles.linkIconBox, { backgroundColor: NAVY + '12' }]}>
-                      <MaterialCommunityIcons name="link-variant" size={16} color={NAVY} />
+                    <View style={[styles.linkIconBox, { backgroundColor: theme.colors.primaryContainer }]}>
+                      <MaterialCommunityIcons name="link-variant" size={16} color={theme.colors.primary} />
                     </View>
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={{ fontSize: 12, fontWeight: '700', color: theme.colors.onSurface }} numberOfLines={1}>{lnk.name}</Text>
@@ -664,12 +669,12 @@ export default function CreateIssueScreen({ route, navigation }) {
         </ScrollView>
 
         {/* ══ RIGHT: sidebar ══ */}
-        <View style={[styles.sidebar, { backgroundColor: '#F8FAFC', borderLeftColor: theme.colors.outlineVariant }]}>
+        <View style={[styles.sidebar, { backgroundColor: theme.colors.surface, borderLeftColor: theme.colors.outlineVariant }]}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sidebarInner}>
 
             {/* Priority */}
             <View style={styles.sideField}>
-              <SideLabel icon="flag-outline" iconColor="#D97706" iconBg="#FFF7ED" text="Priority" />
+              <SideLabel icon="flag-outline" iconColor="#D97706" iconBg="#FFF7ED" text="Priority" theme={theme} />
               <Menu
                 visible={priorityMenu}
                 onDismiss={() => setPriorityMenu(false)}
@@ -694,7 +699,7 @@ export default function CreateIssueScreen({ route, navigation }) {
 
             {/* Assignee */}
             <View style={styles.sideField}>
-              <SideLabel icon="account-outline" iconColor="#0369A1" iconBg="#E0F2FE" text="Assignee" />
+              <SideLabel icon="account-outline" iconColor="#0369A1" iconBg="#E0F2FE" text="Assignee" theme={theme} />
               <Menu
                 visible={assigneeMenu}
                 onDismiss={() => setAssigneeMenu(false)}
@@ -730,7 +735,7 @@ export default function CreateIssueScreen({ route, navigation }) {
 
             {/* Sprint */}
             <View style={styles.sideField}>
-              <SideLabel icon="lightning-bolt-outline" iconColor="#7C3AED" iconBg="#F5F3FF" text="Sprint" />
+              <SideLabel icon="lightning-bolt-outline" iconColor="#7C3AED" iconBg="#F5F3FF" text="Sprint" theme={theme} />
               <Menu
                 visible={sprintMenu}
                 onDismiss={() => setSprintMenu(false)}
@@ -766,7 +771,7 @@ export default function CreateIssueScreen({ route, navigation }) {
             {/* Epic */}
             {epics.length > 0 && (
               <View style={styles.sideField}>
-                <SideLabel icon="lightning-bolt" iconColor="#6554C0" iconBg="#EDE9FE" text="Epic" />
+                <SideLabel icon="lightning-bolt" iconColor="#6554C0" iconBg="#EDE9FE" text="Epic" theme={theme} />
                 <Menu
                   visible={epicMenu}
                   onDismiss={() => setEpicMenu(false)}
@@ -793,7 +798,7 @@ export default function CreateIssueScreen({ route, navigation }) {
 
             {/* Story Points */}
             <View style={styles.sideField}>
-              <SideLabel icon="star-circle-outline" iconColor="#0D9488" iconBg="#F0FDFA" text="Story Points" />
+              <SideLabel icon="star-circle-outline" iconColor="#0D9488" iconBg="#F0FDFA" text="Story Points" theme={theme} />
               <View style={styles.ptsGrid}>
                 {[1, 2, 3, 5, 8, 13].map(pts => {
                   const active = storyPoints === String(pts);
@@ -802,11 +807,11 @@ export default function CreateIssueScreen({ route, navigation }) {
                       key={pts}
                       onPress={() => setStoryPoints(active ? '' : String(pts))}
                       style={[styles.ptsBtn, {
-                        backgroundColor: active ? NAVY : theme.colors.background,
-                        borderColor:     active ? NAVY : theme.colors.outlineVariant,
+                        backgroundColor: active ? theme.colors.primary : theme.colors.background,
+                        borderColor:     active ? theme.colors.primary : theme.colors.outlineVariant,
                       }]}
                     >
-                      <Text style={[styles.ptsBtnText, { color: active ? '#fff' : theme.colors.onSurfaceVariant }]}>
+                      <Text style={[styles.ptsBtnText, { color: active ? theme.colors.onPrimary : theme.colors.onSurfaceVariant }]}>
                         {pts}
                       </Text>
                     </TouchableOpacity>
@@ -833,7 +838,7 @@ export default function CreateIssueScreen({ route, navigation }) {
 
             {/* Due Date */}
             <View style={styles.sideField}>
-              <SideLabel icon="calendar-outline" iconColor="#DC2626" iconBg="#FEF2F2" text="Due Date" />
+              <SideLabel icon="calendar-outline" iconColor="#DC2626" iconBg="#FEF2F2" text="Due Date" theme={theme} />
               {/* Wrap in a relative div so the hidden date input sits exactly below the button */}
               <div style={{ position: 'relative' }}>
                 <TouchableOpacity
@@ -873,11 +878,11 @@ export default function CreateIssueScreen({ route, navigation }) {
             <Divider style={{ marginVertical: 4 }} />
 
             {/* Status hint */}
-            <View style={[styles.statusHint, { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' }]}>
-              <MaterialCommunityIcons name="information-outline" size={15} color={NAVY} />
-              <Text style={styles.statusHintText}>
+            <View style={[styles.statusHint, { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary + '30' }]}>
+              <MaterialCommunityIcons name="information-outline" size={15} color={theme.colors.primary} />
+              <Text style={[styles.statusHintText, { color: theme.colors.onPrimaryContainer }]}>
                 New issues start as{' '}
-                <Text style={{ fontWeight: '800', color: NAVY }}>{statuses[0]?.name || 'To Do'}</Text>.{'\n'}
+                <Text style={{ fontWeight: '800', color: theme.colors.primary }}>{statuses[0]?.name || 'To Do'}</Text>.{'\n'}
                 Change status from the issue detail page.
               </Text>
             </View>

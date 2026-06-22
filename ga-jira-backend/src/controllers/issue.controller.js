@@ -56,7 +56,8 @@ exports.getById = async (req, res, next) => {
       include: [
         ...ISSUE_INCLUDES,
         { model: Issue, as: 'subtasks', include: [{ model: User, as: 'assignee', attributes: ['id', 'firstName', 'lastName', 'avatar'] }, { model: WorkflowStatus, as: 'status' }] },
-        { model: Issue, as: 'parent', attributes: ['id', 'key', 'title'] },
+        { model: Issue, as: 'parent', attributes: ['id', 'key', 'title', 'type'] },
+        { model: Project, as: 'project', attributes: ['id', 'name', 'key'] },
         { model: Comment, as: 'comments', include: [{ model: User, as: 'author', attributes: ['id', 'firstName', 'lastName', 'avatar'] }], order: [['createdAt', 'ASC']] },
         { model: Attachment, as: 'attachments', include: [{ model: User, as: 'uploadedBy', attributes: ['id', 'firstName', 'lastName'] }] },
         { model: TimeLog, as: 'timeLogs', include: [{ model: User, as: 'user', attributes: ['id', 'firstName', 'lastName'] }] },

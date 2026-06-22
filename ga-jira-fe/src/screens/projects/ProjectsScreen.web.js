@@ -177,13 +177,13 @@ const ProjectsScreen = ({ navigation }) => {
   const canManage = ['super_admin', 'org_admin'].includes(user?.role);
 
   const [search, setSearch] = useState('');
-  const [showArchived, setShowArchived] = useState(false);
+  const [hideArchived, setHideArchived] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedColor, setSelectedColor] = useState(PROJECT_COLORS[0]);
   const [toast, setToast]         = useState('');
   const [toastType, setToastType] = useState('success');
 
-  const queryParams = { search, status: showArchived ? 'archived' : 'active' };
+  const queryParams = { search, status: hideArchived ? 'active' : 'all' };
 
   const isDark = theme.dark;
   const { data, isLoading, refetch } = useGetProjectsQuery(queryParams);
@@ -260,19 +260,19 @@ const ProjectsScreen = ({ navigation }) => {
           </View>
           {canManage && (
             <TouchableOpacity
-              onPress={() => setShowArchived(v => !v)}
+              onPress={() => setHideArchived(v => !v)}
               style={[styles.archiveToggle, {
-                backgroundColor: showArchived ? '#FEF3C7' : theme.colors.background,
-                borderColor: showArchived ? '#D97706' : theme.colors.outlineVariant,
+                backgroundColor: hideArchived ? '#FEF3C7' : theme.colors.background,
+                borderColor: hideArchived ? '#D97706' : theme.colors.outlineVariant,
               }]}
             >
               <MaterialCommunityIcons
-                name={showArchived ? 'archive' : 'archive-outline'}
+                name={hideArchived ? 'archive-off-outline' : 'archive-outline'}
                 size={15}
-                color={showArchived ? '#D97706' : theme.colors.onSurfaceVariant}
+                color={hideArchived ? '#D97706' : theme.colors.onSurfaceVariant}
               />
-              <Text style={[styles.archiveToggleText, { color: showArchived ? '#D97706' : theme.colors.onSurfaceVariant }]}>
-                {showArchived ? 'Showing archived' : 'Show archived'}
+              <Text style={[styles.archiveToggleText, { color: hideArchived ? '#D97706' : theme.colors.onSurfaceVariant }]}>
+                {hideArchived ? 'Archived hidden' : 'Hide archived'}
               </Text>
             </TouchableOpacity>
           )}
@@ -303,8 +303,6 @@ const ProjectsScreen = ({ navigation }) => {
             <Text style={[styles.emptySub, { color: theme.colors.onSurfaceVariant }]}>
               {search
                 ? 'Try a different search term'
-                : showArchived
-                ? 'No archived projects found'
                 : 'Create your first project to get started'}
             </Text>
             {!search && canCreate && (

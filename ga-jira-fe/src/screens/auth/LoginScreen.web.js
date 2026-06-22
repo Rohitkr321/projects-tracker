@@ -4,13 +4,13 @@ import { Text, TextInput, HelperText, useTheme } from 'react-native-paper';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useLoginMutation } from '../../api/authApi';
+import { useLoginMutation, useChallenge2faMutation } from '../../api/authApi';
 import { useAuth } from '../../hooks/useAuth';
 
 const NAVY  = '#0F2557';
 const GOLD  = '#B8AA6E';
 const PANEL = '#0B1A3B';
-const LOGO  = require('../../../assets/ga-logo.png');
+const LOGO  = require('../../../assets/ga-logo-full.jpg');
 
 const validationSchema = Yup.object().shape({
   email:    Yup.string().email('Invalid email').required('Email is required'),
@@ -24,25 +24,46 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: '99.9%',  label: 'Uptime SLA' },
-  { value: 'SOC 2',  label: 'Compliant'  },
-  { value: 'AES-256',label: 'Encrypted'  },
+  { value: 'GA Tracker',  label: 'Internal Platform' },
+  { value: 'RBAC',     label: 'Access Control'     },
+  { value: 'Live',     label: 'Real-Time Sync'     },
 ];
 
 export default function LoginScreen({ navigation }) {
   const theme = useTheme();
   const { login } = useAuth();
-  const [loginMutation, { isLoading }] = useLoginMutation();
-  const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError]   = useState('');
+  const [loginMutation, { isLoading }]       = useLoginMutation();
+  const [challenge2fa, { isLoading: verifying }] = useChallenge2faMutation();
+  const [showPassword, setShowPassword]      = useState(false);
+  const [serverError, setServerError]        = useState('');
+  const [twoFactorStep, setTwoFactorStep]    = useState(false);
+  const [tempToken, setTempToken]            = useState('');
+  const [otpCode, setOtpCode]                = useState('');
 
   const handleLogin = async (values) => {
     setServerError('');
     try {
       const result = await loginMutation(values).unwrap();
-      await login(result.data);
+      if (result.data?.requiresTwoFactor) {
+        setTempToken(result.data.tempToken);
+        setTwoFactorStep(true);
+      } else {
+        await login(result.data);
+      }
     } catch (err) {
       setServerError(err?.data?.message || 'Login failed. Please check your credentials.');
+    }
+  };
+
+  const handleVerify2fa = async () => {
+    if (!otpCode.trim()) return;
+    setServerError('');
+    try {
+      const result = await challenge2fa({ tempToken, code: otpCode.trim() }).unwrap();
+      await login(result.data);
+    } catch (err) {
+      setServerError(err?.data?.message || 'Invalid code. Please try again.');
+      setOtpCode('');
     }
   };
 
@@ -58,9 +79,17 @@ export default function LoginScreen({ navigation }) {
         <View style={styles.bgCircle2} />
         <View style={styles.bgCircle3} />
 
-        {/* ── Floating logo card ── */}
+        {/* ── Logo card ── */}
         <View style={styles.logoCard}>
-          <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
+          <View style={styles.logoGoldBar} />
+          <View style={styles.logoInner}>
+            <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
+          </View>
+          <View style={styles.logoOrgBadge}>
+            <View style={styles.logoBadgeDot} />
+            <Text style={styles.logoOrgText}>GENERAL AERONAUTICS</Text>
+            <View style={styles.logoBadgeDot} />
+          </View>
         </View>
 
         {/* ── Gold accent rule ── */}
@@ -103,12 +132,67 @@ export default function LoginScreen({ navigation }) {
       <View style={[styles.rightPanel, { backgroundColor: bg }]}>
 
         <View style={styles.formWrap}>
-          <Text style={[styles.formHeading, { color: theme.colors.onSurface }]}>Welcome back</Text>
+          <Text style={[styles.formHeading, { color: theme.colors.onSurface }]}>
+            {twoFactorStep ? 'Two-Factor Auth' : 'Welcome back'}
+          </Text>
           <Text style={[styles.formSubtitle, { color: theme.colors.onSurfaceVariant }]}>
-            Sign in to your General Aeronautics workspace
+            {twoFactorStep
+              ? 'Enter the 6-digit code from your authenticator app'
+              : 'Sign in to your General Aeronautics workspace'}
           </Text>
 
-          <View style={[styles.formCard, {
+          {/* ── 2FA challenge card ── */}
+          {twoFactorStep && (
+            <View style={[styles.formCard, {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.dark ? theme.colors.outlineVariant : '#DDE4EE',
+            }]}>
+              <View style={{ alignItems: 'center', marginBottom: 24 }}>
+                <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: NAVY + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 12 }}>
+                  <MaterialCommunityIcons name="shield-lock-outline" size={28} color={NAVY} />
+                </View>
+                <Text style={{ color: theme.colors.onSurface, fontWeight: '700', fontSize: 15 }}>Verification required</Text>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13, textAlign: 'center', marginTop: 4 }}>
+                  Open your authenticator app and enter the code shown
+                </Text>
+              </View>
+
+              <TextInput
+                label="6-digit code"
+                value={otpCode}
+                onChangeText={setOtpCode}
+                keyboardType="number-pad"
+                maxLength={8}
+                mode="outlined"
+                left={<TextInput.Icon icon="numeric" />}
+                style={[styles.input, { letterSpacing: 8, fontSize: 20, textAlign: 'center' }]}
+                onSubmitEditing={handleVerify2fa}
+                autoFocus
+              />
+
+              {!!serverError && (
+                <View style={[styles.errorBox, { backgroundColor: theme.colors.errorContainer, marginTop: 12 }]}>
+                  <MaterialCommunityIcons name="alert-circle-outline" size={16} color={theme.colors.error} />
+                  <Text variant="bodySmall" style={{ color: theme.colors.error, flex: 1 }}>{serverError}</Text>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={handleVerify2fa}
+                disabled={verifying || !otpCode.trim()}
+                style={[styles.submitBtn, { marginTop: 20, opacity: (verifying || !otpCode.trim()) ? 0.6 : 1 }]}
+              >
+                <Text style={styles.submitBtnText}>{verifying ? 'Verifying…' : 'Verify'}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => { setTwoFactorStep(false); setOtpCode(''); setServerError(''); }} style={{ alignItems: 'center', marginTop: 16 }}>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>← Back to login</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── Main login card ── */}
+          {!twoFactorStep && <View style={[styles.formCard, {
             backgroundColor: theme.colors.surface,
             borderColor: theme.dark ? theme.colors.outlineVariant : '#DDE4EE',
           }]}>
@@ -200,14 +284,16 @@ export default function LoginScreen({ navigation }) {
                 </>
               )}
             </Formik>
-          </View>
+          </View>}
 
-          <View style={styles.secFooter}>
-            <MaterialCommunityIcons name="shield-lock-outline" size={13} color={theme.colors.onSurfaceVariant} />
-            <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, marginLeft: 5 }}>
-              Protected by enterprise-grade security · AES-256
-            </Text>
-          </View>
+          {!twoFactorStep && (
+            <View style={styles.secFooter}>
+              <MaterialCommunityIcons name="shield-lock-outline" size={13} color={theme.colors.onSurfaceVariant} />
+              <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, marginLeft: 5 }}>
+                Protected by enterprise-grade security · AES-256
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -248,19 +334,47 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
   },
 
-  /* Logo card — centered, floating */
+  /* Logo card — floating panel */
   logoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    paddingHorizontal: 32,
-    paddingVertical: 22,
-    alignItems: 'center',
     alignSelf: 'stretch',
-    boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    boxShadow: '0 16px 48px rgba(0,0,0,0.45)',
+  },
+  logoGoldBar: {
+    height: 4,
+    backgroundColor: GOLD,
+  },
+  logoInner: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 32,
+    paddingVertical: 20,
+    alignItems: 'center',
   },
   logoImage: {
     width: 240,
-    height: 94,
+    height: 90,
+  },
+  logoOrgBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: NAVY,
+    paddingVertical: 8,
+  },
+  logoBadgeDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: GOLD,
+    opacity: 0.7,
+  },
+  logoOrgText: {
+    color: GOLD,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
 
   /* Gold separator */

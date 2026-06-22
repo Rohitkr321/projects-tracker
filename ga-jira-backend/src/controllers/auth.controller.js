@@ -83,6 +83,12 @@ exports.login = async (req, res, next) => {
     }
     if (!user.isActive) return errorResponse(res, 'Account is deactivated', 403);
 
+    // 2FA challenge — return a short-lived token instead of full session tokens
+    if (user.twoFactorEnabled) {
+      const tempToken = jwt.sign({ id: user.id, scope: '2fa' }, process.env.JWT_SECRET, { expiresIn: '5m' });
+      return successResponse(res, { requiresTwoFactor: true, tempToken });
+    }
+
     const accessToken = signToken(user.id);
     const refreshToken = signRefreshToken(user.id);
     await user.update({ refreshToken, lastLoginAt: new Date() });
@@ -153,6 +159,27 @@ exports.resetPassword = async (req, res, next) => {
     if (!user) return errorResponse(res, 'Invalid or expired reset token', 400);
     await user.update({ password, passwordResetToken: null, passwordResetExpires: null });
     successResponse(res, null, 'Password reset successful');
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.updateProfile = async (req, res, next) => {
+  try {
+    const { firstName, lastName, timezone, notificationPreferences } = req.body;
+    const updates = {};
+    if (firstName !== undefined) updates.firstName = firstName;
+    if (lastName !== undefined) updates.lastName = lastName;
+    if (timezone !== undefined) updates.timezone = timezone;
+    if (notificationPreferences !== undefined) {
+      updates.notificationPreferences = {
+        ...req.user.notificationPreferences,
+        ...notificationPreferences,
+      };
+    }
+    await req.user.update(updates);
+    const fresh = await User.findByPk(req.user.id);
+    successResponse(res, fresh, 'Profile updated');
   } catch (err) {
     next(err);
   }

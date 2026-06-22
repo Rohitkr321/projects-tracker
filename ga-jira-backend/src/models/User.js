@@ -24,8 +24,11 @@ const User = sequelize.define('User', {
   refreshToken: { type: DataTypes.TEXT },
   notificationPreferences: {
     type: DataTypes.JSON,
-    defaultValue: { email: true, inApp: true, mentions: true, assignments: true },
+    defaultValue: { email: true, inApp: true, mentions: true, assignments: true, comments: true },
   },
+  twoFactorEnabled:     { type: DataTypes.BOOLEAN, defaultValue: false },
+  twoFactorSecret:      { type: DataTypes.STRING(255), allowNull: true },
+  twoFactorBackupCodes: { type: DataTypes.JSON, allowNull: true },
 }, {
   tableName: 'users',
   indexes: [{ unique: true, fields: ['email'], name: 'email' }],
@@ -49,6 +52,8 @@ User.prototype.toJSON = function () {
   delete values.refreshToken;
   delete values.passwordResetToken;
   delete values.emailVerificationToken;
+  delete values.twoFactorSecret;
+  delete values.twoFactorBackupCodes;
   return values;
 };
 

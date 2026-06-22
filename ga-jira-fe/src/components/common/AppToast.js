@@ -1,54 +1,41 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Animated, View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const TYPES = {
-  success: { icon: 'check-circle',     color: '#10B981', light: '#ECFDF5', border: '#A7F3D0' },
-  error:   { icon: 'alert-circle',     color: '#EF4444', light: '#FEF2F2', border: '#FECACA' },
-  warning: { icon: 'alert',            color: '#F59E0B', light: '#FFFBEB', border: '#FDE68A' },
-  info:    { icon: 'information',      color: '#3B82F6', light: '#EFF6FF', border: '#BFDBFE' },
-  moved:   { icon: 'arrow-right-circle', color: '#7C3AED', light: '#F5F3FF', border: '#DDD6FE' },
+  success: { icon: 'check-circle',      color: '#059669', bg: '#ECFDF5', border: '#6EE7B7', label: 'Success' },
+  error:   { icon: 'close-circle',      color: '#DC2626', bg: '#FEF2F2', border: '#FCA5A5', label: 'Error' },
+  warning: { icon: 'alert-circle',      color: '#D97706', bg: '#FFFBEB', border: '#FCD34D', label: 'Warning' },
+  info:    { icon: 'information',        color: '#2563EB', bg: '#EFF6FF', border: '#93C5FD', label: 'Info' },
+  moved:   { icon: 'arrow-right-circle', color: '#7C3AED', bg: '#F5F3FF', border: '#C4B5FD', label: 'Updated' },
 };
 
-const DURATION = 3200;
+const DURATION = 3500;
 
-/**
- * AppToast – modern slide-up notification banner
- *
- * Props:
- *   message  {string}   – text to display
- *   type     {string}   – 'success' | 'error' | 'warning' | 'info' | 'moved'  (default: 'success')
- *   onDone   {function} – called after the toast exits
- */
 const AppToast = ({ message, type = 'success', onDone }) => {
-  const translateY = useRef(new Animated.Value(-72)).current;
+  const translateY = useRef(new Animated.Value(-90)).current;
   const opacity    = useRef(new Animated.Value(0)).current;
   const progress   = useRef(new Animated.Value(1)).current;
 
   const cfg = TYPES[type] || TYPES.success;
 
   useEffect(() => {
-    // Slide in
     Animated.parallel([
-      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 180 }),
+      Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 22, stiffness: 220, mass: 0.8 }),
       Animated.timing(opacity,    { toValue: 1, duration: 180, useNativeDriver: true }),
     ]).start();
 
-    // Progress bar shrink
-    Animated.timing(progress, {
-      toValue: 0, duration: DURATION, useNativeDriver: false,
-    }).start();
+    Animated.timing(progress, { toValue: 0, duration: DURATION, useNativeDriver: false }).start();
 
-    // Slide out after delay
-    const id = setTimeout(() => dismiss(), DURATION);
+    const id = setTimeout(dismiss, DURATION);
     return () => clearTimeout(id);
   }, []);
 
   const dismiss = () => {
     Animated.parallel([
-      Animated.timing(translateY, { toValue: -72, duration: 260, useNativeDriver: true }),
-      Animated.timing(opacity,    { toValue: 0,  duration: 260, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: -90, duration: 220, useNativeDriver: true }),
+      Animated.timing(opacity,    { toValue: 0,   duration: 220, useNativeDriver: true }),
     ]).start(() => onDone?.());
   };
 
@@ -56,21 +43,25 @@ const AppToast = ({ message, type = 'success', onDone }) => {
 
   return (
     <Animated.View style={[styles.wrapper, { opacity, transform: [{ translateY }] }]}>
-      <View style={[styles.toast, { backgroundColor: cfg.light, borderColor: cfg.border }]}>
-        {/* Left accent bar */}
-        <View style={[styles.accentBar, { backgroundColor: cfg.color }]} />
+      <View style={[styles.card, { backgroundColor: cfg.bg, borderColor: cfg.border }]}>
 
-        {/* Icon */}
-        <View style={[styles.iconWrap, { backgroundColor: cfg.color + '18' }]}>
-          <MaterialCommunityIcons name={cfg.icon} size={17} color={cfg.color} />
+        {/* Icon circle */}
+        <View style={[styles.iconCircle, { backgroundColor: cfg.color + '18' }]}>
+          <MaterialCommunityIcons name={cfg.icon} size={22} color={cfg.color} />
         </View>
 
-        {/* Message */}
-        <Text style={styles.message} numberOfLines={2}>{message}</Text>
+        {/* Text */}
+        <View style={styles.textBlock}>
+          <Text style={[styles.typeLabel, { color: cfg.color }]}>{cfg.label}</Text>
+          <Text style={styles.message} numberOfLines={2}>{message}</Text>
+        </View>
+
+        {/* Divider */}
+        <View style={[styles.divider, { backgroundColor: cfg.border }]} />
 
         {/* Close */}
-        <TouchableOpacity onPress={dismiss} style={styles.closeBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <MaterialCommunityIcons name="close" size={14} color="#94A3B8" />
+        <TouchableOpacity onPress={dismiss} style={styles.closeBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <MaterialCommunityIcons name="close" size={15} color={cfg.color} />
         </TouchableOpacity>
       </View>
 
@@ -84,43 +75,75 @@ const AppToast = ({ message, type = 'success', onDone }) => {
 
 const styles = StyleSheet.create({
   wrapper: {
-    position: 'absolute', top: 20, left: 24,
-    zIndex: 9999, minWidth: 280, maxWidth: 360,
-    borderRadius: 12, overflow: 'hidden',
-    boxShadow: '0px 8px 24px rgba(0,0,0,0.12), 0px 2px 6px rgba(0,0,0,0.08)',
+    position: 'absolute',
+    top: 20,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 9999,
+    pointerEvents: 'box-none',
   },
-  toast: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingRight: 12, paddingVertical: 13,
-    borderWidth: 1, borderBottomWidth: 0,
-    borderTopLeftRadius: 12, borderTopRightRadius: 12,
-    gap: 10,
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: 380,
+    borderWidth: 1.5,
+    borderBottomWidth: 0,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
+    paddingVertical: 12,
+    paddingRight: 14,
+    gap: 12,
+    boxShadow: '0px 8px 30px rgba(0,0,0,0.10), 0px 2px 8px rgba(0,0,0,0.06)',
   },
-  accentBar: {
-    width: 4, alignSelf: 'stretch',
-    borderTopLeftRadius: 12,
-  },
-  iconWrap: {
-    width: 30, height: 30, borderRadius: 8,
-    justifyContent: 'center', alignItems: 'center',
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12,
     flexShrink: 0,
   },
+  textBlock: {
+    flex: 1,
+    gap: 1,
+  },
+  typeLabel: {
+    fontSize: 10,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
   message: {
-    flex: 1, fontSize: 13, fontWeight: '600',
-    color: '#1E293B', lineHeight: 18,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1E293B',
+    lineHeight: 18,
+  },
+  divider: {
+    width: 1,
+    height: 28,
+    borderRadius: 1,
+    flexShrink: 0,
   },
   closeBtn: {
-    width: 24, height: 24, borderRadius: 12,
-    justifyContent: 'center', alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexShrink: 0,
   },
   progressTrack: {
-    height: 3, width: '100%',
-    borderBottomLeftRadius: 12, borderBottomRightRadius: 12,
+    width: 380,
+    height: 3,
+    borderBottomLeftRadius: 4,
+    borderBottomRightRadius: 4,
   },
   progressFill: {
     height: '100%',
-    borderBottomLeftRadius: 12,
+    borderBottomLeftRadius: 4,
   },
 });
 

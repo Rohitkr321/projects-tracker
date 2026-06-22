@@ -177,13 +177,13 @@ const DashboardScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.root, { backgroundColor: theme.colors.background }]}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scrollInner} showsVerticalScrollIndicator={false}>
 
         {/* ── Hero greeting banner ── */}
-        <View style={[styles.hero, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.outlineVariant }]}>
+        <View style={[styles.hero, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]}>
           <View style={styles.heroLeft}>
             <View style={[styles.heroIconBadge, { backgroundColor: theme.colors.primaryContainer }]}>
-              <MaterialCommunityIcons name="view-dashboard" size={22} color={theme.colors.primary} />
+              <MaterialCommunityIcons name="radar" size={23} color={theme.colors.primary} />
             </View>
             <View style={styles.heroCopy}>
               <Text style={[styles.heroGreeting, { color: theme.colors.onSurfaceVariant }]}>Operational dashboard</Text>
@@ -192,7 +192,7 @@ const DashboardScreen = ({ navigation }) => {
               <View style={[styles.heroBadge, { backgroundColor: colors.secondaryContainer, borderColor: colors.secondaryLight }]}>
                 <Text style={[styles.heroBadgeText, { color: colors.secondaryDark }]}>{ROLE_LABELS[user?.role] || user?.role}</Text>
               </View>
-              <Text style={styles.heroDot}>·</Text>
+              <Text style={styles.heroDot}>-</Text>
               <Text style={[styles.heroOrg, { color: theme.colors.onSurfaceVariant }]}>General Aeronautics</Text>
             </View>
           </View>
@@ -404,27 +404,31 @@ const DashboardScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollInner: { paddingBottom: 42 },
 
   /* Hero */
   hero: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 28, paddingVertical: 16,
-    borderBottomWidth: 1,
+    marginHorizontal: 28, marginTop: 22,
+    paddingHorizontal: 24, paddingVertical: 20,
+    borderWidth: 1,
+    borderRadius: 8,
     gap: 20,
+    boxShadow: '0 14px 34px rgba(6,43,111,0.08)',
   },
   heroLeft: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 0 },
-  heroIconBadge: { width: 44, height: 44, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  heroIconBadge: { width: 48, height: 48, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   heroCopy: { flex: 1, minWidth: 0 },
   heroGreeting: { fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0, marginBottom: 3 },
-  heroName: { fontSize: 23, fontWeight: '900', letterSpacing: 0, marginBottom: 8 },
+  heroName: { fontSize: 26, fontWeight: '900', letterSpacing: 0, marginBottom: 8 },
   heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   heroBadge: { borderRadius: 8, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 4 },
   heroBadgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0 },
-  heroDot: { display: 'none' },
+  heroDot: { color: '#A8B4C7', fontWeight: '800' },
   heroOrgPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 8, borderWidth: 1, paddingHorizontal: 9, paddingVertical: 4 },
   heroOrg: { fontSize: 11, fontWeight: '700' },
   heroRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  heroPulseCard: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9, minWidth: 170 },
+  heroPulseCard: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 14, paddingVertical: 11, minWidth: 180 },
   heroPulseLabel: { fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0 },
   heroPulseValue: { fontSize: 16, fontWeight: '900', marginTop: 1 },
   heroPulseRow: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 6 },
@@ -432,7 +436,7 @@ const styles = StyleSheet.create({
   heroPulseDot: { width: 7, height: 7, borderRadius: 4 },
   heroPulseText: { fontSize: 11, fontWeight: '700' },
   heroAvatar: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 44, height: 44, borderRadius: 8,
     justifyContent: 'center', alignItems: 'center',
   },
   heroAvatarText: { color: '#FFFFFF', fontWeight: '900', fontSize: 15, letterSpacing: 0 },
@@ -443,19 +447,19 @@ const styles = StyleSheet.create({
   },
 
   /* Stats */
-  statsSection: { paddingHorizontal: 28, paddingTop: 18, paddingBottom: 4, gap: 12 },
+  statsSection: { paddingHorizontal: 28, paddingTop: 22, paddingBottom: 4, gap: 12 },
   statsRow: { flexDirection: 'row', gap: 12 },
   tile: {
-    flex: 1, borderRadius: 10, padding: 16,
+    flex: 1, borderRadius: 8, padding: 18,
     borderWidth: 1, borderLeftWidth: 3,
-    boxShadow: '0px 2px 8px rgba(6,43,111,0.06)',
+    boxShadow: '0px 10px 24px rgba(6,43,111,0.07)',
     outlineStyle: 'none',
   },
   tileRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
   tileValue: { fontSize: 28, fontWeight: '800', lineHeight: 34, color: colors.brand.navy, letterSpacing: 0 },
   tileLabel: { fontSize: 12, fontWeight: '600', marginTop: 2 },
   tileSub: { fontSize: 11, marginTop: 3 },
-  tileIcon: { width: 40, height: 40, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+  tileIcon: { width: 42, height: 42, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
 
   /* Two-column */
   twoCol: { flexDirection: 'row', paddingHorizontal: 28, paddingTop: 20, paddingBottom: 40, gap: 20 },
@@ -472,9 +476,9 @@ const styles = StyleSheet.create({
 
   /* Sprint card */
   sprintCard: {
-    borderRadius: 10, borderWidth: 1,
+    borderRadius: 8, borderWidth: 1,
     overflow: 'hidden',
-    boxShadow: '0px 2px 12px rgba(6,43,111,0.08)',
+    boxShadow: '0px 10px 24px rgba(6,43,111,0.08)',
   },
   sprintAccent: { height: 4, backgroundColor: colors.brand.navy },
   sprintInner: { padding: 18 },
@@ -499,7 +503,7 @@ const styles = StyleSheet.create({
   sprintBtnLabel: { fontSize: 12, fontWeight: '600' },
 
   /* Card */
-  card: { borderRadius: 10, overflow: 'hidden', borderWidth: 1, boxShadow: '0px 2px 8px rgba(6,43,111,0.05)' },
+  card: { borderRadius: 8, overflow: 'hidden', borderWidth: 1, boxShadow: '0px 10px 22px rgba(6,43,111,0.05)' },
 
   /* Project rows */
   projectRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 13 },
@@ -523,7 +527,7 @@ const styles = StyleSheet.create({
 
   /* Empty */
   emptyBlock: {
-    borderRadius: 10, borderWidth: 1, borderStyle: 'dashed',
+    borderRadius: 8, borderWidth: 1, borderStyle: 'dashed',
     alignItems: 'center', justifyContent: 'center', paddingVertical: 36, gap: 10,
   },
   emptyIconWrap: { width: 52, height: 52, borderRadius: 26, justifyContent: 'center', alignItems: 'center' },

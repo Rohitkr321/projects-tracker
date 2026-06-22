@@ -85,6 +85,8 @@ export default function IssueDetailScreen({ route, navigation }) {
   const [linkUrl, setLinkUrl]   = useState('');
   const [linkName, setLinkName] = useState('');
   const [addingLink, setAddingLink] = useState(false);
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descDraft,   setDescDraft]   = useState('');
   const [statusMenuOpen, setStatusMenuOpen]     = useState(false);
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
@@ -212,14 +214,18 @@ export default function IssueDetailScreen({ route, navigation }) {
 
   const handleCreateSubtask = async () => {
     if (!subtaskTitle.trim() || !projectId) return;
-    const fd = new FormData();
-    fd.append('title', subtaskTitle.trim());
-    fd.append('type', 'subtask');
-    fd.append('projectId', projectId);
-    fd.append('parentId', issueId);
-    if (issue.sprintId) fd.append('sprintId', issue.sprintId);
     try {
-      await createIssue({ formData: fd, projectId, sprintId: issue.sprintId || null }).unwrap();
+      await createIssue({
+        body: {
+          title: subtaskTitle.trim(),
+          type: 'subtask',
+          projectId,
+          parentId: issueId,
+          ...(issue.sprintId ? { sprintId: issue.sprintId } : {}),
+        },
+        projectId,
+        sprintId: issue.sprintId || null,
+      }).unwrap();
       setSubtaskTitle('');
       setShowSubtaskInput(false);
       showToast('Subtask created');
@@ -260,7 +266,7 @@ export default function IssueDetailScreen({ route, navigation }) {
           issueId, filename: compressed.name, contentType: 'image/jpeg', type: 'images',
         }).unwrap();
         const { presignedUrl, key } = presignData.data;
-        // 2. Upload directly to S3 (no auth header — presigned URL handles auth)
+        // 2. Upload directly to S3 (no auth header; presigned URL handles auth)
         const s3Res = await fetch(presignedUrl, {
           method: 'PUT',
           body: compressed,
@@ -329,8 +335,8 @@ export default function IssueDetailScreen({ route, navigation }) {
 
   if (isLoading) return (
     <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
-      <ActivityIndicator size="large" color={NAVY} />
-      <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 14 }}>Loading…</Text>
+      <ActivityIndicator size="large" color={theme.colors.primary} />
+      <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 14 }}>Loading...</Text>
     </View>
   );
   if (!issue) return (
@@ -346,6 +352,15 @@ export default function IssueDetailScreen({ route, navigation }) {
   const priorityCfg = PRIORITY_CFG[issue.priority] || PRIORITY_CFG.medium;
   const statusColor = issue.status?.color || '#6B7280';
   const isOverdue   = issue.dueDate && new Date(issue.dueDate) < new Date();
+  const assigneeName = issue.assignee ? `${issue.assignee.firstName} ${issue.assignee.lastName}` : 'Unassigned';
+  const reporterName = issue.reporter ? `${issue.reporter.firstName} ${issue.reporter.lastName}` : 'No reporter';
+  const sprintName = issue.sprint?.name || 'Backlog';
+  const commentCount = issue.comments?.length || 0;
+  const subtaskCount = issue.subtasks?.length || 0;
+  const doneSubtasks = issue.subtasks?.filter(st => st.status?.category === 'done').length || 0;
+  const attachmentCount = (issue.attachments || []).filter(a => a.mimeType !== 'link').length;
+  const linkCount = (issue.attachments || []).filter(a => a.mimeType === 'link').length;
+  const watcherCount = issue.watchers?.length || 0;
 
   const bg   = isDark ? '#1A1A2E' : '#F0F2F5';
   const surf = isDark ? '#16213E' : '#FFFFFF';
@@ -354,7 +369,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   return (
     <View style={[styles.root, { backgroundColor: bg }]}>
 
-      {/* ── Top bar ── */}
+      {/* Top bar */}
       <View style={[styles.topBar, { backgroundColor: surf, borderBottomColor: border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <MaterialCommunityIcons name="chevron-left" size={18} color={theme.colors.onSurfaceVariant} />
@@ -362,8 +377,33 @@ export default function IssueDetailScreen({ route, navigation }) {
         </TouchableOpacity>
 
         <View style={styles.breadcrumb}>
+          {/* Project name (non-subtasks show project; subtasks show parent's project via parent) */}
+          {issue.project && (
+            <>
+              <TouchableOpacity onPress={() => navigation.navigate('ProjectDetail', { projectId: issue.project.id })}>
+                <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>{issue.project.name}</Text>
+              </TouchableOpacity>
+              <MaterialCommunityIcons name="chevron-right" size={15} color={theme.colors.onSurfaceVariant} />
+            </>
+          )}
+
           <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>Issues</Text>
           <MaterialCommunityIcons name="chevron-right" size={15} color={theme.colors.onSurfaceVariant} />
+
+          {/* For subtasks: show parent key → this key */}
+          {issue.type === 'subtask' && issue.parent ? (
+            <>
+              <TouchableOpacity
+                onPress={() => navigation.navigate('IssueDetail', { issueId: issue.parent.id })}
+                style={[styles.keyPill, { backgroundColor: TYPE_META[issue.parent.type]?.bg || '#DEEBFF', borderColor: (TYPE_META[issue.parent.type]?.color || '#0052CC') + '40' }]}
+              >
+                <MaterialCommunityIcons name={TYPE_META[issue.parent.type]?.icon || 'check-circle-outline'} size={12} color={TYPE_META[issue.parent.type]?.color || '#0052CC'} />
+                <Text style={{ color: TYPE_META[issue.parent.type]?.color || '#0052CC', marginLeft: 5, fontWeight: '700', fontSize: 12 }}>{issue.parent.key}</Text>
+              </TouchableOpacity>
+              <MaterialCommunityIcons name="chevron-right" size={15} color={theme.colors.onSurfaceVariant} />
+            </>
+          ) : null}
+
           <View style={[styles.keyPill, { backgroundColor: typeMeta.bg, borderColor: typeMeta.color + '40' }]}>
             <MaterialCommunityIcons name={typeMeta.icon} size={12} color={typeMeta.color} />
             <Text style={{ color: typeMeta.color, marginLeft: 5, fontWeight: '700', fontSize: 12 }}>{issue.key}</Text>
@@ -371,148 +411,286 @@ export default function IssueDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.topActions}>
-          {updating && <ActivityIndicator size={14} color={NAVY} style={{ marginRight: 8 }} />}
+          {updating && <ActivityIndicator size={14} color={theme.colors.primary} style={{ marginRight: 8 }} />}
           <TouchableOpacity onPress={handleWatch} style={[styles.watchBtn, {
-            backgroundColor: isWatching ? NAVY + '15' : 'transparent',
-            borderColor: isWatching ? NAVY + '60' : border,
+            backgroundColor: isWatching ? theme.colors.primaryContainer : 'transparent',
+            borderColor: isWatching ? theme.colors.primary + '80' : border,
           }]}>
             <MaterialCommunityIcons
               name={isWatching ? 'eye' : 'eye-outline'}
               size={15}
-              color={isWatching ? NAVY : theme.colors.onSurfaceVariant}
+              color={isWatching ? theme.colors.primary : theme.colors.onSurfaceVariant}
             />
-            <Text style={{ color: isWatching ? NAVY : theme.colors.onSurfaceVariant, marginLeft: 5, fontSize: 13, fontWeight: isWatching ? '700' : '400' }}>
-              {isWatching ? 'Watching' : 'Watch'}{issue.watchers?.length ? ` · ${issue.watchers.length}` : ''}
+            <Text style={{ color: isWatching ? theme.colors.primary : theme.colors.onSurfaceVariant, marginLeft: 5, fontSize: 13, fontWeight: isWatching ? '700' : '400' }}>
+              {isWatching ? 'Watching' : 'Watch'}{watcherCount ? ` - ${watcherCount}` : ''}
             </Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* ── Body ── */}
+      {/* Body */}
       <View style={styles.body}>
 
-        {/* ──── Left panel ──── */}
+        {/* Left panel */}
         <ScrollView style={styles.leftScroll} contentContainerStyle={styles.leftContent} showsVerticalScrollIndicator={false}>
 
-          {/* Issue header card — left border color = issue type */}
-          <View style={[styles.card, { backgroundColor: surf, borderLeftColor: typeMeta.color, borderLeftWidth: 4 }]}>
-            <View style={styles.headerMeta}>
-              <View style={[styles.typePill, { backgroundColor: typeMeta.bg }]}>
-                <MaterialCommunityIcons name={typeMeta.icon} size={13} color={typeMeta.color} />
-                <Text style={{ color: typeMeta.color, marginLeft: 5, fontWeight: '700', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  {typeMeta.label}
-                </Text>
+          {/* Issue header card */}
+          <View style={[styles.issueHero, { backgroundColor: surf, borderColor: border, borderTopColor: typeMeta.color }]}>
+            <View style={styles.heroTop}>
+              <View style={[styles.issueTypeMark, { backgroundColor: typeMeta.bg }]}>
+                <MaterialCommunityIcons name={typeMeta.icon} size={26} color={typeMeta.color} />
               </View>
-              <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: '500' }}>{issue.key}</Text>
+              <View style={styles.heroCopy}>
+                <View style={styles.headerMeta}>
+                  <View style={[styles.typePill, { backgroundColor: typeMeta.bg, borderColor: typeMeta.color + '35' }]}>
+                    <MaterialCommunityIcons name={typeMeta.icon} size={13} color={typeMeta.color} />
+                    <Text style={{ color: typeMeta.color, marginLeft: 5, fontWeight: '800', fontSize: 11, textTransform: 'uppercase' }}>
+                      {typeMeta.label}
+                    </Text>
+                  </View>
+                  <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' }}>{issue.key}</Text>
+                </View>
+
+                <Text style={[styles.issueTitle, { color: isDark ? '#F3F4F6' : '#101828' }]}>{issue.title}</Text>
+
+                {/* Parent task row (subtasks) */}
+                {issue.type === 'subtask' && issue.parent && (
+                  <TouchableOpacity
+                    onPress={() => navigation.navigate('IssueDetail', { issueId: issue.parent.id })}
+                    style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 2 }}
+                  >
+                    <MaterialCommunityIcons name="subdirectory-arrow-left" size={13} color={theme.colors.onSurfaceVariant} />
+                    <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '600' }}>
+                      {issue.parent.key}
+                    </Text>
+                    <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }} numberOfLines={1}>
+                      {issue.parent.title}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {/* Project name row (non-subtasks) */}
+                {issue.type !== 'subtask' && issue.project && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, marginBottom: 2 }}>
+                    <MaterialCommunityIcons name="folder-outline" size={13} color={theme.colors.onSurfaceVariant} />
+                    <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>
+                      {issue.project.name}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.badgeRow}>
+                  {/* Status dropdown */}
+                  <Menu
+                    visible={statusMenuOpen}
+                    onDismiss={() => setStatusMenuOpen(false)}
+                    anchor={
+                      <TouchableOpacity
+                        onPress={() => setStatusMenuOpen(true)}
+                        style={[styles.statusBtn, { backgroundColor: statusColor + '18', borderColor: statusColor + '55' }]}
+                      >
+                        <View style={[styles.dot, { backgroundColor: statusColor }]} />
+                        <Text style={{ color: statusColor, fontWeight: '800', fontSize: 12, marginLeft: 7 }}>
+                          {issue.status?.name || 'No Status'}
+                        </Text>
+                        <MaterialCommunityIcons name="chevron-down" size={14} color={statusColor} style={{ marginLeft: 4 }} />
+                      </TouchableOpacity>
+                    }
+                  >
+                    <Text style={styles.menuHeader}>CHANGE STATUS</Text>
+                    {allStatuses.map(s => (
+                      <Menu.Item
+                        key={s.id}
+                        onPress={() => handleStatus(s)}
+                        title={s.name}
+                        leadingIcon={() => <View style={[styles.dot, { backgroundColor: s.color }]} />}
+                        titleStyle={s.id === issue.status?.id ? { fontWeight: '700', color: s.color } : {}}
+                      />
+                    ))}
+                  </Menu>
+
+                  {/* Priority dropdown */}
+                  <Menu
+                    visible={priorityMenuOpen}
+                    onDismiss={() => setPriorityMenuOpen(false)}
+                    anchor={
+                      <TouchableOpacity
+                        onPress={() => setPriorityMenuOpen(true)}
+                        style={[styles.priorityBtn, { backgroundColor: priorityCfg.bg, borderColor: priorityCfg.color + '55' }]}
+                      >
+                        <MaterialCommunityIcons name={priorityCfg.icon} size={13} color={priorityCfg.color} />
+                        <Text style={{ color: priorityCfg.color, fontSize: 12, fontWeight: '700', marginLeft: 5, textTransform: 'capitalize' }}>
+                          {issue.priority || 'Medium'}
+                        </Text>
+                        <MaterialCommunityIcons name="chevron-down" size={13} color={priorityCfg.color} style={{ marginLeft: 3 }} />
+                      </TouchableOpacity>
+                    }
+                  >
+                    <Text style={styles.menuHeader}>CHANGE PRIORITY</Text>
+                    {Object.entries(PRIORITY_CFG).map(([p, cfg]) => (
+                      <Menu.Item
+                        key={p}
+                        onPress={() => handlePriority(p)}
+                        title={p.charAt(0).toUpperCase() + p.slice(1)}
+                        leadingIcon={() => <MaterialCommunityIcons name={cfg.icon} size={16} color={cfg.color} />}
+                        titleStyle={p === issue.priority ? { fontWeight: '700', color: cfg.color } : {}}
+                      />
+                    ))}
+                  </Menu>
+                </View>
+              </View>
             </View>
 
-            <Text style={[styles.issueTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>{issue.title}</Text>
-
-            <View style={styles.badgeRow}>
-              {/* Status dropdown */}
-              <Menu
-                visible={statusMenuOpen}
-                onDismiss={() => setStatusMenuOpen(false)}
-                anchor={
-                  <TouchableOpacity
-                    onPress={() => setStatusMenuOpen(true)}
-                    style={[styles.statusBtn, { backgroundColor: statusColor + '18', borderColor: statusColor + '55' }]}
-                  >
-                    <View style={[styles.dot, { backgroundColor: statusColor }]} />
-                    <Text style={{ color: statusColor, fontWeight: '700', fontSize: 12, marginLeft: 7 }}>
-                      {issue.status?.name || 'No Status'}
-                    </Text>
-                    <MaterialCommunityIcons name="chevron-down" size={14} color={statusColor} style={{ marginLeft: 4 }} />
-                  </TouchableOpacity>
-                }
-              >
-                <Text style={styles.menuHeader}>CHANGE STATUS</Text>
-                {allStatuses.map(s => (
-                  <Menu.Item
-                    key={s.id}
-                    onPress={() => handleStatus(s)}
-                    title={s.name}
-                    leadingIcon={() => <View style={[styles.dot, { backgroundColor: s.color }]} />}
-                    titleStyle={s.id === issue.status?.id ? { fontWeight: '700', color: s.color } : {}}
-                  />
-                ))}
-              </Menu>
-
-              {/* Priority dropdown */}
-              <Menu
-                visible={priorityMenuOpen}
-                onDismiss={() => setPriorityMenuOpen(false)}
-                anchor={
-                  <TouchableOpacity
-                    onPress={() => setPriorityMenuOpen(true)}
-                    style={[styles.priorityBtn, { backgroundColor: priorityCfg.bg, borderColor: priorityCfg.color + '55' }]}
-                  >
-                    <MaterialCommunityIcons name={priorityCfg.icon} size={13} color={priorityCfg.color} />
-                    <Text style={{ color: priorityCfg.color, fontSize: 12, fontWeight: '600', marginLeft: 5, textTransform: 'capitalize' }}>
-                      {issue.priority || 'Medium'}
-                    </Text>
-                    <MaterialCommunityIcons name="chevron-down" size={13} color={priorityCfg.color} style={{ marginLeft: 3 }} />
-                  </TouchableOpacity>
-                }
-              >
-                <Text style={styles.menuHeader}>CHANGE PRIORITY</Text>
-                {Object.entries(PRIORITY_CFG).map(([p, cfg]) => (
-                  <Menu.Item
-                    key={p}
-                    onPress={() => handlePriority(p)}
-                    title={p.charAt(0).toUpperCase() + p.slice(1)}
-                    leadingIcon={() => <MaterialCommunityIcons name={cfg.icon} size={16} color={cfg.color} />}
-                    titleStyle={p === issue.priority ? { fontWeight: '700', color: cfg.color } : {}}
-                  />
-                ))}
-              </Menu>
+            <View style={styles.issueSummaryGrid}>
+              <View style={[styles.summaryTile, { backgroundColor: isDark ? '#111827' : '#F8FAFC', borderColor: border }]}>
+                <View style={[styles.summaryIcon, { backgroundColor: '#6366F118' }]}>
+                  <MaterialCommunityIcons name="account-outline" size={17} color="#6366F1" />
+                </View>
+                <View style={styles.summaryCopy}>
+                  <Text style={styles.summaryLabel}>Assignee</Text>
+                  <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]} numberOfLines={1}>{assigneeName}</Text>
+                </View>
+              </View>
+              <View style={[styles.summaryTile, { backgroundColor: isDark ? '#111827' : '#F8FAFC', borderColor: border }]}>
+                <View style={[styles.summaryIcon, { backgroundColor: '#F59E0B18' }]}>
+                  <MaterialCommunityIcons name="lightning-bolt-outline" size={17} color="#F59E0B" />
+                </View>
+                <View style={styles.summaryCopy}>
+                  <Text style={styles.summaryLabel}>Sprint</Text>
+                  <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]} numberOfLines={1}>{sprintName}</Text>
+                </View>
+              </View>
+              <View style={[styles.summaryTile, { backgroundColor: isDark ? '#111827' : '#F8FAFC', borderColor: border }]}>
+                <View style={[styles.summaryIcon, { backgroundColor: '#0EA5E918' }]}>
+                  <MaterialCommunityIcons name="paperclip" size={17} color="#0EA5E9" />
+                </View>
+                <View style={styles.summaryCopy}>
+                  <Text style={styles.summaryLabel}>Assets</Text>
+                  <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>{attachmentCount} files, {linkCount} links</Text>
+                </View>
+              </View>
+              <View style={[styles.summaryTile, { backgroundColor: isDark ? '#111827' : '#F8FAFC', borderColor: border }]}>
+                <View style={[styles.summaryIcon, { backgroundColor: '#10B98118' }]}>
+                  <MaterialCommunityIcons name="comment-text-outline" size={17} color="#10B981" />
+                </View>
+                <View style={styles.summaryCopy}>
+                  <Text style={styles.summaryLabel}>Activity</Text>
+                  <Text style={[styles.summaryValue, { color: theme.colors.onSurface }]}>{commentCount} comments, {doneSubtasks}/{subtaskCount} subtasks</Text>
+                </View>
+              </View>
             </View>
           </View>
 
           {/* Description card */}
-          <View style={[styles.card, { backgroundColor: surf }]}>
+          <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
             <View style={styles.cardHeader}>
-              <View style={[styles.cardIconWrap, { backgroundColor: NAVY + '15' }]}>
-                <MaterialCommunityIcons name="text-box-outline" size={14} color={NAVY} />
+              <View style={[styles.cardIconWrap, { backgroundColor: theme.colors.primaryContainer }]}>
+                <MaterialCommunityIcons name="text-box-outline" size={14} color={theme.colors.primary} />
               </View>
               <Text style={[styles.cardTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>Description</Text>
+              <View style={{ flex: 1 }} />
+              {!editingDesc && (
+                <TouchableOpacity
+                  onPress={() => { setDescDraft(issue.description || ''); setEditingDesc(true); }}
+                  style={[styles.addLinkBtn, { backgroundColor: theme.colors.primaryContainer, borderWidth: 1, borderColor: theme.colors.primary + '40' }]}
+                >
+                  <MaterialCommunityIcons name="pencil-outline" size={13} color={theme.colors.primary} />
+                  <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '600', marginLeft: 4 }}>Edit</Text>
+                </TouchableOpacity>
+              )}
             </View>
-            {issue.description ? (
-              <Text style={{ color: theme.colors.onSurface, lineHeight: 26, fontSize: 14 }}>
-                {issue.description}
-              </Text>
+
+            {editingDesc ? (
+              <View>
+                <textarea
+                  autoFocus
+                  value={descDraft}
+                  onChange={e => setDescDraft(e.target.value)}
+                  placeholder="Add a description…"
+                  rows={6}
+                  style={{
+                    width: '100%', border: `1px solid ${border}`, borderRadius: 8,
+                    outline: 'none', padding: '10px 12px', fontSize: 14, lineHeight: '22px',
+                    background: isDark ? '#111827' : '#F9FAFB',
+                    color: isDark ? '#F3F4F6' : '#111827',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    resize: 'vertical', minHeight: 100, boxSizing: 'border-box',
+                  }}
+                />
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <Button
+                    mode="contained"
+                    compact
+                    loading={updating}
+                    disabled={updating}
+                    onPress={async () => {
+                      try {
+                        await updateIssue({ id: issueId, description: descDraft.trim() }).unwrap();
+                        setEditingDesc(false);
+                        showToast('Description updated');
+                      } catch {
+                        showToast('Failed to save description', 'error');
+                      }
+                    }}
+                    style={{ borderRadius: 7 }}
+                  >
+                    Save
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    compact
+                    onPress={() => setEditingDesc(false)}
+                    style={{ borderRadius: 7 }}
+                  >
+                    Cancel
+                  </Button>
+                </View>
+              </View>
+            ) : issue.description ? (
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => { setDescDraft(issue.description); setEditingDesc(true); }}
+              >
+                <Text style={{ color: theme.colors.onSurface, lineHeight: 26, fontSize: 14 }}>
+                  {issue.description}
+                </Text>
+              </TouchableOpacity>
             ) : (
-              <View style={[styles.emptyDesc, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: border }]}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => { setDescDraft(''); setEditingDesc(true); }}
+                style={[styles.emptyDesc, { backgroundColor: isDark ? '#1F2937' : '#F9FAFB', borderColor: border }]}
+              >
                 <MaterialCommunityIcons name="pencil-plus-outline" size={22} color={theme.colors.outlineVariant} />
                 <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, fontSize: 13, fontStyle: 'italic', textAlign: 'center' }}>
-                  No description yet.{'\n'}Add details to help your team.
+                  No description yet.{'\n'}Click to add details.
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
           </View>
 
-          {/* ── Attachments card (images + files) ── */}
-          <View style={[styles.card, { backgroundColor: surf }]}>
+          {/* Attachments card */}
+          <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
             <View style={styles.cardHeader}>
               <View style={[styles.cardIconWrap, { backgroundColor: '#F59E0B18' }]}>
                 <MaterialCommunityIcons name="paperclip" size={14} color="#F59E0B" />
               </View>
               <Text style={[styles.cardTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>Attachments</Text>
               {(() => { const n = (issue.attachments || []).filter(a => a.mimeType !== 'link').length; return n > 0 ? (
-                <View style={[styles.countBadge, { backgroundColor: NAVY }]}>
+                <View style={[styles.countBadge, { backgroundColor: theme.colors.primary }]}>
                   <Text style={{ color: '#fff', fontWeight: '700', fontSize: 10 }}>{n}</Text>
                 </View>
               ) : null; })()}
               <View style={{ flex: 1 }} />
               <TouchableOpacity onPress={() => imgInputRef.current?.click()} disabled={uploadingImg}
-                style={[styles.addLinkBtn, { backgroundColor: NAVY + '12', borderWidth: 1, borderColor: NAVY + '30', marginRight: 6 }]}>
-                {uploadingImg ? <ActivityIndicator size={11} color={NAVY} /> : <MaterialCommunityIcons name="image-plus" size={13} color={NAVY} />}
-                <Text style={{ color: NAVY, fontSize: 11, fontWeight: '700' }}>{uploadingImg ? 'Uploading…' : 'Image'}</Text>
+                style={[styles.addLinkBtn, { backgroundColor: theme.colors.primaryContainer, borderWidth: 1, borderColor: theme.colors.primary + '40', marginRight: 6 }]}>
+                {uploadingImg ? <ActivityIndicator size={11} color={theme.colors.primary} /> : <MaterialCommunityIcons name="image-plus" size={13} color={theme.colors.primary} />}
+                <Text style={{ color: theme.colors.primary, fontSize: 11, fontWeight: '700' }}>{uploadingImg ? 'Uploading...' : 'Image'}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => fileInputRef.current?.click()} disabled={uploadingFile}
-                style={[styles.addLinkBtn, { backgroundColor: NAVY + '12', borderWidth: 1, borderColor: NAVY + '30' }]}>
-                {uploadingFile ? <ActivityIndicator size={11} color={NAVY} /> : <MaterialCommunityIcons name="file-plus-outline" size={13} color={NAVY} />}
-                <Text style={{ color: NAVY, fontSize: 11, fontWeight: '700' }}>{uploadingFile ? 'Uploading…' : 'File'}</Text>
+                style={[styles.addLinkBtn, { backgroundColor: theme.colors.primaryContainer, borderWidth: 1, borderColor: theme.colors.primary + '40' }]}>
+                {uploadingFile ? <ActivityIndicator size={11} color={theme.colors.primary} /> : <MaterialCommunityIcons name="file-plus-outline" size={13} color={theme.colors.primary} />}
+                <Text style={{ color: theme.colors.primary, fontSize: 11, fontWeight: '700' }}>{uploadingFile ? 'Uploading...' : 'File'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -551,10 +729,10 @@ export default function IssueDetailScreen({ route, navigation }) {
                               src={att.viewUrl}
                               alt={att.originalName || 'image'}
                               onError={e => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }}
-                              style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 8, display: 'block' }}
+                              style={{ width: 112, height: 84, objectFit: 'cover', borderRadius: 8, display: 'block' }}
                             />
-                            <div style={{ display: 'none', width: 80, height: 80, borderRadius: 8, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 4 }}>
-                              <span style={{ fontSize: 22 }}>🖼️</span>
+                            <div style={{ display: 'none', width: 112, height: 84, borderRadius: 8, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', flexDirection: 'column', gap: 4 }}>
+                              <span style={{ fontSize: 10, color: '#64748B', fontWeight: 700 }}>IMG</span>
                               <span style={{ fontSize: 9, color: '#64748B', textAlign: 'center', padding: '0 4px', wordBreak: 'break-all' }}>{att.originalName}</span>
                             </div>
                           </TouchableOpacity>
@@ -592,8 +770,8 @@ export default function IssueDetailScreen({ route, navigation }) {
             })()}
           </View>
 
-          {/* ── Links card (separate) ── */}
-          <View style={[styles.card, { backgroundColor: surf }]}>
+          {/* Links card */}
+          <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
             <View style={styles.cardHeader}>
               <View style={[styles.cardIconWrap, { backgroundColor: '#3B82F618' }]}>
                 <MaterialCommunityIcons name="link-variant" size={14} color="#3B82F6" />
@@ -612,7 +790,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                 value={linkUrl}
                 onChange={e => setLinkUrl(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddLink(); } }}
-                placeholder="Paste OneDrive / SharePoint / any URL…"
+                placeholder="Paste OneDrive / SharePoint / any URL..."
                 style={{ flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: 13, color: theme.colors.onSurface, fontFamily: 'inherit', minWidth: 0 }}
               />
             </View>
@@ -626,9 +804,9 @@ export default function IssueDetailScreen({ route, navigation }) {
                 style={{ flex: 1, border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: 13, color: theme.colors.onSurface, fontFamily: 'inherit', minWidth: 0 }}
               />
               <TouchableOpacity onPress={handleAddLink} disabled={addingLink || !linkUrl.trim()}
-                style={[styles.addLinkBtn, { backgroundColor: linkUrl.trim() ? NAVY : (isDark ? '#374151' : '#E5E7EB') }]}>
+                style={[styles.addLinkBtn, { backgroundColor: linkUrl.trim() ? theme.colors.primary : (isDark ? '#374151' : '#E5E7EB') }]}>
                 {addingLink ? <ActivityIndicator size={11} color="#fff" /> : <MaterialCommunityIcons name="plus" size={13} color={linkUrl.trim() ? '#fff' : theme.colors.onSurfaceVariant} />}
-                <Text style={{ color: linkUrl.trim() ? '#fff' : theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' }}>{addingLink ? '…' : 'Add'}</Text>
+                <Text style={{ color: linkUrl.trim() ? '#fff' : theme.colors.onSurfaceVariant, fontSize: 12, fontWeight: '700' }}>{addingLink ? '...' : 'Add'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -653,14 +831,14 @@ export default function IssueDetailScreen({ route, navigation }) {
             ))}
             {(issue.attachments || []).filter(a => a.mimeType === 'link').length === 0 && (
               <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12, textAlign: 'center', paddingVertical: 10 }}>
-                No links yet — paste a URL above
+                No links yet - paste a URL above
               </Text>
             )}
           </View>
 
           {/* Sub-tasks card (hidden for subtasks themselves) */}
           {issue.type !== 'subtask' && (
-            <View style={[styles.card, { backgroundColor: surf }]}>
+            <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
               <View style={styles.cardHeader}>
                 <View style={[styles.cardIconWrap, { backgroundColor: '#4C9AFF18' }]}>
                   <MaterialCommunityIcons name="subdirectory-arrow-right" size={14} color="#4C9AFF" />
@@ -674,11 +852,11 @@ export default function IssueDetailScreen({ route, navigation }) {
                   </View>
                 )}
                 <TouchableOpacity
-                  style={[styles.addSubtaskBtn, { backgroundColor: NAVY + '12', borderColor: NAVY + '30' }]}
+                  style={[styles.addSubtaskBtn, { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary + '40' }]}
                   onPress={() => setShowSubtaskInput(v => !v)}
                 >
-                  <MaterialCommunityIcons name={showSubtaskInput ? 'close' : 'plus'} size={14} color={NAVY} />
-                  <Text style={{ color: NAVY, fontSize: 12, fontWeight: '600', marginLeft: 4 }}>
+                  <MaterialCommunityIcons name={showSubtaskInput ? 'close' : 'plus'} size={14} color={theme.colors.primary} />
+                  <Text style={{ color: theme.colors.primary, fontSize: 12, fontWeight: '600', marginLeft: 4 }}>
                     {showSubtaskInput ? 'Cancel' : 'Add'}
                   </Text>
                 </TouchableOpacity>
@@ -692,7 +870,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                     value={subtaskTitle}
                     onChange={e => setSubtaskTitle(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleCreateSubtask(); if (e.key === 'Escape') setShowSubtaskInput(false); }}
-                    placeholder="Subtask title…"
+                    placeholder="Subtask title..."
                     style={{
                       flex: 1, border: 'none', outline: 'none', fontSize: 14,
                       background: 'transparent', fontFamily: 'inherit',
@@ -751,14 +929,14 @@ export default function IssueDetailScreen({ route, navigation }) {
           )}
 
           {/* Comments card */}
-          <View style={[styles.card, { backgroundColor: surf }]}>
+          <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
             <View style={styles.cardHeader}>
               <View style={[styles.cardIconWrap, { backgroundColor: '#6366F115' }]}>
                 <MaterialCommunityIcons name="comment-text-outline" size={14} color="#6366F1" />
               </View>
               <Text style={[styles.cardTitle, { color: isDark ? '#F3F4F6' : '#111827' }]}>Comments</Text>
               {(issue.comments?.length || 0) > 0 && (
-                <View style={[styles.countBadge, { backgroundColor: NAVY }]}>
+                <View style={[styles.countBadge, { backgroundColor: theme.colors.primary }]}>
                   <Text style={{ color: '#fff', fontWeight: '700', fontSize: 10 }}>{issue.comments.length}</Text>
                 </View>
               )}
@@ -790,7 +968,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                     ref={textareaRef}
                     value={commentText}
                     onChange={handleCommentChange}
-                    placeholder="Add a comment… type @ to mention someone"
+                    placeholder="Add a comment... type @ to mention someone"
                     onKeyDown={handleCommentKeyDown}
                     rows={2}
                     style={{
@@ -803,7 +981,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                   />
                   <View style={styles.commentActions}>
                     <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11 }}>
-                      @ to mention · Shift+Enter for new line
+                      @ to mention - Shift+Enter for new line
                     </Text>
                     <TouchableOpacity
                       onPress={handleComment}
@@ -847,7 +1025,7 @@ export default function IssueDetailScreen({ route, navigation }) {
 
           {/* Activity card */}
           {issue.activities?.length > 0 && (
-            <View style={[styles.card, { backgroundColor: surf }]}>
+            <View style={[styles.card, { backgroundColor: surf, borderColor: border }]}>
               <View style={styles.cardHeader}>
                 <View style={[styles.cardIconWrap, { backgroundColor: '#10B98115' }]}>
                   <MaterialCommunityIcons name="history" size={14} color="#10B981" />
@@ -882,12 +1060,18 @@ export default function IssueDetailScreen({ route, navigation }) {
           )}
         </ScrollView>
 
-        {/* ──── Right sidebar ──── */}
-        <View style={[styles.sidebar, { backgroundColor: surf, borderLeftColor: border }]}>
-          {/* Navy header */}
-          <View style={[styles.sidebarHeader, { backgroundColor: NAVY }]}>
-            <MaterialCommunityIcons name="information-outline" size={14} color="#93B4E0" />
-            <Text style={styles.sidebarHeaderText}>DETAILS</Text>
+        {/* Right sidebar */}
+        <View style={[styles.sidebar, { backgroundColor: surf, borderColor: border }]}>
+          <View style={[styles.sidebarHeader, { backgroundColor: theme.colors.surfaceVariant, borderBottomColor: theme.colors.outlineVariant }]}>
+            <View style={[styles.sidebarTitleIcon, { backgroundColor: theme.colors.primaryContainer }]}>
+              <MaterialCommunityIcons name="information-outline" size={15} color={theme.colors.primary} />
+            </View>
+            <View>
+              <Text style={[styles.sidebarHeaderText, { color: theme.colors.onSurface }]}>Issue details</Text>
+              <Text style={[styles.sidebarSubText, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
+                Routing, ownership and dates
+              </Text>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={styles.sidebarContent} showsVerticalScrollIndicator={false}>
@@ -915,13 +1099,13 @@ export default function IssueDetailScreen({ route, navigation }) {
               >
                 <Text style={styles.menuHeader}>ASSIGN TO</Text>
                 <Menu.Item onPress={() => handleAssignee(null)} title="Unassigned" leadingIcon="account-off-outline"
-                  titleStyle={!issue.assignee ? { fontWeight: '700', color: NAVY } : {}} />
+                  titleStyle={!issue.assignee ? { fontWeight: '700', color: theme.colors.primary } : {}} />
                 <Divider />
                 {members.map(m => (
                   <Menu.Item key={m.id} onPress={() => handleAssignee(m.id)}
                     title={`${m.firstName} ${m.lastName}`}
                     leadingIcon={() => <Avatar user={m} size={20} />}
-                    titleStyle={m.id === issue.assignee?.id ? { fontWeight: '700', color: NAVY } : {}} />
+                    titleStyle={m.id === issue.assignee?.id ? { fontWeight: '700', color: theme.colors.primary } : {}} />
                 ))}
               </Menu>
             </SbRow>
@@ -934,11 +1118,11 @@ export default function IssueDetailScreen({ route, navigation }) {
                 <View style={styles.sbValueRow}>
                   <Avatar user={issue.reporter} size={20} style={{ marginRight: 6 }} />
                   <Text style={{ color: theme.colors.onSurface, fontSize: 13 }}>
-                    {issue.reporter.firstName} {issue.reporter.lastName}
+                    {reporterName}
                   </Text>
                 </View>
               ) : (
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>—</Text>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>-</Text>
               )}
             </SbRow>
 
@@ -948,9 +1132,9 @@ export default function IssueDetailScreen({ route, navigation }) {
             <SbRow icon="lightning-bolt-outline" label="Sprint" iconBg="#F59E0B18" iconColor="#F59E0B" theme={theme}>
               {issue.sprint ? (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={[styles.sprintChip, { backgroundColor: NAVY + '12', borderColor: NAVY + '30' }]}>
-                    <MaterialCommunityIcons name="lightning-bolt" size={11} color={NAVY} />
-                    <Text style={{ color: NAVY, fontWeight: '600', fontSize: 12, marginLeft: 3 }} numberOfLines={1}>
+                  <View style={[styles.sprintChip, { backgroundColor: theme.colors.primaryContainer, borderColor: theme.colors.primary + '40' }]}>
+                    <MaterialCommunityIcons name="lightning-bolt" size={11} color={theme.colors.primary} />
+                    <Text style={{ color: theme.colors.primary, fontWeight: '600', fontSize: 12, marginLeft: 3 }} numberOfLines={1}>
                       {issue.sprint.name}
                     </Text>
                   </View>
@@ -959,7 +1143,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                   </TouchableOpacity>
                 </View>
               ) : activeSprint ? (
-                <TouchableOpacity onPress={handleAddToSprint} style={[styles.addSprintBtn, { backgroundColor: NAVY }]}>
+                <TouchableOpacity onPress={handleAddToSprint} style={[styles.addSprintBtn, { backgroundColor: theme.colors.primary }]}>
                   <MaterialCommunityIcons name="plus" size={12} color="#fff" />
                   <Text style={{ color: '#fff', fontWeight: '600', fontSize: 12, marginLeft: 3 }}>Add to sprint</Text>
                 </TouchableOpacity>
@@ -975,11 +1159,11 @@ export default function IssueDetailScreen({ route, navigation }) {
             {/* Story Points */}
             <SbRow icon="poker-chip" label="Story Points" iconBg="#8B5CF618" iconColor="#8B5CF6" theme={theme}>
               {issue.storyPoints != null ? (
-                <View style={[styles.pointsBadge, { backgroundColor: NAVY }]}>
+                <View style={[styles.pointsBadge, { backgroundColor: theme.colors.primary }]}>
                   <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>{issue.storyPoints}</Text>
                 </View>
               ) : (
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>—</Text>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>-</Text>
               )}
             </SbRow>
 
@@ -1002,7 +1186,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                   </Text>
                 </View>
               ) : (
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>—</Text>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>-</Text>
               )}
             </SbRow>
 
@@ -1064,7 +1248,7 @@ export default function IssueDetailScreen({ route, navigation }) {
   );
 }
 
-/* ─── Sidebar row ─── */
+/* Sidebar row */
 const SbRow = ({ icon, label, iconBg, iconColor, children, theme, wrap }) => (
   <View style={[sbS.row, wrap && { alignItems: 'flex-start', paddingVertical: 12 }]}>
     <View style={sbS.label}>
@@ -1096,11 +1280,11 @@ const styles = StyleSheet.create({
 
   topBar: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 20, paddingVertical: 10,
+    paddingHorizontal: 22, paddingVertical: 12,
     borderBottomWidth: 1, gap: 12,
-    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+    boxShadow: '0 1px 2px rgba(15, 23, 42, 0.05)',
   },
-  backBtn:    { flexDirection: 'row', alignItems: 'center' },
+  backBtn:    { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, paddingRight: 6 },
   breadcrumb: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6 },
   keyPill: {
     flexDirection: 'row', alignItems: 'center',
@@ -1110,39 +1294,74 @@ const styles = StyleSheet.create({
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   watchBtn: {
     flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderRadius: 7,
-    paddingHorizontal: 12, paddingVertical: 6,
+    borderWidth: 1, borderRadius: 8,
+    paddingHorizontal: 12, paddingVertical: 7,
   },
 
-  body:        { flex: 1, flexDirection: 'row' },
-  leftScroll:  { flex: 1 },
-  leftContent: { padding: 24, paddingBottom: 72, gap: 16 },
+  body:        { flex: 1, flexDirection: 'row', gap: 20, padding: 22 },
+  leftScroll:  { flex: 1, minWidth: 0 },
+  leftContent: { padding: 0, paddingBottom: 72, gap: 16 },
 
   card: {
-    borderRadius: 12, padding: 24, overflow: 'hidden',
-    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    borderRadius: 8, padding: 22, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#E5E7EB',
+    boxShadow: '0 8px 22px rgba(15, 23, 42, 0.06)',
   },
   cardHeader:  { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 16 },
-  cardIconWrap: { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  cardIconWrap: { width: 30, height: 30, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
   cardTitle:   { fontSize: 14, fontWeight: '700' },
 
-  headerMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 14 },
+  issueHero: {
+    borderRadius: 8, padding: 24,
+    borderWidth: 1, borderTopWidth: 4,
+    overflow: 'hidden',
+    boxShadow: '0 14px 32px rgba(15, 23, 42, 0.08)',
+  },
+  heroTop: { flexDirection: 'row', gap: 18, alignItems: 'flex-start' },
+  issueTypeMark: {
+    width: 58, height: 58, borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  heroCopy: { flex: 1, minWidth: 0 },
+  headerMeta: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' },
   typePill: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 5,
+    paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1,
   },
-  issueTitle: { fontSize: 22, fontWeight: '800', lineHeight: 32, marginBottom: 18 },
+  issueTitle: { fontSize: 28, fontWeight: '800', lineHeight: 34, marginBottom: 18, letterSpacing: 0 },
+  issueSummaryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginTop: 22,
+  },
+  summaryTile: {
+    flexBasis: 220,
+    minWidth: 190,
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+  },
+  summaryIcon: { width: 34, height: 34, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  summaryCopy: { flex: 1, minWidth: 0 },
+  summaryLabel: { color: '#667085', fontSize: 11, fontWeight: '700', textTransform: 'uppercase' },
+  summaryValue: { fontSize: 13, fontWeight: '800', marginTop: 2 },
 
   badgeRow:    { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   statusBtn: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 20, borderWidth: 1.5,
+    borderRadius: 8, borderWidth: 1,
   },
   priorityBtn: {
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 20, borderWidth: 1.5,
+    borderRadius: 8, borderWidth: 1,
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
   menuHeader: {
@@ -1163,8 +1382,8 @@ const styles = StyleSheet.create({
   },
   attSubTitle:  { fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
-  imgGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  imgThumbWrap: { position: 'relative', width: 80, height: 80 },
+  imgGrid:      { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  imgThumbWrap: { position: 'relative', width: 112, height: 84 },
   imgThumbDelete: {
     position: 'absolute', top: -4, right: -4,
     width: 18, height: 18, borderRadius: 9,
@@ -1206,7 +1425,7 @@ const styles = StyleSheet.create({
   },
   commentBox: {
     flexDirection: 'row', gap: 12,
-    borderWidth: 1.5, borderRadius: 10,
+    borderWidth: 1, borderRadius: 8,
     padding: 12, marginBottom: 20,
   },
   commentInputWrap: { flex: 1 },
@@ -1237,7 +1456,7 @@ const styles = StyleSheet.create({
   },
   mentionDropdown: {
     position: 'absolute', bottom: '100%', left: 0, right: 0,
-    borderRadius: 10, borderWidth: 1, marginBottom: 4, zIndex: 100,
+    borderRadius: 8, borderWidth: 1, marginBottom: 4, zIndex: 100,
     overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
   },
   mentionItem: {
@@ -1254,14 +1473,22 @@ const styles = StyleSheet.create({
   activityLine: { width: 2, flex: 1, minHeight: 16, marginTop: 4 },
   activityBody: { flex: 1, padding: 10, borderRadius: 8, marginBottom: 10, borderWidth: 1 },
 
-  sidebar:       { width: 310, borderLeftWidth: 1 },
+  sidebar:       {
+    width: 340,
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.08)',
+  },
   sidebarHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 18, paddingVertical: 13,
+    paddingHorizontal: 18, paddingVertical: 16,
   },
-  sidebarHeaderText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 0.8 },
+  sidebarTitleIcon: { width: 32, height: 32, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  sidebarHeaderText: { fontSize: 15, fontWeight: '800', letterSpacing: 0 },
+  sidebarSubText: { fontSize: 11, marginTop: 2 },
   sidebarContent:    { padding: 16, paddingBottom: 48 },
-  sbValueRow:        { flexDirection: 'row', alignItems: 'center' },
+  sbValueRow:        { flexDirection: 'row', alignItems: 'center', minWidth: 0 },
 
   sprintChip:   { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, borderWidth: 1, maxWidth: 140 },
   addSprintBtn: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 7 },

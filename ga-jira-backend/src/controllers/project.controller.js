@@ -7,9 +7,13 @@ exports.getAll = async (req, res, next) => {
     const { page = 1, limit = 20, search, status } = req.query;
     const where = { organizationId: req.user.organizationId };
     if (search) where.name = { [Op.like]: `%${search}%` };
-    // Never expose deleted projects. If a specific status is requested (e.g. 'archived'), use it.
-    // Default (no filter): show only active and on_hold.
-    if (status && status !== 'deleted') {
+    // Never expose deleted projects.
+    // status=all → active + on_hold + archived together (default for project list)
+    // status=active → active + on_hold only (dashboard use)
+    // status=archived → archived only
+    if (status === 'all') {
+      where.status = { [Op.in]: ['active', 'on_hold', 'archived'] };
+    } else if (status && status !== 'deleted') {
       where.status = status;
     } else {
       where.status = { [Op.in]: ['active', 'on_hold'] };

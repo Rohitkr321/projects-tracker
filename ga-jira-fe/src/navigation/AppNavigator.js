@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useSelector, useDispatch } from 'react-redux';
 import { selectIsAuthenticated } from '../store/authSlice';
-import { setCredentials, setLoading } from '../store/authSlice';
+import { setCredentials, setLoading, setDarkMode } from '../store/authSlice';
 import { storage } from '../utils/storage';
 import AuthNavigator from './AuthNavigator';
 import MainTabNavigator from './MainTabNavigator';
@@ -56,11 +56,13 @@ const AppNavigator = () => {
   useEffect(() => {
     const bootstrapAsync = async () => {
       try {
-        const [accessToken, refreshToken, user] = await Promise.all([
+        const [accessToken, refreshToken, user, savedTheme] = await Promise.all([
           storage.getAccessToken(),
           storage.getRefreshToken(),
           storage.getUser(),
+          storage.getTheme(),
         ]);
+        if (savedTheme) dispatch(setDarkMode(savedTheme === 'dark'));
         if (accessToken && user) {
           dispatch(setCredentials({ user, accessToken, refreshToken }));
         }
