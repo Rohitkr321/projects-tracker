@@ -139,6 +139,8 @@ const ProjectDetailScreen = ({ route, navigation }) => {
   const [sprintDialog, setSprintDialog] = useState(false);
   const [sprintName, setSprintName] = useState('');
   const [sprintGoal, setSprintGoal] = useState('');
+  const [sprintStartDate, setSprintStartDate] = useState('');
+  const [sprintEndDate, setSprintEndDate] = useState('');
   const [addIssuesDialog, setAddIssuesDialog] = useState(null);
   const [selectedIssueIds, setSelectedIssueIds] = useState([]);
   const [toast, setToast] = useState('');
@@ -173,13 +175,30 @@ const ProjectDetailScreen = ({ route, navigation }) => {
   const toggleIssue = (id) =>
     setSelectedIssueIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
 
+  const resetSprintDialog = () => {
+    setSprintDialog(false);
+    setSprintName('');
+    setSprintGoal('');
+    setSprintStartDate('');
+    setSprintEndDate('');
+  };
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const minEndDate = sprintStartDate
+    ? (() => { const d = new Date(sprintStartDate); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })()
+    : (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })();
+
   const handleCreateSprint = async () => {
-    if (!sprintName.trim()) return;
+    if (!sprintName.trim() || !sprintStartDate || !sprintEndDate) return;
     try {
-      await createSprint({ projectId, name: sprintName.trim(), goal: sprintGoal.trim() || undefined }).unwrap();
-      setSprintDialog(false);
-      setSprintName('');
-      setSprintGoal('');
+      await createSprint({
+        projectId,
+        name: sprintName.trim(),
+        goal: sprintGoal.trim() || undefined,
+        startDate: sprintStartDate,
+        endDate: sprintEndDate,
+      }).unwrap();
+      resetSprintDialog();
       refetchSprints();
       showToast('Sprint created successfully');
     } catch (err) {
@@ -909,15 +928,128 @@ const ProjectDetailScreen = ({ route, navigation }) => {
       </ScrollView>
 
       <Portal>
-        <Dialog visible={sprintDialog} onDismiss={() => setSprintDialog(false)} style={styles.dialog}>
-          <Dialog.Title>Create Sprint</Dialog.Title>
-          <Dialog.Content style={{ gap: 12 }}>
+        <Dialog visible={sprintDialog} onDismiss={resetSprintDialog} style={[styles.dialog, { maxWidth: 480 }]}>
+          <Dialog.Title style={{ fontSize: 17, fontWeight: '900' }}>Create Sprint</Dialog.Title>
+          <Dialog.Content style={{ gap: 14 }}>
             <TextInput label="Sprint name *" value={sprintName} onChangeText={setSprintName} mode="outlined" autoFocus />
             <TextInput label="Sprint goal (optional)" value={sprintGoal} onChangeText={setSprintGoal} mode="outlined" multiline numberOfLines={2} />
+
+            {/* Date row */}
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {/* Start date */}
+              <View style={{
+                flex: 1, borderWidth: 1, borderRadius: 8,
+                borderColor: sprintStartDate ? theme.colors.primary : theme.colors.outline,
+                backgroundColor: theme.dark ? '#0D1B2E' : '#F8FAFC',
+                overflow: 'hidden',
+              }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2,
+                }}>
+                  <MaterialCommunityIcons
+                    name="calendar-start"
+                    size={15}
+                    color={sprintStartDate ? theme.colors.primary : theme.colors.onSurfaceVariant}
+                  />
+                  <Text style={{
+                    fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5,
+                    color: sprintStartDate ? theme.colors.primary : theme.colors.onSurfaceVariant,
+                  }}>Start date *</Text>
+                </View>
+                <input
+                  type="date"
+                  value={sprintStartDate}
+                  min={todayStr}
+                  onChange={(e) => {
+                    setSprintStartDate(e.target.value);
+                    if (sprintEndDate && sprintEndDate < e.target.value) setSprintEndDate('');
+                  }}
+                  style={{
+                    display: 'block', width: '100%', padding: '4px 12px 10px',
+                    border: 'none', outline: 'none', boxSizing: 'border-box',
+                    fontSize: 14, fontWeight: '700',
+                    backgroundColor: 'transparent',
+                    color: theme.dark ? '#E2E8F0' : '#0F172A',
+                    colorScheme: theme.dark ? 'dark' : 'light',
+                    cursor: 'pointer',
+                  }}
+                />
+              </View>
+
+              {/* Arrow */}
+              <View style={{ justifyContent: 'center', paddingTop: 4 }}>
+                <MaterialCommunityIcons name="arrow-right" size={16} color={theme.colors.onSurfaceVariant} />
+              </View>
+
+              {/* End date */}
+              <View style={{
+                flex: 1, borderWidth: 1, borderRadius: 8,
+                borderColor: sprintEndDate ? '#10B981' : theme.colors.outline,
+                backgroundColor: theme.dark ? '#0D1B2E' : '#F8FAFC',
+                overflow: 'hidden',
+              }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 8,
+                  paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2,
+                }}>
+                  <MaterialCommunityIcons
+                    name="calendar-end"
+                    size={15}
+                    color={sprintEndDate ? '#10B981' : theme.colors.onSurfaceVariant}
+                  />
+                  <Text style={{
+                    fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5,
+                    color: sprintEndDate ? '#10B981' : theme.colors.onSurfaceVariant,
+                  }}>End date *</Text>
+                </View>
+                <input
+                  type="date"
+                  value={sprintEndDate}
+                  min={minEndDate}
+                  onChange={(e) => setSprintEndDate(e.target.value)}
+                  style={{
+                    display: 'block', width: '100%', padding: '4px 12px 10px',
+                    border: 'none', outline: 'none', boxSizing: 'border-box',
+                    fontSize: 14, fontWeight: '700',
+                    backgroundColor: 'transparent',
+                    color: theme.dark ? '#E2E8F0' : '#0F172A',
+                    colorScheme: theme.dark ? 'dark' : 'light',
+                    cursor: 'pointer',
+                  }}
+                />
+              </View>
+            </View>
+
+            {/* Duration hint */}
+            {sprintStartDate && sprintEndDate && (
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 6,
+                backgroundColor: theme.dark ? '#052E16' : '#F0FDF4',
+                borderRadius: 6, paddingHorizontal: 10, paddingVertical: 6,
+              }}>
+                <MaterialCommunityIcons name="information-outline" size={13} color="#10B981" />
+                <Text style={{ fontSize: 12, color: '#10B981', fontWeight: '700' }}>
+                  {Math.round((new Date(sprintEndDate) - new Date(sprintStartDate)) / (1000 * 60 * 60 * 24))} day sprint
+                </Text>
+              </View>
+            )}
+            {(!sprintStartDate || !sprintEndDate) && (
+              <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>
+                Both dates are required. End date must be at least 1 week after start.
+              </Text>
+            )}
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setSprintDialog(false)}>Cancel</Button>
-            <Button mode="contained" onPress={handleCreateSprint} loading={creatingSprint} disabled={!sprintName.trim()}>Create</Button>
+            <Button onPress={resetSprintDialog}>Cancel</Button>
+            <Button
+              mode="contained"
+              onPress={handleCreateSprint}
+              loading={creatingSprint}
+              disabled={!sprintName.trim() || !sprintStartDate || !sprintEndDate}
+            >
+              Create
+            </Button>
           </Dialog.Actions>
         </Dialog>
 

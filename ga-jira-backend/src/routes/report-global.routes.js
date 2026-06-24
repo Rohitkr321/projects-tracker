@@ -8,7 +8,7 @@ router.get('/burndown/:sprintId', ctrl.burndown);
 router.get('/velocity/:projectId', ctrl.velocity);
 router.get('/time-tracking', ctrl.timeTracking);
 router.get('/issue-distribution/:projectId', ctrl.issueDistribution);
-router.get('/cumulative-flow/:projectId', ctrl.overview);
+router.get('/cumulative-flow/:projectId', ctrl.getCumulativeFlow);
 router.get('/team-workload', ctrl.overview);
 router.get('/sprint-comparison/:projectId', ctrl.velocity);
 

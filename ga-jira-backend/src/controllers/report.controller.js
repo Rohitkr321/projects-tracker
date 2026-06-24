@@ -176,6 +176,53 @@ exports.dashboard = async (req, res, next) => {
   }
 };
 
+exports.getCumulativeFlow = async (req, res, next) => {
+  try {
+    const { projectId } = req.params;
+    const days = Math.min(parseInt(req.query.days) || 30, 90);
+
+    const [doneStatuses, inProgStatuses] = await Promise.all([
+      WorkflowStatus.findAll({ where: { category: 'done' }, attributes: ['id'] }),
+      WorkflowStatus.findAll({ where: { category: 'in_progress' }, attributes: ['id'] }),
+    ]);
+    const doneIds = new Set(doneStatuses.map(s => s.id));
+    const inProgIds = new Set(inProgStatuses.map(s => s.id));
+
+    const issues = await Issue.findAll({
+      where: { projectId },
+      attributes: ['id', 'createdAt', 'resolvedAt', 'workflowStatusId'],
+      raw: true,
+    });
+
+    const result = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(23, 59, 59, 999);
+      const dayStr = d.toISOString().split('T')[0];
+
+      let todo = 0, inProgress = 0, done = 0;
+      for (const issue of issues) {
+        if (new Date(issue.createdAt) > d) continue;
+        const resolved = issue.resolvedAt ? new Date(issue.resolvedAt) : null;
+        if (resolved && resolved <= d) {
+          done++;
+        } else if (inProgIds.has(issue.workflowStatusId)) {
+          inProgress++;
+        } else if (doneIds.has(issue.workflowStatusId)) {
+          done++;
+        } else {
+          todo++;
+        }
+      }
+      result.push({ date: dayStr, todo, inProgress, done, total: todo + inProgress + done });
+    }
+    successResponse(res, result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.overview = async (req, res, next) => {
   try {
     const { projectId } = req.params;

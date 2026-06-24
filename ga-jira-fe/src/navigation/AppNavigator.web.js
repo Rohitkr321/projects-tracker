@@ -59,6 +59,9 @@ const formatTimeAgo = (dateStr) => {
 /* ─── Command Palette context ─── */
 const CmdPaletteCtx = createContext({ open: () => {} });
 
+/* ─── Sidebar collapse context ─── */
+const SidebarCtx = createContext({ collapsed: false, toggle: () => {} });
+
 // Global top bar — rendered above the drawer (sidebar + content).
 // useNavigation() here gives the Stack navigator context, so nested Drawer screens
 // must be addressed via navigate('Main', { screen: 'ScreenName' }).
@@ -88,7 +91,7 @@ const TopBar = ({ screenName = '' }) => {
 
   return (
     <View style={[topBarStyles.bar, { backgroundColor: SHELL_BG, borderBottomColor: SHELL_BORDER }]}>
-      {/* Left: current page title + search shortcut */}
+      {/* Left: page title + search */}
       <View style={topBarStyles.left}>
         {!!screenName && (
           <View style={topBarStyles.titleWrap}>
@@ -430,6 +433,9 @@ const ROUTE_TO_SIDEBAR_ACTIVE = { ProjectStack: 'Projects' };
 const WebSidebarContent = ({ state, navigation }) => {
   const theme = useTheme();
   const { logout, user } = useAuth();
+  const { collapsed, toggle } = useContext(SidebarCtx);
+  const [hovered, setHovered] = useState(false);
+
   const rawRoute = state.routes[state.index].name;
   const sidebarActive = ROUTE_TO_SIDEBAR_ACTIVE[rawRoute] || rawRoute;
   const visibleNavItems = NAV_ITEMS.filter(
@@ -442,19 +448,50 @@ const WebSidebarContent = ({ state, navigation }) => {
   const hue       = avatarHue(fullName);
 
   return (
-    <View style={[styles.sidebar, { backgroundColor: SHELL_BG, borderRightColor: SHELL_BORDER }]}>
+    <View
+      style={[
+        styles.sidebar,
+        { backgroundColor: SHELL_BG, borderRightColor: SHELL_BORDER },
+        collapsed && styles.sidebarCollapsed,
+      ]}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+
+      {/* ── Edge toggle tab — hidden until sidebar is hovered ── */}
+      <TouchableOpacity
+        onPress={toggle}
+        activeOpacity={0.8}
+        style={[
+          styles.edgeTab,
+          { backgroundColor: SHELL_PANEL_2, borderColor: SHELL_BORDER },
+          { opacity: hovered ? 1 : 0 },   // invisible until hover
+        ]}
+      >
+        <MaterialCommunityIcons
+          name={collapsed ? 'chevron-right' : 'chevron-left'}
+          size={13}
+          color={SHELL_MUTED}
+        />
+      </TouchableOpacity>
 
       {/* ── Brand / Logo ── */}
-      <View style={styles.sidebarBrand}>
-        <View style={styles.logoCard}>
-          <Image source={GA_LOGO_FULL} style={styles.logoImg} resizeMode="contain" />
-        </View>
+      <View style={[styles.sidebarBrand, collapsed && styles.sidebarBrandCollapsed]}>
+        {collapsed ? (
+          <View style={styles.logoIconSmall}>
+            <Text style={styles.logoIconText}>GA</Text>
+          </View>
+        ) : (
+          <View style={styles.logoCard}>
+            <Image source={GA_LOGO_FULL} style={styles.logoImg} resizeMode="contain" />
+          </View>
+        )}
         <View style={styles.goldDivider} />
       </View>
 
       {/* ── Nav items ── */}
-      <View style={styles.navSection}>
-        <Text style={styles.navGroupLabel}>Workspace</Text>
+      <View style={[styles.navSection, collapsed && styles.navSectionCollapsed]}>
+        {!collapsed && <Text style={styles.navGroupLabel}>Workspace</Text>}
         {visibleNavItems.map((item) => {
           const isActive = sidebarActive === item.name;
           return (
@@ -464,6 +501,7 @@ const WebSidebarContent = ({ state, navigation }) => {
               activeOpacity={0.82}
               style={[
                 styles.navItem,
+                collapsed && styles.navItemCollapsed,
                 {
                   backgroundColor: isActive ? SHELL_ACTIVE : 'transparent',
                   borderColor: isActive ? SHELL_ACCENT : 'transparent',
@@ -472,6 +510,7 @@ const WebSidebarContent = ({ state, navigation }) => {
             >
               <View style={[
                 styles.navIconBox,
+                collapsed && styles.navIconBoxCollapsed,
                 { backgroundColor: isActive ? '#0D3B84' : SHELL_PANEL },
               ]}>
                 <MaterialCommunityIcons
@@ -480,67 +519,74 @@ const WebSidebarContent = ({ state, navigation }) => {
                   color={isActive ? '#D7E7FA' : SHELL_MUTED}
                 />
               </View>
-              <Text
-                variant="bodyMedium"
-                style={[
-                  styles.navLabel,
-                  { color: isActive ? '#D7E7FA' : SHELL_MUTED },
-                  isActive && { fontWeight: '800' },
-                ]}
-              >
-                {item.label}
-              </Text>
+              {!collapsed && (
+                <Text
+                  variant="bodyMedium"
+                  style={[
+                    styles.navLabel,
+                    { color: isActive ? '#D7E7FA' : SHELL_MUTED },
+                    isActive && { fontWeight: '800' },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              )}
               {isActive && <View style={styles.activeRail} />}
             </TouchableOpacity>
           );
         })}
       </View>
 
-      {/* ── User card + Sign Out ── */}
-      <View style={styles.sidebarFooter}>
+      {/* ── Footer ── */}
+      <View style={[styles.sidebarFooter, collapsed && styles.sidebarFooterCollapsed]}>
         <View style={styles.footerDivider} />
 
-        {/* User info card */}
+        {/* User card — collapsed: avatar only */}
         <TouchableOpacity
-          style={styles.userCard}
+          style={[styles.userCard, collapsed && styles.userCardCollapsed]}
           activeOpacity={0.8}
           onPress={() => navigation.navigate('Profile')}
         >
           <View style={[styles.userAvatar, { backgroundColor: `hsl(${hue},52%,38%)` }]}>
             <Text style={styles.userAvatarText}>{initials}</Text>
           </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.userName} numberOfLines={1}>{fullName}</Text>
-            <Text style={styles.userRole} numberOfLines={1}>{roleLabel}</Text>
-          </View>
-          <MaterialCommunityIcons name="cog-outline" size={15} color={SHELL_MUTED} />
+          {!collapsed && (
+            <>
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.userName} numberOfLines={1}>{fullName}</Text>
+                <Text style={styles.userRole} numberOfLines={1}>{roleLabel}</Text>
+              </View>
+              <MaterialCommunityIcons name="cog-outline" size={15} color={SHELL_MUTED} />
+            </>
+          )}
         </TouchableOpacity>
 
-        {/* Sign Out */}
+        {/* Sign Out — collapsed: icon only */}
         <TouchableOpacity
-          style={styles.signOutItem}
+          style={[styles.signOutItem, collapsed && styles.signOutItemCollapsed]}
           onPress={logout}
           activeOpacity={0.82}
         >
-          <View style={[styles.navIconBox, { backgroundColor: '#3B1720' }]}>
+          <View style={[styles.navIconBox, { backgroundColor: '#3B1720' }, collapsed && styles.navIconBoxCollapsed]}>
             <MaterialCommunityIcons name="logout-variant" size={18} color="#FCA5A5" />
           </View>
-          <Text variant="bodyMedium" style={[styles.navLabel, { color: '#FCA5A5' }]}>Sign Out</Text>
+          {!collapsed && (
+            <Text variant="bodyMedium" style={[styles.navLabel, { color: '#FCA5A5' }]}>Sign Out</Text>
+          )}
         </TouchableOpacity>
       </View>
     </View>
   );
 };
 
-// Permanent sidebar drawer that wraps all authenticated screens including ProjectStack.
-// This means the sidebar stays visible even when navigating to project/issue detail screens.
 const MainWebDrawer = () => {
+  const { collapsed } = useContext(SidebarCtx);
   return (
     <Drawer.Navigator
       drawerContent={(props) => <WebSidebarContent {...props} />}
       screenOptions={{
         drawerType: 'permanent',
-        drawerStyle: { width: 292 },
+        drawerStyle: { width: collapsed ? 56 : 260, overflow: 'visible' },
         headerShown: true,
         header: (props) => <TopBar screenName={props.route.name} />,
         overlayColor: 'transparent',
@@ -559,14 +605,20 @@ const MainWebDrawer = () => {
 
 const MainWebNavigator = () => {
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const openPalette  = useCallback(() => setPaletteOpen(true),  []);
-  const closePalette = useCallback(() => setPaletteOpen(false), []);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const openPalette   = useCallback(() => setPaletteOpen(true),  []);
+  const closePalette  = useCallback(() => setPaletteOpen(false), []);
+  const toggleSidebar = useCallback(() => setSidebarCollapsed(v => !v), []);
 
   useEffect(() => {
     const handler = (e) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setPaletteOpen(true);
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault();
+        setSidebarCollapsed(v => !v);
       }
     };
     window.addEventListener('keydown', handler);
@@ -575,9 +627,11 @@ const MainWebNavigator = () => {
 
   return (
     <CmdPaletteCtx.Provider value={{ open: openPalette }}>
-      <NotificationListener />
-      <MainWebDrawer />
-      <CommandPalette visible={paletteOpen} onClose={closePalette} />
+      <SidebarCtx.Provider value={{ collapsed: sidebarCollapsed, toggle: toggleSidebar }}>
+        <NotificationListener />
+        <MainWebDrawer />
+        <CommandPalette visible={paletteOpen} onClose={closePalette} />
+      </SidebarCtx.Provider>
     </CmdPaletteCtx.Provider>
   );
 };
@@ -631,6 +685,28 @@ const styles = StyleSheet.create({
     flex: 1,
     borderRightWidth: 1,
     paddingBottom: 12,
+    position: 'relative',
+    overflow: 'visible',   // allow the edge tab to peek over the border
+  },
+  sidebarCollapsed: {},
+  edgeTab: {
+    position: 'absolute',
+    right: -12,            // half inside sidebar, half outside — on the border line
+    top: 16,               // pinned near the top (logo area)
+    width: 22,
+    height: 38,
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    borderWidth: 1,
+    borderLeftWidth: 0,    // no left border — merges into the sidebar border
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 99,
+    cursor: 'pointer',
+    outlineStyle: 'none',
+    boxShadow: '2px 0 8px rgba(0,0,0,0.3)',
   },
   sidebarBrand: {
     paddingHorizontal: 16,
@@ -638,6 +714,10 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
     alignItems: 'center',
     gap: 14,
+  },
+  sidebarBrandCollapsed: {
+    paddingHorizontal: 8,
+    paddingTop: 14,
   },
   logoCard: {
     backgroundColor: '#FFFFFF',
@@ -654,6 +734,22 @@ const styles = StyleSheet.create({
     width: 172,
     height: 58,
   },
+  logoIconSmall: {
+    width: 36,
+    height: 36,
+    borderRadius: 9,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderBottomWidth: 3,
+    borderColor: SHELL_GOLD,
+  },
+  logoIconText: {
+    color: '#0B1425',
+    fontSize: 12,
+    fontWeight: '900',
+  },
   goldDivider: {
     alignSelf: 'stretch',
     height: 1,
@@ -664,6 +760,10 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingHorizontal: 12,
     gap: 6,
+  },
+  navSectionCollapsed: {
+    paddingHorizontal: 6,
+    alignItems: 'center',
   },
   navGroupLabel: {
     fontSize: 10,
@@ -688,6 +788,12 @@ const styles = StyleSheet.create({
     position: 'relative',
     overflow: 'hidden',
   },
+  navItemCollapsed: {
+    paddingHorizontal: 0,
+    justifyContent: 'center',
+    width: 44,
+    minHeight: 44,
+  },
   navIconBox: {
     width: 32,
     height: 32,
@@ -695,6 +801,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     flexShrink: 0,
+  },
+  navIconBoxCollapsed: {
+    width: 36,
+    height: 36,
   },
   navLabel: {
     flex: 1,
@@ -713,10 +823,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     gap: 8,
   },
+  sidebarFooterCollapsed: {
+    paddingHorizontal: 6,
+    alignItems: 'center',
+  },
   footerDivider: {
     height: 1,
     backgroundColor: SHELL_BORDER,
     marginBottom: 2,
+    alignSelf: 'stretch',
   },
   userCard: {
     flexDirection: 'row',
@@ -730,6 +845,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     cursor: 'pointer',
     outlineStyle: 'none',
+  },
+  userCardCollapsed: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+    justifyContent: 'center',
+    width: 44,
+    borderRadius: 22,
   },
   userAvatar: {
     width: 34,
@@ -767,7 +889,33 @@ const styles = StyleSheet.create({
     minHeight: 46,
     outlineStyle: 'none',
     cursor: 'pointer',
-    marginBottom: 4,
+  },
+  signOutItemCollapsed: {
+    paddingHorizontal: 0,
+    justifyContent: 'center',
+    width: 44,
+    minHeight: 44,
+  },
+  collapseBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: SHELL_BORDER,
+    backgroundColor: SHELL_PANEL,
+    cursor: 'pointer',
+    outlineStyle: 'none',
+    marginTop: 4,
+    marginBottom: 2,
+  },
+  collapseBtnText: {
+    color: SHELL_MUTED,
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
 

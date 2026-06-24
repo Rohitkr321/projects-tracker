@@ -1,7 +1,8 @@
 {
   "expo": {
     "name": "General Aeronautics",
-    "slug": "ga-jira-fe",
+    "slug": "ga-issuestracker",
+    "owner": "kabeerdev",
     "version": "1.0.0",
     "orientation": "portrait",
     "updates": {
@@ -18,6 +19,7 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.kabeerdev.gaissuestracker",
       "adaptiveIcon": {
         "backgroundColor": "#0F2557",
         "foregroundImage": "./assets/android-icon-foreground.png"
@@ -39,6 +41,11 @@
       "shortName": "GA Tracker",
       "description": "General Aeronautics internal task tracker"
     },
-    "plugins": []
+    "plugins": [],
+    "extra": {
+      "eas": {
+        "projectId": "47205c29-3318-4018-b5e0-b542412339f3"
+      }
+    }
   }
 }

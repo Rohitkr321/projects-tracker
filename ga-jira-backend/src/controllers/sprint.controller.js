@@ -81,11 +81,16 @@ exports.update = async (req, res, next) => {
 
 exports.start = async (req, res, next) => {
   try {
+    const { endDate } = req.body;
     const sprint = await Sprint.findByPk(req.params.sprintId);
     if (!sprint) return errorResponse(res, 'Sprint not found', 404);
     const active = await Sprint.findOne({ where: { projectId: sprint.projectId, status: 'active' } });
     if (active) return errorResponse(res, 'Another sprint is already active', 400);
-    await sprint.update({ status: 'active', startDate: sprint.startDate || new Date() });
+    await sprint.update({
+      status: 'active',
+      startDate: sprint.startDate || new Date(),
+      endDate: endDate || sprint.endDate || null,
+    });
     emitToProject(sprint.projectId, 'sprint:started', sprint);
     notifySprintStarted(sprint, req.user.id).catch(() => {});
     successResponse(res, sprint, 'Sprint started');

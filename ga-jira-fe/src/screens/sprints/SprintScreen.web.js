@@ -60,6 +60,7 @@ const SprintScreen = ({ route, navigation }) => {
 
   const [completeDialog, setCompleteDialog] = useState(null);
   const [startDialog, setStartDialog] = useState(null);
+  const [startEndDate, setStartEndDate] = useState('');
   const [toast, setToast] = useState('');
   const [toastType, setToastType] = useState('success');
   const [showCompleted, setShowCompleted] = useState(false);
@@ -106,8 +107,9 @@ const SprintScreen = ({ route, navigation }) => {
   const handleStart = async () => {
     if (!startDialog) return;
     try {
-      await startSprint({ id: startDialog.id }).unwrap();
+      await startSprint({ id: startDialog.id, endDate: startEndDate || undefined }).unwrap();
       setStartDialog(null);
+      setStartEndDate('');
       setToastType('success');
       setToast(`${startDialog.name} started`);
       refetch();
@@ -468,16 +470,64 @@ const SprintScreen = ({ route, navigation }) => {
           </Dialog.Actions>
         </Dialog>
 
-        <Dialog visible={!!startDialog} onDismiss={() => setStartDialog(null)} style={styles.dialog}>
-          <Dialog.Title>Start Sprint</Dialog.Title>
-          <Dialog.Content>
-            <Text variant="bodyMedium">
-              Start "{startDialog?.name}"? This will become the active sprint for the board.
+        <Dialog visible={!!startDialog} onDismiss={() => { setStartDialog(null); setStartEndDate(''); }} style={[styles.dialog, { maxWidth: 440 }]}>
+          <Dialog.Title style={{ fontSize: 17, fontWeight: '900' }}>Start Sprint</Dialog.Title>
+          <Dialog.Content style={{ gap: 14 }}>
+            <Text variant="bodyMedium" style={{ color: theme.colors.onSurfaceVariant }}>
+              Starting "{startDialog?.name}" will make it the active sprint on the board.
+            </Text>
+
+            {/* End date picker */}
+            <View style={{
+              borderWidth: 1, borderRadius: 8,
+              borderColor: (startEndDate || startDialog?.endDate) ? '#10B981' : theme.colors.outline,
+              backgroundColor: theme.dark ? '#0D1B2E' : '#F8FAFC',
+              overflow: 'hidden',
+            }}>
+              <View style={{
+                flexDirection: 'row', alignItems: 'center', gap: 8,
+                paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2,
+              }}>
+                <MaterialCommunityIcons
+                  name="calendar-end"
+                  size={15}
+                  color={(startEndDate || startDialog?.endDate) ? '#10B981' : theme.colors.onSurfaceVariant}
+                />
+                <Text style={{
+                  fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5,
+                  color: (startEndDate || startDialog?.endDate) ? '#10B981' : theme.colors.onSurfaceVariant,
+                }}>End date *</Text>
+              </View>
+              <input
+                type="date"
+                value={startEndDate || (startDialog?.endDate ? startDialog.endDate.split('T')[0] : '')}
+                min={(() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().split('T')[0]; })()}
+                onChange={(e) => setStartEndDate(e.target.value)}
+                style={{
+                  display: 'block', width: '100%', padding: '4px 12px 10px',
+                  border: 'none', outline: 'none', boxSizing: 'border-box',
+                  fontSize: 14, fontWeight: '700',
+                  backgroundColor: 'transparent',
+                  color: theme.dark ? '#E2E8F0' : '#0F172A',
+                  colorScheme: theme.dark ? 'dark' : 'light',
+                  cursor: 'pointer',
+                }}
+              />
+            </View>
+            <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>
+              End date is required and must be at least 1 week from today.
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setStartDialog(null)}>Cancel</Button>
-            <Button mode="contained" onPress={handleStart} loading={starting}>Start Sprint</Button>
+            <Button onPress={() => { setStartDialog(null); setStartEndDate(''); }}>Cancel</Button>
+            <Button
+              mode="contained"
+              onPress={handleStart}
+              loading={starting}
+              disabled={!startEndDate && !startDialog?.endDate}
+            >
+              Start Sprint
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
