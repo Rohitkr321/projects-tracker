@@ -4,7 +4,7 @@ import { baseQueryWithReauth } from './apiClient';
 export const projectApi = createApi({
   reducerPath: 'projectApi',
   baseQuery: baseQueryWithReauth,
-  tagTypes: ['Project', 'ProjectMember', 'Epic', 'Milestone', 'Release', 'Document'],
+  tagTypes: ['Project', 'ProjectMember', 'Epic', 'Milestone', 'Release', 'Document', 'Label', 'CustomField'],
   endpoints: (builder) => ({
     getProjects: builder.query({
       query: (params = {}) => ({
@@ -111,6 +111,91 @@ export const projectApi = createApi({
       }),
       invalidatesTags: (result, error, { projectId }) => [{ type: 'Release', id: projectId }],
     }),
+    updateRelease: builder.mutation({
+      query: ({ projectId, releaseId, ...data }) => ({
+        url: `/projects/${projectId}/releases/${releaseId}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'Release', id: projectId }],
+    }),
+    markReleased: builder.mutation({
+      query: ({ projectId, releaseId }) => ({
+        url: `/projects/${projectId}/releases/${releaseId}/release`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'Release', id: projectId }],
+    }),
+    deleteRelease: builder.mutation({
+      query: ({ projectId, releaseId }) => ({
+        url: `/projects/${projectId}/releases/${releaseId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'Release', id: projectId }],
+    }),
+    // Labels
+    getLabels: builder.query({
+      query: (projectId) => `/projects/${projectId}/labels`,
+      providesTags: (result, error, projectId) => [{ type: 'Label', id: projectId }],
+    }),
+    createLabel: builder.mutation({
+      query: ({ projectId, ...data }) => ({
+        url: `/projects/${projectId}/labels`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'Label', id: projectId }],
+    }),
+    updateLabel: builder.mutation({
+      query: ({ projectId, labelId, ...data }) => ({
+        url: `/projects/${projectId}/labels/${labelId}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'Label', id: projectId }],
+    }),
+    deleteLabel: builder.mutation({
+      query: ({ projectId, labelId }) => ({
+        url: `/projects/${projectId}/labels/${labelId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'Label', id: projectId }],
+    }),
+    // Custom Fields
+    getCustomFields: builder.query({
+      query: (projectId) => `/projects/${projectId}/custom-fields`,
+      providesTags: (result, error, projectId) => [{ type: 'CustomField', id: projectId }],
+    }),
+    createCustomField: builder.mutation({
+      query: ({ projectId, ...data }) => ({
+        url: `/projects/${projectId}/custom-fields`,
+        method: 'POST',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'CustomField', id: projectId }],
+    }),
+    updateCustomField: builder.mutation({
+      query: ({ projectId, fieldId, ...data }) => ({
+        url: `/projects/${projectId}/custom-fields/${fieldId}`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'CustomField', id: projectId }],
+    }),
+    deleteCustomField: builder.mutation({
+      query: ({ projectId, fieldId }) => ({
+        url: `/projects/${projectId}/custom-fields/${fieldId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (result, error, { projectId }) => [{ type: 'CustomField', id: projectId }],
+    }),
+    setCustomFieldValue: builder.mutation({
+      query: ({ projectId, fieldId, issueId, value }) => ({
+        url: `/projects/${projectId}/custom-fields/${fieldId}/values`,
+        method: 'POST',
+        body: { issueId, value },
+      }),
+    }),
     getDocuments: builder.query({
       query: ({ projectId, ...params }) => ({
         url: `/projects/${projectId}/documents`,
@@ -167,6 +252,18 @@ export const {
   useCreateMilestoneMutation,
   useGetReleasesQuery,
   useCreateReleaseMutation,
+  useUpdateReleaseMutation,
+  useMarkReleasedMutation,
+  useDeleteReleaseMutation,
+  useGetLabelsQuery,
+  useCreateLabelMutation,
+  useUpdateLabelMutation,
+  useDeleteLabelMutation,
+  useGetCustomFieldsQuery,
+  useCreateCustomFieldMutation,
+  useUpdateCustomFieldMutation,
+  useDeleteCustomFieldMutation,
+  useSetCustomFieldValueMutation,
   useGetDocumentsQuery,
   useCreateDocumentMutation,
   useUpdateDocumentMutation,

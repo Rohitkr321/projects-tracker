@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, useTheme, TextInput, Button, Menu, Divider, Portal, Dialog, Surface } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,6 +11,13 @@ import {
   useAddProjectMemberMutation,
   useRemoveProjectMemberMutation,
   useDeleteProjectMutation,
+  useGetLabelsQuery,
+  useCreateLabelMutation,
+  useUpdateLabelMutation,
+  useDeleteLabelMutation,
+  useGetCustomFieldsQuery,
+  useCreateCustomFieldMutation,
+  useDeleteCustomFieldMutation,
 } from '../../api/projectApi';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants';
@@ -26,8 +34,24 @@ const PROJECT_COLORS = [
 const NAV_SECTIONS = [
   { key: 'general', label: 'General', icon: 'tune' },
   { key: 'members', label: 'Members', icon: 'account-group-outline' },
+  { key: 'labels', label: 'Labels', icon: 'tag-multiple-outline' },
+  { key: 'custom-fields', label: 'Custom Fields', icon: 'form-textbox' },
   { key: 'access', label: 'Access & Roles', icon: 'shield-account-outline' },
   { key: 'danger', label: 'Danger Zone', icon: 'alert-circle-outline' },
+];
+
+const LABEL_PRESETS = [
+  '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+  '#06B6D4', '#EC4899', '#6366F1', '#84CC16', '#F97316',
+];
+
+const CF_TYPES = [
+  { value: 'text', label: 'Text', icon: 'format-text' },
+  { value: 'number', label: 'Number', icon: 'numeric' },
+  { value: 'date', label: 'Date', icon: 'calendar-outline' },
+  { value: 'select', label: 'Dropdown', icon: 'chevron-down-circle-outline' },
+  { value: 'checkbox', label: 'Checkbox', icon: 'checkbox-marked-outline' },
+  { value: 'url', label: 'URL', icon: 'link-variant' },
 ];
 
 const PROJECT_TYPES = ['scrum', 'kanban', 'business'];
@@ -60,11 +84,19 @@ export default function ProjectSettingsScreen({ route, navigation }) {
   const [section, setSection] = useState('general');
 
   const { data: projectData } = useGetProjectQuery(projectId);
+  useProjectScrollbar(projectData?.data?.color);
   const { data: membersData, refetch: refetchMembers } = useGetProjectMembersQuery(projectId);
+  const { data: labelsData, refetch: refetchLabels } = useGetLabelsQuery(projectId);
+  const { data: cfData, refetch: refetchCf } = useGetCustomFieldsQuery(projectId);
   const [updateProject, { isLoading: saving }] = useUpdateProjectMutation();
   const [addMember, { isLoading: adding }] = useAddProjectMemberMutation();
   const [removeMember] = useRemoveProjectMemberMutation();
   const [deleteProject, { isLoading: deleting }] = useDeleteProjectMutation();
+  const [createLabel, { isLoading: creatingLabel }] = useCreateLabelMutation();
+  const [updateLabel] = useUpdateLabelMutation();
+  const [deleteLabel, { isLoading: deletingLabel }] = useDeleteLabelMutation();
+  const [createCustomField, { isLoading: creatingCf }] = useCreateCustomFieldMutation();
+  const [deleteCustomField, { isLoading: deletingCf }] = useDeleteCustomFieldMutation();
 
   const project = projectData?.data;
   const members = membersData?.data || [];
@@ -107,9 +139,11 @@ export default function ProjectSettingsScreen({ route, navigation }) {
   const [addEmail, setAddEmail] = useState('');
   const [addRole, setAddRole] = useState('developer');
   const [addRoleMenu, setAddRoleMenu] = useState(false);
+  const [addMemberError, setAddMemberError] = useState('');
 
   const handleAddMember = async () => {
     if (!addEmail.trim()) return;
+    setAddMemberError('');
     try {
       await addMember({ projectId, email: addEmail.trim(), role: addRole }).unwrap();
       setAddEmail('');
@@ -117,7 +151,9 @@ export default function ProjectSettingsScreen({ route, navigation }) {
       refetchMembers();
       showToast('Member added successfully');
     } catch (err) {
-      showToast(err?.data?.message || 'Failed to add member', true);
+      const msg = err?.data?.message || 'Failed to add member';
+      setAddMemberError(msg);
+      showToast(msg, true);
     }
   };
 
@@ -144,6 +180,77 @@ export default function ProjectSettingsScreen({ route, navigation }) {
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [archiveDialog, setArchiveDialog] = useState(false);
+
+  // Label state
+  const [newLabelName, setNewLabelName] = useState('');
+  const [newLabelColor, setNewLabelColor] = useState('#3B82F6');
+  const [editLabelId, setEditLabelId] = useState(null);
+  const [editLabelName, setEditLabelName] = useState('');
+  const [editLabelColor, setEditLabelColor] = useState('');
+  const [deleteLabelDialog, setDeleteLabelDialog] = useState(null);
+
+  // Custom field state
+  const [newCfName, setNewCfName] = useState('');
+  const [newCfType, setNewCfType] = useState('text');
+  const [newCfRequired, setNewCfRequired] = useState(false);
+  const [cfTypeMenu, setCfTypeMenu] = useState(false);
+  const [deleteCfDialog, setDeleteCfDialog] = useState(null);
+
+  const labels = labelsData?.data || [];
+  const customFields = cfData?.data || [];
+
+  const handleCreateLabel = async () => {
+    if (!newLabelName.trim()) return;
+    try {
+      await createLabel({ projectId, name: newLabelName.trim(), color: newLabelColor }).unwrap();
+      setNewLabelName('');
+      setNewLabelColor('#3B82F6');
+      refetchLabels();
+      showToast('Label created');
+    } catch (err) { showToast(err?.data?.message || 'Failed to create label', true); }
+  };
+
+  const handleUpdateLabel = async (labelId) => {
+    try {
+      await updateLabel({ projectId, labelId, name: editLabelName, color: editLabelColor }).unwrap();
+      setEditLabelId(null);
+      refetchLabels();
+      showToast('Label updated');
+    } catch (err) { showToast(err?.data?.message || 'Failed to update label', true); }
+  };
+
+  const handleDeleteLabel = async () => {
+    if (!deleteLabelDialog) return;
+    try {
+      await deleteLabel({ projectId, labelId: deleteLabelDialog.id }).unwrap();
+      setDeleteLabelDialog(null);
+      refetchLabels();
+      showToast('Label deleted');
+    } catch (err) { showToast(err?.data?.message || 'Failed to delete label', true); }
+  };
+
+  const handleCreateCf = async () => {
+    if (!newCfName.trim()) return;
+    const key = newCfName.trim().toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    try {
+      await createCustomField({ projectId, name: newCfName.trim(), key, type: newCfType, isRequired: newCfRequired }).unwrap();
+      setNewCfName('');
+      setNewCfType('text');
+      setNewCfRequired(false);
+      refetchCf();
+      showToast('Custom field created');
+    } catch (err) { showToast(err?.data?.message || 'Failed to create field', true); }
+  };
+
+  const handleDeleteCf = async () => {
+    if (!deleteCfDialog) return;
+    try {
+      await deleteCustomField({ projectId, fieldId: deleteCfDialog.id }).unwrap();
+      setDeleteCfDialog(null);
+      refetchCf();
+      showToast('Custom field deleted');
+    } catch (err) { showToast(err?.data?.message || 'Failed to delete field', true); }
+  };
 
   const handleArchive = async () => {
     try {
@@ -239,7 +346,7 @@ export default function ProjectSettingsScreen({ route, navigation }) {
                 <View style={styles.railText}>
                   <Text style={[styles.railItemLabel, { color: active ? color : theme.colors.onSurface }]}>{s.label}</Text>
                   <Text style={[styles.railItemSub, { color: theme.colors.onSurfaceVariant }]} numberOfLines={1}>
-                    {s.key === 'general' ? 'Identity and color' : s.key === 'members' ? 'People and access' : s.key === 'access' ? 'Role permissions' : 'Archive or delete'}
+                    {s.key === 'general' ? 'Identity and color' : s.key === 'members' ? 'People and access' : s.key === 'labels' ? `${labels.length} labels` : s.key === 'custom-fields' ? `${customFields.length} fields` : s.key === 'access' ? 'Role permissions' : 'Archive or delete'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -254,9 +361,13 @@ export default function ProjectSettingsScreen({ route, navigation }) {
               ? 'Update project identity, type, description, and visual accent.'
               : section === 'members'
                 ? 'Manage project membership and inherited organization access.'
-                : section === 'access'
-                  ? 'Review what each project role can do.'
-                  : 'Archive or permanently delete this project.'}
+                : section === 'labels'
+                  ? 'Create and manage labels to categorise issues across this project.'
+                  : section === 'custom-fields'
+                    ? 'Add custom metadata fields to issues in this project.'
+                    : section === 'access'
+                      ? 'Review what each project role can do.'
+                      : 'Archive or permanently delete this project.'}
             theme={theme}
             icon={activeSection?.icon || 'tune'}
             tone={section === 'danger' ? colors.danger : accent}
@@ -393,12 +504,13 @@ export default function ProjectSettingsScreen({ route, navigation }) {
                     <TextInput
                       label="Email address"
                       value={addEmail}
-                      onChangeText={setAddEmail}
+                      onChangeText={v => { setAddEmail(v); if (addMemberError) setAddMemberError(''); }}
                       mode="outlined"
                       keyboardType="email-address"
                       autoCapitalize="none"
                       dense
                       style={{ flex: 2 }}
+                      error={!!addMemberError}
                       left={<TextInput.Icon icon="email-outline" />}
                     />
                     <Menu
@@ -437,6 +549,12 @@ export default function ProjectSettingsScreen({ route, navigation }) {
                       Add
                     </Button>
                   </View>
+                  {!!addMemberError && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, paddingHorizontal: 4 }}>
+                      <MaterialCommunityIcons name="alert-circle-outline" size={14} color="#DC2626" />
+                      <Text style={{ fontSize: 12, color: '#DC2626', flex: 1 }}>{addMemberError}</Text>
+                    </View>
+                  )}
                 </Surface>
               )}
 
@@ -476,6 +594,260 @@ export default function ProjectSettingsScreen({ route, navigation }) {
                               </TouchableOpacity>
                             )}
                           </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </Surface>
+            </View>
+          )}
+
+          {section === 'labels' && (
+            <View style={styles.stack}>
+              {/* Create label */}
+              <Surface style={[styles.card, { backgroundColor: surf, borderColor: border }]} elevation={0}>
+                <CardHeader icon="tag-plus-outline" title="Create label" subtitle="Add a new label to categorise issues" tone={accent} theme={theme} />
+                <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-end' }}>
+                  <View style={{ flex: 1 }}>
+                    <FieldLabel theme={theme}>Label name</FieldLabel>
+                    <TextInput
+                      value={newLabelName}
+                      onChangeText={setNewLabelName}
+                      mode="outlined"
+                      dense
+                      placeholder="e.g. frontend, bug, customer-reported"
+                      onSubmitEditing={handleCreateLabel}
+                    />
+                  </View>
+                  <View>
+                    <FieldLabel theme={theme}>Color</FieldLabel>
+                    <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', maxWidth: 200 }}>
+                      {LABEL_PRESETS.map((c) => (
+                        <TouchableOpacity
+                          key={c}
+                          onPress={() => setNewLabelColor(c)}
+                          style={{
+                            width: 28, height: 28, borderRadius: 6, backgroundColor: c,
+                            justifyContent: 'center', alignItems: 'center',
+                            boxShadow: newLabelColor === c ? `0 0 0 2px #fff, 0 0 0 4px ${c}` : 'none',
+                          }}
+                        >
+                          {newLabelColor === c && <MaterialCommunityIcons name="check" size={14} color="#fff" />}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                  <Button
+                    mode="contained"
+                    icon="plus"
+                    onPress={handleCreateLabel}
+                    loading={creatingLabel}
+                    disabled={!newLabelName.trim() || creatingLabel}
+                    style={[styles.headerButton, { backgroundColor: accent }]}
+                    labelStyle={styles.containedLabel}
+                  >
+                    Create
+                  </Button>
+                </View>
+              </Surface>
+
+              {/* Label list */}
+              <Surface style={[styles.card, { backgroundColor: surf, borderColor: border }]} elevation={0}>
+                <CardHeader icon="tag-multiple-outline" title="Project labels" subtitle={`${labels.length} label${labels.length !== 1 ? 's' : ''} in this project`} tone="#06B6D4" theme={theme} />
+                {labels.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 36 }}>
+                    <MaterialCommunityIcons name="tag-outline" size={32} color={theme.colors.onSurfaceVariant} />
+                    <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, fontSize: 13 }}>No labels yet. Create your first one above.</Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 8 }}>
+                    {labels.map((lbl) => (
+                      <View key={lbl.id} style={[styles.memberCard, { backgroundColor: theme.colors.background, borderColor: border }]}>
+                        {editLabelId === lbl.id ? (
+                          <>
+                            <TextInput
+                              value={editLabelName}
+                              onChangeText={setEditLabelName}
+                              mode="outlined"
+                              dense
+                              style={{ flex: 1 }}
+                              onSubmitEditing={() => handleUpdateLabel(lbl.id)}
+                            />
+                            <View style={{ flexDirection: 'row', gap: 5 }}>
+                              {LABEL_PRESETS.map((c) => (
+                                <TouchableOpacity
+                                  key={c}
+                                  onPress={() => setEditLabelColor(c)}
+                                  style={{
+                                    width: 22, height: 22, borderRadius: 5, backgroundColor: c,
+                                    justifyContent: 'center', alignItems: 'center',
+                                  }}
+                                >
+                                  {editLabelColor === c && <MaterialCommunityIcons name="check" size={11} color="#fff" />}
+                                </TouchableOpacity>
+                              ))}
+                            </View>
+                            <Button compact mode="contained" style={{ backgroundColor: accent }} labelStyle={{ color: '#fff', fontSize: 11 }} onPress={() => handleUpdateLabel(lbl.id)}>Save</Button>
+                            <Button compact onPress={() => setEditLabelId(null)}>Cancel</Button>
+                          </>
+                        ) : (
+                          <>
+                            <View style={{ width: 32, height: 32, borderRadius: 8, backgroundColor: (lbl.color || '#3B82F6') + '20', borderWidth: 1, borderColor: (lbl.color || '#3B82F6') + '50', justifyContent: 'center', alignItems: 'center' }}>
+                              <MaterialCommunityIcons name="tag" size={16} color={lbl.color || '#3B82F6'} />
+                            </View>
+                            <View style={styles.memberCardMain}>
+                              <Text style={[styles.memberName, { color: theme.colors.onSurface }]}>{lbl.name}</Text>
+                              {!!lbl.description && <Text style={[styles.memberEmail, { color: theme.colors.onSurfaceVariant }]}>{lbl.description}</Text>}
+                            </View>
+                            <View style={[styles.rolePill, { backgroundColor: (lbl.color || '#3B82F6') + '18', borderColor: (lbl.color || '#3B82F6') + '40' }]}>
+                              <Text style={[styles.rolePillText, { color: lbl.color || '#3B82F6' }]}>{lbl.color || '#3B82F6'}</Text>
+                            </View>
+                            {canManage && (
+                              <View style={{ flexDirection: 'row', gap: 6 }}>
+                                <TouchableOpacity
+                                  style={[styles.removeBtn, { borderColor: `${accent}40` }]}
+                                  onPress={() => { setEditLabelId(lbl.id); setEditLabelName(lbl.name); setEditLabelColor(lbl.color || '#3B82F6'); }}
+                                >
+                                  <MaterialCommunityIcons name="pencil-outline" size={14} color={accent} />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                  style={[styles.removeBtn, { borderColor: `${colors.danger}40` }]}
+                                  onPress={() => setDeleteLabelDialog(lbl)}
+                                >
+                                  <MaterialCommunityIcons name="trash-can-outline" size={14} color={colors.danger} />
+                                </TouchableOpacity>
+                              </View>
+                            )}
+                          </>
+                        )}
+                      </View>
+                    ))}
+                  </View>
+                )}
+              </Surface>
+            </View>
+          )}
+
+          {section === 'custom-fields' && (
+            <View style={styles.stack}>
+              {/* Create custom field */}
+              <Surface style={[styles.card, { backgroundColor: surf, borderColor: border }]} elevation={0}>
+                <CardHeader icon="form-textbox" title="Add custom field" subtitle="Extend issues with project-specific metadata" tone={accent} theme={theme} />
+                <View style={{ gap: 12 }}>
+                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-end' }}>
+                    <View style={{ flex: 1 }}>
+                      <FieldLabel theme={theme}>Field name</FieldLabel>
+                      <TextInput
+                        value={newCfName}
+                        onChangeText={setNewCfName}
+                        mode="outlined"
+                        dense
+                        placeholder="e.g. Customer Name, Browser, Environment"
+                      />
+                    </View>
+                    <View style={{ minWidth: 160 }}>
+                      <FieldLabel theme={theme}>Field type</FieldLabel>
+                      <Menu
+                        visible={cfTypeMenu}
+                        onDismiss={() => setCfTypeMenu(false)}
+                        anchor={
+                          <TouchableOpacity
+                            onPress={() => setCfTypeMenu(true)}
+                            style={[styles.selectBtn, { borderColor: theme.colors.outline, backgroundColor: theme.colors.surfaceVariant }]}
+                          >
+                            <MaterialCommunityIcons name={CF_TYPES.find(t => t.value === newCfType)?.icon || 'format-text'} size={15} color={theme.colors.onSurfaceVariant} />
+                            <Text style={{ flex: 1, marginLeft: 8, color: theme.colors.onSurface, fontSize: 14 }}>
+                              {CF_TYPES.find(t => t.value === newCfType)?.label || 'Text'}
+                            </Text>
+                            <MaterialCommunityIcons name="chevron-down" size={16} color={theme.colors.onSurfaceVariant} />
+                          </TouchableOpacity>
+                        }
+                      >
+                        {CF_TYPES.map((t) => (
+                          <Menu.Item
+                            key={t.value}
+                            title={t.label}
+                            leadingIcon={newCfType === t.value ? 'check' : t.icon}
+                            onPress={() => { setNewCfType(t.value); setCfTypeMenu(false); }}
+                          />
+                        ))}
+                      </Menu>
+                    </View>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      <TouchableOpacity
+                        onPress={() => setNewCfRequired(!newCfRequired)}
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                      >
+                        <View style={{
+                          width: 20, height: 20, borderRadius: 5, borderWidth: 2,
+                          borderColor: newCfRequired ? accent : theme.colors.outline,
+                          backgroundColor: newCfRequired ? accent : 'transparent',
+                          justifyContent: 'center', alignItems: 'center',
+                        }}>
+                          {newCfRequired && <MaterialCommunityIcons name="check" size={13} color="#fff" />}
+                        </View>
+                        <Text style={{ fontSize: 13, color: theme.colors.onSurface, fontWeight: '600' }}>Required field</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <Button
+                      mode="contained"
+                      icon="plus"
+                      onPress={handleCreateCf}
+                      loading={creatingCf}
+                      disabled={!newCfName.trim() || creatingCf}
+                      style={[styles.headerButton, { backgroundColor: accent }]}
+                      labelStyle={styles.containedLabel}
+                    >
+                      Add Field
+                    </Button>
+                  </View>
+                </View>
+              </Surface>
+
+              {/* Field list */}
+              <Surface style={[styles.card, { backgroundColor: surf, borderColor: border }]} elevation={0}>
+                <CardHeader icon="table-column" title="Custom fields" subtitle={`${customFields.length} field${customFields.length !== 1 ? 's' : ''} defined for this project`} tone="#8B5CF6" theme={theme} />
+                {customFields.length === 0 ? (
+                  <View style={{ alignItems: 'center', paddingVertical: 36 }}>
+                    <MaterialCommunityIcons name="form-textbox" size={32} color={theme.colors.onSurfaceVariant} />
+                    <Text style={{ color: theme.colors.onSurfaceVariant, marginTop: 8, fontSize: 13 }}>No custom fields yet. Add your first one above.</Text>
+                  </View>
+                ) : (
+                  <View style={{ gap: 8 }}>
+                    {customFields.map((cf) => {
+                      const typeInfo = CF_TYPES.find(t => t.value === cf.type) || CF_TYPES[0];
+                      return (
+                        <View key={cf.id} style={[styles.memberCard, { backgroundColor: theme.colors.background, borderColor: border }]}>
+                          <View style={{ width: 34, height: 34, borderRadius: 8, backgroundColor: '#8B5CF618', borderWidth: 1, borderColor: '#8B5CF640', justifyContent: 'center', alignItems: 'center' }}>
+                            <MaterialCommunityIcons name={typeInfo.icon} size={17} color="#8B5CF6" />
+                          </View>
+                          <View style={styles.memberCardMain}>
+                            <Text style={[styles.memberName, { color: theme.colors.onSurface }]}>
+                              {cf.name}{cf.isRequired ? ' *' : ''}
+                            </Text>
+                            <Text style={[styles.memberEmail, { color: theme.colors.onSurfaceVariant }]}>
+                              {typeInfo.label} · key: {cf.key}
+                            </Text>
+                          </View>
+                          <View style={[styles.rolePill, { backgroundColor: '#8B5CF618', borderColor: '#8B5CF640' }]}>
+                            <Text style={[styles.rolePillText, { color: '#8B5CF6' }]}>{typeInfo.label}</Text>
+                          </View>
+                          {cf.isRequired && (
+                            <View style={[styles.rolePill, { backgroundColor: `${colors.danger}12`, borderColor: `${colors.danger}30` }]}>
+                              <Text style={[styles.rolePillText, { color: colors.danger }]}>Required</Text>
+                            </View>
+                          )}
+                          {canManage && (
+                            <TouchableOpacity
+                              style={[styles.removeBtn, { borderColor: `${colors.danger}40` }]}
+                              onPress={() => setDeleteCfDialog(cf)}
+                            >
+                              <MaterialCommunityIcons name="trash-can-outline" size={14} color={colors.danger} />
+                            </TouchableOpacity>
+                          )}
                         </View>
                       );
                     })}
@@ -582,6 +954,40 @@ export default function ProjectSettingsScreen({ route, navigation }) {
             <Button onPress={() => setArchiveDialog(false)}>Cancel</Button>
             <Button mode="contained" buttonColor={colors.warning} onPress={handleArchive}>
               Archive Project
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={!!deleteLabelDialog} onDismiss={() => setDeleteLabelDialog(null)} style={styles.dialog}>
+          <Dialog.Icon icon="tag-remove-outline" color={colors.danger} />
+          <Dialog.Title style={{ textAlign: 'center' }}>Delete Label</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.onSurface }}>
+              Delete label <Text style={{ fontWeight: '700' }}>{deleteLabelDialog?.name}</Text>?{'\n'}
+              It will be removed from all issues in this project.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteLabelDialog(null)}>Cancel</Button>
+            <Button mode="contained" buttonColor={colors.danger} onPress={handleDeleteLabel} loading={deletingLabel}>
+              Delete
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={!!deleteCfDialog} onDismiss={() => setDeleteCfDialog(null)} style={styles.dialog}>
+          <Dialog.Icon icon="form-textbox-minus" color={colors.danger} />
+          <Dialog.Title style={{ textAlign: 'center' }}>Delete Custom Field</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.onSurface }}>
+              Delete field <Text style={{ fontWeight: '700' }}>{deleteCfDialog?.name}</Text>?{'\n'}
+              All values stored for this field will be permanently removed.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteCfDialog(null)}>Cancel</Button>
+            <Button mode="contained" buttonColor={colors.danger} onPress={handleDeleteCf} loading={deletingCf}>
+              Delete
             </Button>
           </Dialog.Actions>
         </Dialog>

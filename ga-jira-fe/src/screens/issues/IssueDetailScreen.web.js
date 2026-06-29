@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 import { View, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Button, ActivityIndicator, Menu, Divider } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -7,7 +8,7 @@ import {
   useWatchIssueMutation, useUnwatchIssueMutation, useCreateIssueMutation,
   useUploadAttachmentMutation, usePresignImageUploadMutation, useConfirmImageUploadMutation, useDeleteAttachmentMutation,
 } from '../../api/issueApi';
-import { useGetProjectWorkflowQuery, useGetProjectMembersQuery } from '../../api/projectApi';
+import { useGetProjectQuery, useGetProjectWorkflowQuery, useGetProjectMembersQuery, useGetLabelsQuery, useGetReleasesQuery, useGetCustomFieldsQuery, useSetCustomFieldValueMutation } from '../../api/projectApi';
 import { useGetActiveSprintQuery } from '../../api/sprintApi';
 import { useAuth } from '../../hooks/useAuth';
 import { formatRelative, formatDate } from '../../utils/dateUtils';
@@ -90,6 +91,9 @@ export default function IssueDetailScreen({ route, navigation }) {
   const [statusMenuOpen, setStatusMenuOpen]     = useState(false);
   const [assigneeMenuOpen, setAssigneeMenuOpen] = useState(false);
   const [priorityMenuOpen, setPriorityMenuOpen] = useState(false);
+  const [labelMenuOpen, setLabelMenuOpen]       = useState(false);
+  const [fixVersionMenuOpen, setFixVersionMenuOpen] = useState(false);
+  const [cfMenuOpenId, setCfMenuOpenId] = useState(null);
   const [toast, setToast]                       = useState('');
   const [toastType, setToastType]               = useState('success');
   const showToast = (msg, type = 'success') => { setToast(msg); setToastType(type); };
@@ -108,9 +112,14 @@ export default function IssueDetailScreen({ route, navigation }) {
   const issue     = data?.data;
   const projectId = issue?.projectId;
 
+  const { data: projectResp }      = useGetProjectQuery(projectId,          { skip: !projectId });
+  useProjectScrollbar(projectResp?.data?.color);
   const { data: workflowData }     = useGetProjectWorkflowQuery(projectId, { skip: !projectId });
   const { data: membersData }      = useGetProjectMembersQuery(projectId,  { skip: !projectId });
   const { data: activeSprintData } = useGetActiveSprintQuery(projectId,    { skip: !projectId });
+  const { data: labelsData }       = useGetLabelsQuery(projectId,          { skip: !projectId });
+  const { data: releasesData }     = useGetReleasesQuery(projectId,        { skip: !projectId });
+  const { data: customFieldsData } = useGetCustomFieldsQuery(projectId,    { skip: !projectId });
 
   const workflows   = workflowData?.data || [];
   const defaultWf   = workflows.find(w => w.isDefault) || workflows[0];
@@ -121,6 +130,29 @@ export default function IssueDetailScreen({ route, navigation }) {
     : [];
   const isWatching  = issue?.watchers?.some(w => (w.id || w) === user?.id);
   const activeSprint = activeSprintData?.data;
+  const allLabels   = labelsData?.data || [];
+  const allReleases    = (releasesData?.data || []).filter(r => r.status !== 'archived');
+  const customFields   = customFieldsData?.data || [];
+  const [setCfValue]   = useSetCustomFieldValueMutation();
+
+  const handleCfValue = async (fieldId, value) => {
+    try { await setCfValue({ projectId, fieldId, issueId, value }).unwrap(); }
+    catch (err) { showToast(err?.data?.message || 'Failed to update field', 'error'); }
+  };
+
+  const handleFixVersion = async (releaseId) => {
+    try { await updateIssue({ id: issueId, releaseId: releaseId || null }).unwrap(); showToast('Fix version updated'); }
+    catch (err) { showToast(err?.data?.message || 'Failed to update fix version', 'error'); }
+  };
+
+  const handleLabelToggle = async (labelId) => {
+    const currentIds = (issue?.labels || []).map(l => l.id);
+    const next = currentIds.includes(labelId)
+      ? currentIds.filter(id => id !== labelId)
+      : [...currentIds, labelId];
+    try { await updateIssue({ id: issueId, labelIds: next }).unwrap(); }
+    catch (err) { showToast(err?.data?.message || 'Failed to update labels', 'error'); }
+  };
 
   const handleStatus = async (s) => {
     setStatusMenuOpen(false);
@@ -330,7 +362,7 @@ export default function IssueDetailScreen({ route, navigation }) {
       await deleteAttachment({ issueId, attachmentId: attId }).unwrap();
       showToast('Link removed');
       refetch();
-    } catch { showToast('Failed to remove link', 'error'); }
+    } catch (err) { showToast(err?.data?.message || 'Failed to remove link', 'error'); }
   };
 
   if (isLoading) return (
@@ -623,8 +655,8 @@ export default function IssueDetailScreen({ route, navigation }) {
                         await updateIssue({ id: issueId, description: descDraft.trim() }).unwrap();
                         setEditingDesc(false);
                         showToast('Description updated');
-                      } catch {
-                        showToast('Failed to save description', 'error');
+                      } catch (err) {
+                        showToast(err?.data?.message || 'Failed to save description', 'error');
                       }
                     }}
                     style={{ borderRadius: 7 }}
@@ -1153,36 +1185,72 @@ export default function IssueDetailScreen({ route, navigation }) {
 
             {/* Story Points */}
             <SbRow icon="poker-chip" label="Story Points" iconBg="#8B5CF618" iconColor="#8B5CF6" theme={theme}>
-              {issue.storyPoints != null ? (
-                <View style={[styles.pointsBadge, { backgroundColor: theme.colors.primary }]}>
-                  <Text style={{ color: '#fff', fontWeight: '800', fontSize: 13 }}>{issue.storyPoints}</Text>
-                </View>
-              ) : (
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>-</Text>
-              )}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
+                {[1, 2, 3, 5, 8, 13].map(pts => {
+                  const active = issue.storyPoints === pts;
+                  return (
+                    <TouchableOpacity
+                      key={pts}
+                      onPress={() => updateIssue({ id: issueId, storyPoints: active ? null : pts }).unwrap().catch(err => showToast(err?.data?.message || 'Failed to update story points', 'error'))}
+                      style={{
+                        width: 28, height: 28, borderRadius: 6, justifyContent: 'center', alignItems: 'center',
+                        backgroundColor: active ? theme.colors.primary : (isDark ? '#1E2D40' : '#F1F5F9'),
+                        borderWidth: 1,
+                        borderColor: active ? theme.colors.primary : (isDark ? '#2D3F55' : '#CBD5E1'),
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: active ? '#fff' : theme.colors.onSurfaceVariant }}>{pts}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+                {issue.storyPoints != null && (
+                  <TouchableOpacity onPress={() => updateIssue({ id: issueId, storyPoints: null }).unwrap().catch(err => showToast(err?.data?.message || 'Failed to clear story points', 'error'))} style={{ padding: 4 }}>
+                    <MaterialCommunityIcons name="close-circle-outline" size={15} color={theme.colors.onSurfaceVariant} />
+                  </TouchableOpacity>
+                )}
+              </View>
             </SbRow>
 
             <SbDivider theme={theme} />
 
             {/* Due Date */}
             <SbRow icon="calendar-outline" label="Due Date" iconBg={isOverdue ? '#DC262618' : '#05906918'} iconColor={isOverdue ? '#DC2626' : '#059669'} theme={theme}>
-              {issue.dueDate ? (
-                <View style={[styles.dateBadge, {
-                  backgroundColor: isOverdue ? '#FEF2F2' : '#F0FDF4',
-                  borderColor: isOverdue ? '#FCA5A5' : '#86EFAC',
-                }]}>
-                  <MaterialCommunityIcons
-                    name={isOverdue ? 'calendar-alert' : 'calendar-check'}
-                    size={12}
-                    color={isOverdue ? '#DC2626' : '#16A34A'}
-                  />
-                  <Text style={{ color: isOverdue ? '#DC2626' : '#15803D', fontSize: 12, fontWeight: '600', marginLeft: 4 }}>
-                    {formatDate(issue.dueDate)}
-                  </Text>
-                </View>
-              ) : (
-                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>-</Text>
-              )}
+              <div style={{ position: 'relative', display: 'inline-block' }}>
+                <TouchableOpacity
+                  onPress={() => { const el = document.getElementById('issue-due-date'); el && el.showPicker?.(); }}
+                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                >
+                  {issue.dueDate ? (
+                    <View style={[styles.dateBadge, {
+                      backgroundColor: isOverdue ? '#FEF2F2' : '#F0FDF4',
+                      borderColor: isOverdue ? '#FCA5A5' : '#86EFAC',
+                    }]}>
+                      <MaterialCommunityIcons name={isOverdue ? 'calendar-alert' : 'calendar-check'} size={12} color={isOverdue ? '#DC2626' : '#16A34A'} />
+                      <Text style={{ color: isOverdue ? '#DC2626' : '#15803D', fontSize: 12, fontWeight: '600', marginLeft: 4 }}>
+                        {formatDate(issue.dueDate)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>Not set</Text>
+                  )}
+                  <MaterialCommunityIcons name="pencil-outline" size={13} color={theme.colors.onSurfaceVariant} />
+                </TouchableOpacity>
+                <input
+                  id="issue-due-date"
+                  type="date"
+                  value={issue.dueDate || ''}
+                  onChange={e => updateIssue({ id: issueId, dueDate: e.target.value || null }).unwrap().catch(err => showToast(err?.data?.message || 'Failed to update due date', 'error'))}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }}
+                />
+                {issue.dueDate && (
+                  <TouchableOpacity
+                    onPress={() => updateIssue({ id: issueId, dueDate: null }).unwrap().catch(err => showToast(err?.data?.message || 'Failed to clear due date', 'error'))}
+                    style={{ position: 'absolute', top: -4, right: -18 }}
+                  >
+                    <MaterialCommunityIcons name="close-circle" size={14} color={theme.colors.onSurfaceVariant} />
+                  </TouchableOpacity>
+                )}
+              </div>
             </SbRow>
 
             {issue.epic && (
@@ -1201,21 +1269,162 @@ export default function IssueDetailScreen({ route, navigation }) {
               </>
             )}
 
-            {issue.labels?.length > 0 && (
+            {allLabels.length > 0 && (
               <>
                 <SbDivider theme={theme} />
                 <SbRow icon="tag-outline" label="Labels" iconBg="#06B6D418" iconColor="#06B6D4" theme={theme} wrap>
-                  <View style={styles.labelsRow}>
-                    {issue.labels.map(l => (
-                      <View key={l.id || l.name} style={[styles.labelPill, {
-                        backgroundColor: (l.color || '#6B7280') + '18',
-                        borderColor: (l.color || '#6B7280') + '40',
-                      }]}>
-                        <Text style={{ color: l.color || '#6B7280', fontSize: 11, fontWeight: '600' }}>{l.name}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  <Menu
+                    visible={labelMenuOpen}
+                    onDismiss={() => setLabelMenuOpen(false)}
+                    anchor={
+                      <TouchableOpacity
+                        onPress={() => setLabelMenuOpen(true)}
+                        style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}
+                      >
+                        {(issue.labels || []).map(l => (
+                          <View key={l.id || l.name} style={[styles.labelPill, {
+                            backgroundColor: (l.color || '#6B7280') + '18',
+                            borderColor: (l.color || '#6B7280') + '40',
+                          }]}>
+                            <Text style={{ color: l.color || '#6B7280', fontSize: 11, fontWeight: '600' }}>{l.name}</Text>
+                          </View>
+                        ))}
+                        <View style={[styles.labelPill, {
+                          backgroundColor: isDark ? '#1E2D40' : '#F1F5F9',
+                          borderColor: isDark ? '#2D3F55' : '#CBD5E1',
+                          flexDirection: 'row', alignItems: 'center', gap: 4,
+                        }]}>
+                          <MaterialCommunityIcons name="plus" size={11} color={theme.colors.onSurfaceVariant} />
+                          <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 11, fontWeight: '600' }}>
+                            {(issue.labels || []).length === 0 ? 'Add label' : 'Edit'}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    }
+                  >
+                    {allLabels.map(lbl => {
+                      const isActive = (issue.labels || []).some(l => l.id === lbl.id);
+                      return (
+                        <Menu.Item
+                          key={lbl.id}
+                          title={lbl.name}
+                          leadingIcon={isActive ? 'check-circle' : 'circle-outline'}
+                          onPress={() => handleLabelToggle(lbl.id)}
+                          titleStyle={{ color: isActive ? lbl.color || '#3B82F6' : theme.colors.onSurface }}
+                        />
+                      );
+                    })}
+                  </Menu>
                 </SbRow>
+              </>
+            )}
+
+            {allReleases.length > 0 && (
+              <>
+                <SbDivider theme={theme} />
+                <SbRow icon="package-variant-closed" label="Fix version" iconBg="#8B5CF618" iconColor="#8B5CF6" theme={theme}>
+                  <Menu
+                    visible={fixVersionMenuOpen}
+                    onDismiss={() => setFixVersionMenuOpen(false)}
+                    anchor={
+                      <TouchableOpacity onPress={() => setFixVersionMenuOpen(true)} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        {issue.releaseId ? (
+                          (() => {
+                            const rel = allReleases.find(r => r.id === issue.releaseId);
+                            return rel ? (
+                              <View style={{ backgroundColor: '#8B5CF618', borderWidth: 1, borderColor: '#8B5CF640', borderRadius: 5, paddingHorizontal: 9, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                                <MaterialCommunityIcons name="package-variant" size={13} color="#8B5CF6" />
+                                <Text style={{ color: '#8B5CF6', fontSize: 12, fontWeight: '600' }}>{rel.name}{rel.version ? ` v${rel.version}` : ''}</Text>
+                              </View>
+                            ) : <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>None</Text>;
+                          })()
+                        ) : (
+                          <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13 }}>None</Text>
+                        )}
+                        <MaterialCommunityIcons name="chevron-down" size={14} color={theme.colors.onSurfaceVariant} />
+                      </TouchableOpacity>
+                    }
+                  >
+                    <Menu.Item title="None" leadingIcon="close-circle-outline" onPress={() => { setFixVersionMenuOpen(false); handleFixVersion(null); }} />
+                    <Divider />
+                    {allReleases.map(rel => (
+                      <Menu.Item
+                        key={rel.id}
+                        title={`${rel.name}${rel.version ? ` v${rel.version}` : ''}`}
+                        leadingIcon={issue.releaseId === rel.id ? 'check-circle' : 'package-variant-closed'}
+                        onPress={() => { setFixVersionMenuOpen(false); handleFixVersion(rel.id); }}
+                        titleStyle={{ color: issue.releaseId === rel.id ? '#8B5CF6' : undefined }}
+                      />
+                    ))}
+                  </Menu>
+                </SbRow>
+              </>
+            )}
+
+            {customFields.length > 0 && (
+              <>
+                <SbDivider theme={theme} />
+                {customFields.map((cf) => {
+                  const cfVal = (issue.customFieldValues || []).find(v => v.customFieldId === cf.id);
+                  const currentVal = cfVal?.value ?? '';
+                  const CF_ICON = { text: 'format-text', number: 'numeric', date: 'calendar-outline', select: 'chevron-down-circle-outline', multi_select: 'format-list-checks', checkbox: 'checkbox-marked-outline', url: 'link-variant' };
+                  return (
+                    <SbRow key={cf.id} icon={CF_ICON[cf.type] || 'form-textbox'} label={cf.name + (cf.isRequired ? ' *' : '')} iconBg="#8B5CF618" iconColor="#8B5CF6" theme={theme}>
+                      {cf.type === 'checkbox' ? (
+                        <TouchableOpacity
+                          onPress={() => handleCfValue(cf.id, currentVal === 'true' ? 'false' : 'true')}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        >
+                          <MaterialCommunityIcons
+                            name={currentVal === 'true' ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                            size={20} color={currentVal === 'true' ? '#8B5CF6' : theme.colors.onSurfaceVariant}
+                          />
+                          <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 12 }}>{currentVal === 'true' ? 'Yes' : 'No'}</Text>
+                        </TouchableOpacity>
+                      ) : cf.type === 'select' && cf.options?.length ? (
+                        <Menu
+                          visible={cfMenuOpenId === cf.id}
+                          onDismiss={() => setCfMenuOpenId(null)}
+                          anchor={
+                            <TouchableOpacity onPress={() => setCfMenuOpenId(cf.id)} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                              <Text style={{ color: currentVal ? theme.colors.onSurface : theme.colors.onSurfaceVariant, fontSize: 13 }}>
+                                {currentVal || 'None'}
+                              </Text>
+                              <MaterialCommunityIcons name="chevron-down" size={14} color={theme.colors.onSurfaceVariant} />
+                            </TouchableOpacity>
+                          }
+                        >
+                          <Menu.Item title="None" leadingIcon="close-circle-outline" onPress={() => { setCfMenuOpenId(null); handleCfValue(cf.id, ''); }} />
+                          <Divider />
+                          {(cf.options || []).map(opt => (
+                            <Menu.Item
+                              key={opt}
+                              title={opt}
+                              leadingIcon={currentVal === opt ? 'check-circle' : 'circle-outline'}
+                              onPress={() => { setCfMenuOpenId(null); handleCfValue(cf.id, opt); }}
+                              titleStyle={{ color: currentVal === opt ? '#8B5CF6' : undefined }}
+                            />
+                          ))}
+                        </Menu>
+                      ) : cf.type === 'date' ? (
+                        <input
+                          type="date"
+                          value={currentVal}
+                          onChange={e => handleCfValue(cf.id, e.target.value)}
+                          style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: 13, color: currentVal ? (isDark ? '#E2E8F0' : '#0F172A') : (isDark ? '#64748B' : '#94A3B8'), fontFamily: 'inherit', cursor: 'pointer', colorScheme: isDark ? 'dark' : 'light' }}
+                        />
+                      ) : (
+                        <input
+                          type={cf.type === 'number' ? 'number' : 'text'}
+                          defaultValue={currentVal}
+                          onBlur={e => { if (e.target.value !== currentVal) handleCfValue(cf.id, e.target.value); }}
+                          placeholder={cf.type === 'url' ? 'https://...' : `Enter ${cf.name.toLowerCase()}`}
+                          style={{ border: 'none', outline: 'none', backgroundColor: 'transparent', fontSize: 13, color: isDark ? '#E2E8F0' : '#0F172A', fontFamily: 'inherit', width: '100%', minWidth: 0 }}
+                        />
+                      )}
+                    </SbRow>
+                  );
+                })}
               </>
             )}
 

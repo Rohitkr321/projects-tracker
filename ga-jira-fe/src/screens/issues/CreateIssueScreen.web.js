@@ -3,7 +3,7 @@ import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { Text, useTheme, Menu, Divider, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCreateIssueMutation, usePresignImageUploadMutation, useConfirmImageUploadMutation } from '../../api/issueApi';
-import { useGetProjectWorkflowQuery, useGetProjectMembersQuery, useGetEpicsQuery } from '../../api/projectApi';
+import { useGetProjectWorkflowQuery, useGetProjectMembersQuery, useGetEpicsQuery, useGetLabelsQuery } from '../../api/projectApi';
 import { useGetSprintsQuery } from '../../api/sprintApi';
 import { ISSUE_TYPE_LABELS, PRIORITY_LABELS } from '../../constants';
 import AppToast from '../../components/common/AppToast';
@@ -194,6 +194,8 @@ export default function CreateIssueScreen({ route, navigation }) {
   const [epicId, setEpicId]             = useState(null);
   const [storyPoints, setStoryPoints]   = useState('');
   const [dueDate, setDueDate]           = useState('');
+  const [selectedLabelIds, setSelectedLabelIds] = useState([]);
+  const [labelMenuOpen, setLabelMenuOpen]       = useState(false);
   const [attachments, setAttachments]     = useState([]); // [{ file, isImage, previewUrl }]
   const [dragOver, setDragOver]           = useState(false);
   const [links, setLinks]                 = useState([]);
@@ -216,6 +218,8 @@ export default function CreateIssueScreen({ route, navigation }) {
   const { data: membersData  } = useGetProjectMembersQuery(projectId, { skip: !projectId });
   const { data: sprintsData  } = useGetSprintsQuery({ projectId }, { skip: !projectId });
   const { data: epicsData    } = useGetEpicsQuery({ projectId }, { skip: !projectId });
+  const { data: labelsData   } = useGetLabelsQuery(projectId, { skip: !projectId });
+  const allLabels = labelsData?.data || [];
   const [createIssue, { isLoading }]  = useCreateIssueMutation();
   const [presignImageUpload]           = usePresignImageUploadMutation();
   const [confirmImageUpload]           = useConfirmImageUploadMutation();
@@ -306,6 +310,7 @@ export default function CreateIssueScreen({ route, navigation }) {
         ...(statuses[0]?.id  && { workflowStatusId: statuses[0].id }),
         ...(storyPoints      && { storyPoints: parseInt(storyPoints, 10) }),
         ...(dueDate          && { dueDate }),
+        ...(selectedLabelIds.length && { labelIds: selectedLabelIds }),
         ...(pendingLinks.length && { attachmentLinks: pendingLinks }),
       };
       const result = await createIssue({ body, projectId, sprintId: sprintId || null }).unwrap();
@@ -874,6 +879,47 @@ export default function CreateIssueScreen({ route, navigation }) {
                 />
               </div>
             </View>
+
+            {allLabels.length > 0 && (
+              <View style={styles.sideField}>
+                <SideLabel icon="tag-outline" iconColor="#06B6D4" iconBg="#ECFEFF" text="Labels" theme={theme} />
+                <Menu
+                  visible={labelMenuOpen}
+                  onDismiss={() => setLabelMenuOpen(false)}
+                  anchor={
+                    <DropTrigger onPress={() => setLabelMenuOpen(true)} theme={theme}>
+                      {selectedLabelIds.length === 0 ? (
+                        <>
+                          <MaterialCommunityIcons name="tag-outline" size={16} color={theme.colors.onSurfaceVariant} />
+                          <Text style={[styles.dropPlaceholder, { color: theme.colors.onSurfaceVariant }]}>None</Text>
+                        </>
+                      ) : (
+                        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, flex: 1 }}>
+                          {allLabels.filter(l => selectedLabelIds.includes(l.id)).map(l => (
+                            <View key={l.id} style={{ backgroundColor: (l.color || '#3B82F6') + '18', borderWidth: 1, borderColor: (l.color || '#3B82F6') + '40', borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2 }}>
+                              <Text style={{ color: l.color || '#3B82F6', fontSize: 11, fontWeight: '600' }}>{l.name}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      )}
+                    </DropTrigger>
+                  }
+                >
+                  {allLabels.map(lbl => {
+                    const active = selectedLabelIds.includes(lbl.id);
+                    return (
+                      <Menu.Item
+                        key={lbl.id}
+                        title={lbl.name}
+                        leadingIcon={active ? 'check-circle' : 'circle-outline'}
+                        onPress={() => setSelectedLabelIds(prev => active ? prev.filter(id => id !== lbl.id) : [...prev, lbl.id])}
+                        titleStyle={{ color: active ? lbl.color || '#3B82F6' : undefined }}
+                      />
+                    );
+                  })}
+                </Menu>
+              </View>
+            )}
 
             <Divider style={{ marginVertical: 4 }} />
 

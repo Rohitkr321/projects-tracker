@@ -540,6 +540,7 @@ export default function TeamScreen() {
   const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [toast,            setToast]            = useState('');
   const [toastType,        setToastType]        = useState('success');
+  const [activeTab,        setActiveTab]        = useState('members');
 
   const showToast = (msg, type = 'success') => { setToast(msg); setToastType(type); };
 
@@ -563,7 +564,7 @@ export default function TeamScreen() {
       showToast('Role updated');
       if (selectedUser?.id === userId) setSelectedUser(prev => ({ ...prev, role: newRole }));
       refetch();
-    } catch { showToast('Failed to update role', 'error'); }
+    } catch (err) { showToast(err?.data?.message || 'Failed to update role', 'error'); }
   };
 
   const handleToggleActive = async () => {
@@ -678,11 +679,31 @@ export default function TeamScreen() {
         </View>
       </View>
 
+      {/* ── Tab bar ── */}
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: border, backgroundColor: surf, paddingHorizontal: 24 }}>
+        {[
+          { key: 'members', label: 'Members', icon: 'account-group-outline' },
+          { key: 'workload', label: 'Workload', icon: 'chart-bar' },
+        ].map(tab => {
+          const active = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key)}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 13, paddingHorizontal: 6, marginRight: 20, borderBottomWidth: 2, borderBottomColor: active ? NAVY : 'transparent' }}
+            >
+              <MaterialCommunityIcons name={tab.icon} size={15} color={active ? NAVY : theme.colors.onSurfaceVariant} />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: active ? NAVY : theme.colors.onSurfaceVariant }}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       {/* ── Body ── */}
       <View style={styles.body}>
 
         {/* ── Member card grid ── */}
-        <View style={{ flex: 1, overflow: 'hidden' }}>
+        {activeTab === 'members' && <View style={{ flex: 1, overflow: 'hidden' }}>
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.cardGrid}>
             {isLoading && (
               <View style={styles.emptyState}>
@@ -715,10 +736,10 @@ export default function TeamScreen() {
               />
             ))}
           </ScrollView>
-        </View>
+        </View>}
 
         {/* ── Detail Drawer ── */}
-        {selectedUser && (
+        {activeTab === 'members' && selectedUser && (
           <UserDrawer
             user={selectedUser}
             canManage={canManage}
@@ -729,6 +750,87 @@ export default function TeamScreen() {
             onRoleChanged={handleRoleChange}
             onToast={showToast}
           />
+        )}
+
+        {/* ── Workload tab ── */}
+        {activeTab === 'workload' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 24, gap: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <MaterialCommunityIcons name="chart-bar" size={20} color={NAVY} />
+              <View>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: theme.colors.onSurface }}>Team Workload</Text>
+                <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>Active issues per member · ranked by load</Text>
+              </View>
+            </View>
+
+            {allUsers
+              .filter(u => u.isActive !== false)
+              .sort((a, b) => (b.openIssues || 0) - (a.openIssues || 0))
+              .map(u => {
+                const open = u.openIssues || 0;
+                const done = u.doneIssues || 0;
+                const total = open + done;
+                const loadPct = total > 0 ? Math.round((open / total) * 100) : 0;
+                const barColor = loadPct > 70 ? '#EF4444' : loadPct > 45 ? '#F59E0B' : '#10B981';
+                const barLabel = loadPct > 70 ? 'Overloaded' : loadPct > 45 ? 'Busy' : 'Healthy';
+                const barLabelColor = loadPct > 70 ? '#EF4444' : loadPct > 45 ? '#F59E0B' : '#10B981';
+                return (
+                  <View key={u.id} style={{ backgroundColor: surf, borderWidth: 1, borderColor: border, borderRadius: 10, padding: 16, gap: 10 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <UserAvatar user={u} size={38} />
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <Text style={{ fontSize: 14, fontWeight: '700', color: theme.colors.onSurface }}>
+                            {u.firstName} {u.lastName}
+                          </Text>
+                          <View style={{ backgroundColor: (ROLE_COLOR[u.role] || '#6B7280') + '18', borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 10, fontWeight: '700', color: ROLE_COLOR[u.role] || '#6B7280' }}>
+                              {ROLE_LABELS[u.role] || u.role}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>{u.email}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 2 }}>
+                        <Text style={{ fontSize: 20, fontWeight: '900', color: barColor }}>{open}</Text>
+                        <Text style={{ fontSize: 10, color: theme.colors.onSurfaceVariant }}>open issues</Text>
+                      </View>
+                    </View>
+
+                    {/* Capacity bar */}
+                    <View style={{ gap: 6 }}>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Text style={{ fontSize: 11, fontWeight: '600', color: theme.colors.onSurfaceVariant }}>
+                          {open} open · {done} done · {total} total
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: barColor }} />
+                          <Text style={{ fontSize: 11, fontWeight: '700', color: barLabelColor }}>{barLabel}</Text>
+                          <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>· {loadPct}% load</Text>
+                        </View>
+                      </View>
+                      <View style={{ height: 10, borderRadius: 5, backgroundColor: theme.dark ? '#1E2D40' : '#E2E8F0', overflow: 'hidden' }}>
+                        <View style={{ width: `${Math.min(loadPct, 100)}%`, height: '100%', borderRadius: 5, backgroundColor: barColor }} />
+                      </View>
+                      {total === 0 && (
+                        <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant, fontStyle: 'italic' }}>No issues assigned</Text>
+                      )}
+                    </View>
+                  </View>
+                );
+              })
+            }
+
+            {/* Legend */}
+            <View style={{ flexDirection: 'row', gap: 16, paddingTop: 8, flexWrap: 'wrap' }}>
+              {[{ color: '#10B981', label: 'Healthy (≤45% load)' }, { color: '#F59E0B', label: 'Busy (45–70% load)' }, { color: '#EF4444', label: 'Overloaded (>70% load)' }].map(l => (
+                <View key={l.label} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: l.color }} />
+                  <Text style={{ fontSize: 11, color: theme.colors.onSurfaceVariant }}>{l.label}</Text>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
         )}
       </View>
 

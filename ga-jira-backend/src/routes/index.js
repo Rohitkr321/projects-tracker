@@ -22,6 +22,7 @@ router.use('/projects/:projectId/boards', require('./board.routes'));
 router.use('/projects/:projectId/milestones', require('./milestone.routes'));
 router.use('/projects/:projectId/releases', require('./release.routes'));
 router.use('/projects/:projectId/documents', require('./document.routes'));
+router.use('/projects/:projectId/labels', require('./label.routes'));
 router.use('/projects/:projectId/custom-fields', require('./customField.routes'));
 router.use('/projects/:projectId/webhooks', require('./webhook.routes'));
 router.use('/projects/:projectId/reports', require('./report.routes'));

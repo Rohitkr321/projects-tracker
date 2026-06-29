@@ -1,14 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 import { View, StyleSheet, ScrollView, TouchableOpacity, useWindowDimensions } from 'react-native';
 import {
   Text, Surface, useTheme, Button,
-  Dialog, Portal, TextInput,
+  Dialog, Portal, TextInput, Menu, Divider,
 } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
   useGetProjectQuery,
   useGetProjectMembersQuery,
   useGetProjectStatsQuery,
+  useUpdateProjectMutation,
+  useGetReleasesQuery,
+  useCreateReleaseMutation,
+  useUpdateReleaseMutation,
+  useMarkReleasedMutation,
+  useDeleteReleaseMutation,
 } from '../../api/projectApi';
 import { useGetSprintsQuery, useGetActiveSprintQuery, useCreateSprintMutation } from '../../api/sprintApi';
 import { useGetProjectIssuesQuery, useGetIssuesQuery, useMoveIssuesToSprintMutation } from '../../api/issueApi';
@@ -28,8 +35,9 @@ const TAB_SPRINTS = 'sprints';
 const TAB_MEMBERS = 'members';
 const TAB_ROADMAP = 'roadmap';
 const TAB_CALENDAR = 'calendar';
+const TAB_RELEASES = 'releases';
 
-const tabs = [TAB_OVERVIEW, TAB_BOARD, TAB_BACKLOG, TAB_SPRINTS, TAB_ROADMAP, TAB_CALENDAR, TAB_MEMBERS];
+const tabs = [TAB_OVERVIEW, TAB_BOARD, TAB_BACKLOG, TAB_SPRINTS, TAB_ROADMAP, TAB_CALENDAR, TAB_RELEASES, TAB_MEMBERS];
 const TAB_LABEL = {
   overview: 'Overview',
   board: 'Board',
@@ -37,6 +45,7 @@ const TAB_LABEL = {
   sprints: 'Sprints',
   roadmap: 'Roadmap',
   calendar: 'Calendar',
+  releases: 'Releases',
   members: 'Members',
 };
 const TAB_ICON = {
@@ -46,6 +55,7 @@ const TAB_ICON = {
   sprints: 'lightning-bolt-outline',
   roadmap: 'chart-gantt',
   calendar: 'calendar-month-outline',
+  releases: 'package-variant-closed',
   members: 'account-group-outline',
 };
 
@@ -149,6 +159,7 @@ const ProjectDetailScreen = ({ route, navigation }) => {
 
   const { data: projectResp, isLoading } = useGetProjectQuery(projectId);
   const { data: membersResp } = useGetProjectMembersQuery(projectId);
+  useProjectScrollbar(projectResp?.data?.color);
   const { data: statsResp } = useGetProjectStatsQuery(projectId);
   const { data: activeSprintResp } = useGetActiveSprintQuery(projectId);
   const { data: sprintsResp, refetch: refetchSprints } = useGetSprintsQuery({ projectId });
@@ -156,6 +167,23 @@ const ProjectDetailScreen = ({ route, navigation }) => {
   const { data: backlogResp } = useGetIssuesQuery({ projectId, noSprint: 'true', limit: 200 });
   const [createSprint, { isLoading: creatingSprint }] = useCreateSprintMutation();
   const [moveIssuesToSprint, { isLoading: movingIssues }] = useMoveIssuesToSprintMutation();
+  const [updateProject] = useUpdateProjectMutation();
+
+  // Releases
+  const { data: releasesResp, refetch: refetchReleases } = useGetReleasesQuery(projectId, { skip: activeTab !== TAB_RELEASES });
+  const [createRelease, { isLoading: creatingRelease }] = useCreateReleaseMutation();
+  const [updateRelease] = useUpdateReleaseMutation();
+  const [markReleased] = useMarkReleasedMutation();
+  const [deleteRelease] = useDeleteReleaseMutation();
+  const releases = releasesResp?.data || [];
+  const [leadMenuOpen, setLeadMenuOpen] = useState(false);
+  const [releaseDialog, setReleaseDialog] = useState(false);
+  const [releaseName, setReleaseName] = useState('');
+  const [releaseVersion, setReleaseVersion] = useState('');
+  const [releaseDesc, setReleaseDesc] = useState('');
+  const [releaseDate, setReleaseDate] = useState('');
+  const [releaseMenuId, setReleaseMenuId] = useState(null);
+  const [deleteReleaseDialog, setDeleteReleaseDialog] = useState(null);
 
   const backlogIssues = backlogResp?.data?.data || [];
 
@@ -174,6 +202,46 @@ const ProjectDetailScreen = ({ route, navigation }) => {
 
   const toggleIssue = (id) =>
     setSelectedIssueIds((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
+
+  const handleCreateRelease = async () => {
+    if (!releaseName.trim()) return;
+    try {
+      await createRelease({ projectId, name: releaseName.trim(), version: releaseVersion.trim() || undefined, description: releaseDesc.trim() || undefined, releaseDate: releaseDate || undefined }).unwrap();
+      setReleaseDialog(false);
+      setReleaseName(''); setReleaseVersion(''); setReleaseDesc(''); setReleaseDate('');
+      refetchReleases();
+      showToast('Release created');
+    } catch (err) { showToast(err?.data?.message || 'Failed to create release', 'error'); }
+  };
+
+  const handleMarkReleased = async (releaseId) => {
+    try {
+      await markReleased({ projectId, releaseId }).unwrap();
+      refetchReleases();
+      showToast('Marked as released');
+    } catch (err) { showToast(err?.data?.message || 'Failed to mark released', 'error'); }
+  };
+
+  const handleSetLead = async (userId) => {
+    setLeadMenuOpen(false);
+    try { await updateProject({ id: projectId, leadId: userId || null }).unwrap(); showToast('Project lead updated'); }
+    catch (err) { showToast(err?.data?.message || 'Failed to update lead', 'error'); }
+  };
+
+  const handleProjectDate = async (field, value) => {
+    try { await updateProject({ id: projectId, [field]: value || null }).unwrap(); showToast(`Project ${field === 'startDate' ? 'start' : 'end'} date updated`); }
+    catch (err) { showToast(err?.data?.message || 'Failed to update date', 'error'); }
+  };
+
+  const handleDeleteRelease = async () => {
+    if (!deleteReleaseDialog) return;
+    try {
+      await deleteRelease({ projectId, releaseId: deleteReleaseDialog.id }).unwrap();
+      setDeleteReleaseDialog(null);
+      refetchReleases();
+      showToast('Release deleted');
+    } catch (err) { showToast(err?.data?.message || 'Failed to delete release', 'error'); }
+  };
 
   const resetSprintDialog = () => {
     setSprintDialog(false);
@@ -650,10 +718,84 @@ const ProjectDetailScreen = ({ route, navigation }) => {
                 <View style={styles.infoList}>
                   <InfoRow label="Key" value={project.key} theme={theme} />
                   <InfoRow label="Type" value={titleCase(project.type || 'scrum')} theme={theme} />
-                  <InfoRow label="Lead" value={getPersonName(project.lead)} theme={theme} />
+                  {/* Lead — editable dropdown */}
+                  <View style={styles.infoRow}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>Lead</Text>
+                    <Menu
+                      visible={leadMenuOpen}
+                      onDismiss={() => setLeadMenuOpen(false)}
+                      anchor={
+                        <TouchableOpacity
+                          onPress={() => setLeadMenuOpen(true)}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}
+                        >
+                          <Text style={[styles.infoValue, { color: project.lead ? theme.colors.onSurface : theme.colors.onSurfaceVariant }]}>
+                            {project.lead ? getPersonName(project.lead) : 'Unassigned'}
+                          </Text>
+                          <MaterialCommunityIcons name="pencil-outline" size={12} color={theme.colors.onSurfaceVariant} />
+                        </TouchableOpacity>
+                      }
+                    >
+                      <Menu.Item
+                        title="No lead"
+                        leadingIcon="account-off-outline"
+                        onPress={() => handleSetLead(null)}
+                      />
+                      <Divider />
+                      {members.map(m => {
+                        const u = m.user || m;
+                        return (
+                          <Menu.Item
+                            key={u.id}
+                            title={`${u.firstName} ${u.lastName}`}
+                            leadingIcon={project.lead?.id === u.id ? 'check-circle' : 'account-outline'}
+                            onPress={() => handleSetLead(u.id)}
+                            titleStyle={{ color: project.lead?.id === u.id ? accent : undefined }}
+                          />
+                        );
+                      })}
+                    </Menu>
+                  </View>
                   <InfoRow label="Status" value={statusTone.label} valueColor={statusTone.text} theme={theme} />
-                  <InfoRow label="Start" value={project.startDate ? formatDate(project.startDate) : 'Not set'} theme={theme} />
-                  <InfoRow label="End" value={project.endDate ? formatDate(project.endDate) : 'Not set'} theme={theme} />
+                  {/* Start date — inline editable */}
+                  <View style={[styles.infoRow, { alignItems: 'center' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>Start</Text>
+                    <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <TouchableOpacity
+                          onPress={() => { const el = document.getElementById('proj-start-date'); el && el.showPicker?.(); }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                        >
+                          <Text style={[styles.infoValue, { color: project.startDate ? theme.colors.onSurface : theme.colors.onSurfaceVariant }]}>
+                            {project.startDate ? formatDate(project.startDate) : 'Not set'}
+                          </Text>
+                          <MaterialCommunityIcons name="pencil-outline" size={12} color={theme.colors.onSurfaceVariant} />
+                        </TouchableOpacity>
+                        <input id="proj-start-date" type="date" value={project.startDate || ''} onChange={e => handleProjectDate('startDate', e.target.value)}
+                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }} />
+                      </div>
+                    </View>
+                  </View>
+                  {/* End date — inline editable */}
+                  <View style={[styles.infoRow, { alignItems: 'center' }]}>
+                    <Text style={[styles.infoLabel, { color: theme.colors.onSurfaceVariant }]}>End</Text>
+                    <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                        <TouchableOpacity
+                          onPress={() => { const el = document.getElementById('proj-end-date'); el && el.showPicker?.(); }}
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                        >
+                          <Text style={[styles.infoValue, { color: project.endDate ? theme.colors.onSurface : theme.colors.onSurfaceVariant }]}>
+                            {project.endDate ? formatDate(project.endDate) : 'Not set'}
+                          </Text>
+                          <MaterialCommunityIcons name="pencil-outline" size={12} color={theme.colors.onSurfaceVariant} />
+                        </TouchableOpacity>
+                        <input id="proj-end-date" type="date" value={project.endDate || ''} onChange={e => handleProjectDate('endDate', e.target.value)}
+                          min={project.startDate || undefined}
+                          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none' }} />
+                      </div>
+                    </View>
+                  </View>
                 </View>
               </Surface>
 
@@ -853,6 +995,112 @@ const ProjectDetailScreen = ({ route, navigation }) => {
                         </View>
                       </View>
                     </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
+          </View>
+        )}
+
+        {activeTab === TAB_RELEASES && (
+          <View>
+            <View style={[styles.tabContentHeader, isNarrow && styles.tabContentHeaderStack]}>
+              <View>
+                <Text style={[styles.tabContentTitle, { color: theme.colors.onSurface }]}>Releases</Text>
+                <Text style={[styles.tabContentSub, { color: theme.colors.onSurfaceVariant }]}>
+                  {releases.length} release{releases.length !== 1 ? 's' : ''} in this project
+                </Text>
+              </View>
+              <Button
+                mode="contained"
+                icon="plus"
+                compact
+                onPress={() => setReleaseDialog(true)}
+                style={{ backgroundColor: colors.brand?.navy || '#0F2557' }}
+                labelStyle={{ color: '#fff', fontSize: 13 }}
+              >
+                New Release
+              </Button>
+            </View>
+
+            {releases.length === 0 ? (
+              <View style={{ alignItems: 'center', paddingVertical: 64 }}>
+                <MaterialCommunityIcons name="package-variant-closed" size={48} color={theme.colors.onSurfaceVariant} style={{ opacity: 0.4 }} />
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 16, fontWeight: '600', marginTop: 16 }}>No releases yet</Text>
+                <Text style={{ color: theme.colors.onSurfaceVariant, fontSize: 13, marginTop: 6 }}>Create a release to track versions and ship features.</Text>
+                <Button mode="contained" icon="plus" style={{ marginTop: 20, backgroundColor: colors.brand?.navy || '#0F2557' }} onPress={() => setReleaseDialog(true)}>
+                  Create first release
+                </Button>
+              </View>
+            ) : (
+              <View style={{ gap: 10 }}>
+                {releases.map((rel) => {
+                  const statusColor = rel.status === 'released' ? '#10B981' : rel.status === 'archived' ? '#6B7280' : '#3B82F6';
+                  const statusLabel = rel.status === 'released' ? 'Released' : rel.status === 'archived' ? 'Archived' : 'Unreleased';
+                  return (
+                    <Surface key={rel.id} style={{
+                      borderRadius: 10, borderWidth: 1,
+                      borderColor: theme.colors.outlineVariant,
+                      backgroundColor: theme.dark ? '#101B2F' : '#fff',
+                      padding: 16, flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+                    }} elevation={0}>
+                      <View style={{ width: 38, height: 38, borderRadius: 10, backgroundColor: `${statusColor}18`, borderWidth: 1, borderColor: `${statusColor}40`, justifyContent: 'center', alignItems: 'center', marginTop: 2 }}>
+                        <MaterialCommunityIcons
+                          name={rel.status === 'released' ? 'package-variant-closed-check' : rel.status === 'archived' ? 'archive-outline' : 'package-variant'}
+                          size={20} color={statusColor}
+                        />
+                      </View>
+                      <View style={{ flex: 1, gap: 3 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <Text style={{ fontSize: 15, fontWeight: '700', color: theme.colors.onSurface }}>{rel.name}</Text>
+                          {!!rel.version && (
+                            <View style={{ backgroundColor: theme.dark ? '#1E2D40' : '#F1F5F9', borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2 }}>
+                              <Text style={{ fontSize: 11, fontWeight: '700', color: theme.colors.onSurfaceVariant, fontFamily: 'monospace' }}>v{rel.version}</Text>
+                            </View>
+                          )}
+                          <View style={{ backgroundColor: `${statusColor}18`, borderWidth: 1, borderColor: `${statusColor}40`, borderRadius: 5, paddingHorizontal: 8, paddingVertical: 2 }}>
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: statusColor }}>{statusLabel}</Text>
+                          </View>
+                        </View>
+                        {!!rel.description && <Text style={{ fontSize: 13, color: theme.colors.onSurfaceVariant }}>{rel.description}</Text>}
+                        {!!rel.releaseDate && (
+                          <Text style={{ fontSize: 12, color: theme.colors.onSurfaceVariant }}>
+                            Target: {formatDate(rel.releaseDate)}
+                          </Text>
+                        )}
+                        {!!rel.releasedAt && (
+                          <Text style={{ fontSize: 12, color: '#10B981' }}>
+                            Released {formatRelative(rel.releasedAt)}
+                          </Text>
+                        )}
+                      </View>
+                      <Menu
+                        visible={releaseMenuId === rel.id}
+                        onDismiss={() => setReleaseMenuId(null)}
+                        anchor={
+                          <TouchableOpacity
+                            onPress={() => setReleaseMenuId(rel.id)}
+                            style={{ padding: 6, borderRadius: 6, backgroundColor: theme.colors.surfaceVariant }}
+                          >
+                            <MaterialCommunityIcons name="dots-vertical" size={18} color={theme.colors.onSurfaceVariant} />
+                          </TouchableOpacity>
+                        }
+                      >
+                        {rel.status === 'unreleased' && (
+                          <Menu.Item
+                            title="Mark as Released"
+                            leadingIcon="check-circle-outline"
+                            onPress={() => { setReleaseMenuId(null); handleMarkReleased(rel.id); }}
+                          />
+                        )}
+                        <Menu.Item
+                          title="Delete"
+                          leadingIcon="trash-can-outline"
+                          onPress={() => { setReleaseMenuId(null); setDeleteReleaseDialog(rel); }}
+                          titleStyle={{ color: colors.danger }}
+                        />
+                      </Menu>
+                    </Surface>
                   );
                 })}
               </View>
@@ -1106,6 +1354,74 @@ const ProjectDetailScreen = ({ route, navigation }) => {
             >
               Add {selectedIssueIds.length > 0 ? `(${selectedIssueIds.length})` : ''} Issues
             </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Create Release Dialog */}
+        <Dialog visible={releaseDialog} onDismiss={() => setReleaseDialog(false)} style={styles.dialog}>
+          <Dialog.Icon icon="package-variant" />
+          <Dialog.Title style={{ textAlign: 'center' }}>New Release</Dialog.Title>
+          <Dialog.Content style={{ gap: 12 }}>
+            <TextInput
+              label="Release name *"
+              value={releaseName}
+              onChangeText={setReleaseName}
+              mode="outlined"
+              dense
+              placeholder="e.g. Q3 Release"
+            />
+            <TextInput
+              label="Version"
+              value={releaseVersion}
+              onChangeText={setReleaseVersion}
+              mode="outlined"
+              dense
+              placeholder="e.g. 1.2.0"
+            />
+            <TextInput
+              label="Description"
+              value={releaseDesc}
+              onChangeText={setReleaseDesc}
+              mode="outlined"
+              dense
+              multiline
+              numberOfLines={2}
+              placeholder="What's included in this release?"
+            />
+            <View style={{ borderWidth: 1, borderRadius: 8, borderColor: releaseDate ? theme.colors.primary : theme.colors.outline, backgroundColor: theme.dark ? '#0D1B2E' : '#F8FAFC', overflow: 'hidden' }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 2 }}>
+                <MaterialCommunityIcons name="calendar-check-outline" size={14} color={releaseDate ? theme.colors.primary : theme.colors.onSurfaceVariant} />
+                <Text style={{ fontSize: 10, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5, color: releaseDate ? theme.colors.primary : theme.colors.onSurfaceVariant }}>Target release date</Text>
+              </View>
+              <input
+                type="date"
+                value={releaseDate}
+                onChange={(e) => setReleaseDate(e.target.value)}
+                style={{ display: 'block', width: '100%', padding: '4px 12px 10px', border: 'none', outline: 'none', boxSizing: 'border-box', fontSize: 14, fontWeight: '700', backgroundColor: 'transparent', color: theme.dark ? '#E2E8F0' : '#0F172A', colorScheme: theme.dark ? 'dark' : 'light', cursor: 'pointer' }}
+              />
+            </View>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setReleaseDialog(false)}>Cancel</Button>
+            <Button mode="contained" onPress={handleCreateRelease} loading={creatingRelease} disabled={!releaseName.trim() || creatingRelease} style={{ backgroundColor: colors.brand?.navy || '#0F2557' }}>
+              Create
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        {/* Delete Release Dialog */}
+        <Dialog visible={!!deleteReleaseDialog} onDismiss={() => setDeleteReleaseDialog(null)} style={styles.dialog}>
+          <Dialog.Icon icon="package-variant-remove" color={colors.danger} />
+          <Dialog.Title style={{ textAlign: 'center', color: colors.danger }}>Delete Release</Dialog.Title>
+          <Dialog.Content>
+            <Text variant="bodyMedium" style={{ textAlign: 'center', color: theme.colors.onSurface }}>
+              Delete <Text style={{ fontWeight: '700' }}>{deleteReleaseDialog?.name}</Text>?{'\n'}
+              This action cannot be undone.
+            </Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteReleaseDialog(null)}>Cancel</Button>
+            <Button mode="contained" buttonColor={colors.danger} onPress={handleDeleteRelease}>Delete</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
