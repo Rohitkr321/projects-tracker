@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetProjectQuery, useGetEpicsQuery } from '../../api/projectApi';
 import { useGetSprintsQuery } from '../../api/sprintApi';
 import colors from '../../theme/colors';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 
 const NAVY = colors.brand.navy;
 const ROW_H = 48;
@@ -53,6 +54,7 @@ export default function TimelineScreen({ route, navigation }) {
 
   const project = projectResp?.data || projectResp || {};
   const accent = project.color || NAVY;
+  useProjectScrollbar(project.color);
   const sprints = (sprintsData?.data?.data || []).filter((s) => s.startDate && s.endDate);
   const epics = (epicsData?.data || []).filter((e) => e.startDate && e.endDate);
   const isLoading = loadingSprints || loadingEpics;

@@ -1,0 +1,1744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cadence — Project Management for Organizations</title>
+<meta name="description" content="The platform organizations trust to align every team, sprint, and milestone — on Web, iOS, and Android.">
+<style>
+/* ─── RESET & VARS ─────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+:root{
+  --bg:#020B18; --bg2:#030E1E; --bg3:rgba(8,18,40,0.72);
+  --border:rgba(59,130,246,0.12); --border2:rgba(255,255,255,0.07);
+  --accent:#3B82F6; --accentL:#60A5FA; --violet:#8B5CF6;
+  --amber:#F59E0B; --success:#10B981; --danger:#EF4444;
+  --text:#94A3B8; --strong:#F1F5F9; --muted:#475569;
+  --glow:rgba(59,130,246,0.2);
+}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.6;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(59,130,246,.042) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,.042) 1px,transparent 1px);background-size:64px 64px;pointer-events:none;z-index:0;}
+
+/* ─── LAYOUT ───────────────────────────────────────── */
+.container{max-width:1120px;margin:0 auto;padding:0 40px;position:relative;z-index:1;}
+.section-pad{padding:96px 0;}
+@media(max-width:768px){.container{padding:0 22px;}.section-pad{padding:64px 0;}}
+
+/* ─── TYPOGRAPHY ───────────────────────────────────── */
+.ey{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin-bottom:14px;font-weight:600;display:block;}
+.section-title{font-size:clamp(30px,4.5vw,52px);font-weight:900;color:var(--strong);letter-spacing:-.04em;line-height:1.04;text-wrap:balance;}
+.section-sub{font-size:17px;color:var(--muted);margin-top:14px;line-height:1.68;max-width:560px;}
+.gr{background:linear-gradient(135deg,var(--accentL),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.center{text-align:center;}.center .section-sub{margin-left:auto;margin-right:auto;}
+
+/* ─── BUTTONS ──────────────────────────────────────── */
+.btn{display:inline-flex;align-items:center;gap:8px;text-decoration:none;border-radius:10px;font-weight:700;transition:all .2s;cursor:pointer;border:none;font-size:15px;}
+.btn-primary{padding:14px 30px;background:linear-gradient(90deg,var(--accent),var(--violet));color:#fff;box-shadow:0 4px 28px rgba(59,130,246,.38);}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 8px 40px rgba(59,130,246,.48);}
+.btn-ghost{padding:13px 28px;border:1px solid var(--border);background:rgba(8,18,40,.45);color:var(--text);}
+.btn-ghost:hover{border-color:var(--accent);color:var(--accentL);}
+.btn-sm{font-size:13px;padding:9px 20px;border-radius:8px;}
+
+/* ─── CHIP ─────────────────────────────────────────── */
+.chip{display:inline-block;padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.02em;}
+.chip-b{background:rgba(59,130,246,.12);color:var(--accentL);border:1px solid rgba(59,130,246,.2);}
+.chip-g{background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.18);}
+.chip-v{background:rgba(139,92,246,.12);color:var(--violet);border:1px solid rgba(139,92,246,.2);}
+.chip-a{background:rgba(245,158,11,.12);color:var(--amber);border:1px solid rgba(245,158,11,.2);}
+
+/* ─── CARD ─────────────────────────────────────────── */
+.card{background:var(--bg3);border:1px solid var(--border);border-radius:16px;backdrop-filter:blur(12px);}
+
+/* ─── ANIMATIONS ───────────────────────────────────── */
+.reveal{opacity:0;transform:translateY(28px);transition:opacity .65s ease,transform .65s ease;}
+.reveal.in{opacity:1;transform:translateY(0);}
+.reveal.d1{transition-delay:.1s;}.reveal.d2{transition-delay:.18s;}.reveal.d3{transition-delay:.26s;}.reveal.d4{transition-delay:.34s;}.reveal.d5{transition-delay:.42s;}.reveal.d6{transition-delay:.5s;}
+
+/* ─── NAVIGATION ───────────────────────────────────── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:999;background:rgba(2,11,24,.82);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);}
+.nav-inner{display:flex;align-items:center;padding:0 40px;max-width:1220px;margin:0 auto;height:64px;gap:32px;}
+.nav-logo{font-size:21px;font-weight:900;letter-spacing:-.05em;text-decoration:none;background:linear-gradient(135deg,#F1F5F9,var(--accentL));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;flex-shrink:0;display:flex;align-items:center;gap:10px;}
+.nav-logo-mark{flex-shrink:0;display:block;}
+.nav-links{display:flex;gap:26px;margin-left:auto;}
+.nav-links a{font-size:13.5px;color:var(--muted);text-decoration:none;font-weight:500;transition:color .2s;}
+.nav-links a:hover{color:var(--strong);}
+.nav-cta{display:flex;gap:10px;margin-left:28px;}
+@media(max-width:768px){.nav-links{display:none;}.nav-inner{padding:0 22px;}}
+
+/* ─── HERO ─────────────────────────────────────────── */
+#hero{min-height:100vh;display:flex;align-items:center;padding:100px 0 80px;overflow:visible;position:relative;z-index:1;}
+.hero-glow{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.12) 0%,rgba(139,92,246,.07) 40%,transparent 68%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;animation:breathe 7s ease-in-out infinite;}
+.hero-glow2{position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.07) 0%,transparent 68%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;animation:breathe 7s ease-in-out infinite reverse;}
+@keyframes breathe{0%,100%{transform:translate(-50%,-50%) scale(1);}50%{transform:translate(-50%,-50%) scale(1.07);}}
+.hero-content{max-width:860px;text-align:center;margin:0 auto;position:relative;}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;padding:6px 16px;border:1px solid var(--border);border-radius:100px;font-size:12px;color:var(--muted);background:rgba(8,18,40,.55);margin-bottom:30px;}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.72);}}
+.hero-h1{font-size:clamp(46px,8.5vw,96px);font-weight:900;letter-spacing:-.055em;line-height:.92;color:var(--strong);margin-bottom:26px;}
+.hero-h1 .gr{background:linear-gradient(135deg,#F1F5F9 0%,var(--accentL) 46%,var(--violet) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.hero-sub{font-size:clamp(16px,2.2vw,20px);color:var(--muted);line-height:1.65;margin-bottom:38px;max-width:640px;margin-left:auto;margin-right:auto;}
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:42px;}
+.hero-plat{display:flex;align-items:center;gap:16px;justify-content:center;flex-wrap:wrap;}
+.plat-lbl{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);}
+.plat-badges{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+.plat-b{display:flex;align-items:center;gap:6px;padding:5px 14px;border:1px solid var(--border);border-radius:100px;font-size:11.5px;color:var(--text);background:rgba(8,18,40,.58);white-space:nowrap;}
+.plat-b svg{width:13px;height:13px;flex-shrink:0;}
+
+/* ─── STATS BAR ────────────────────────────────────── */
+.stats-bar{position:relative;z-index:1;border-top:1px solid var(--border);border-bottom:1px solid var(--border);background:rgba(8,18,40,.7);backdrop-filter:blur(8px);}
+.stats-inner{display:flex;}
+.stat-item{flex:1;padding:28px 20px;text-align:center;border-right:1px solid var(--border);}
+.stat-item:last-child{border-right:none;}
+.stat-num{font-size:32px;font-weight:900;letter-spacing:-.04em;font-variant-numeric:tabular-nums;background:linear-gradient(135deg,var(--accentL),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;}
+.stat-lbl{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.4;}
+@media(max-width:640px){.stat-item{padding:20px 10px;}.stat-num{font-size:24px;}.stat-lbl{font-size:10px;}}
+
+/* ─── CHALLENGE ────────────────────────────────────── */
+.prob-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px;}
+@media(max-width:768px){.prob-grid{grid-template-columns:1fr;}}
+.prob-card{padding:32px;background:var(--bg3);border:1px solid var(--border);border-radius:18px;backdrop-filter:blur(10px);}
+.prob-card:nth-child(1){border-top:2px solid var(--accent);}
+.prob-card:nth-child(2){border-top:2px solid var(--amber);}
+.prob-card:nth-child(3){border-top:2px solid var(--violet);}
+.prob-num{font-size:56px;font-weight:900;color:var(--strong);letter-spacing:-.04em;line-height:1;margin-bottom:8px;font-variant-numeric:tabular-nums;}
+.prob-unit{font-size:22px;font-weight:600;color:var(--muted);}
+.prob-title{font-size:16px;font-weight:700;color:var(--strong);margin-bottom:10px;}
+.prob-desc{font-size:13.5px;color:var(--muted);line-height:1.65;}
+
+/* ─── PLATFORM CHIP ROW ────────────────────────────── */
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:28px;}
+
+/* ─── FEATURE BLOCKS ───────────────────────────────── */
+.feat-block{display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;padding:72px 0;border-bottom:1px solid var(--border);}
+.feat-block:last-child{border-bottom:none;}
+.feat-block.reverse{direction:rtl;}
+.feat-block.reverse>*{direction:ltr;}
+@media(max-width:768px){.feat-block{grid-template-columns:1fr;gap:36px;}.feat-block.reverse{direction:ltr;}}
+.feat-list{display:flex;flex-direction:column;gap:14px;margin-top:28px;}
+.feat-item{display:flex;align-items:flex-start;gap:13px;padding:14px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;transition:border-color .2s;}
+.feat-item:hover{border-color:rgba(59,130,246,.3);}
+.feat-icon{width:32px;height:32px;border-radius:8px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.feat-icon svg{width:14px;height:14px;stroke:var(--accentL);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.feat-item-text strong{display:block;font-size:13px;font-weight:700;color:var(--strong);margin-bottom:2px;}
+.feat-item-text span{font-size:12px;color:var(--muted);line-height:1.46;}
+
+/* ─── MOCK: ISSUE CARD ─────────────────────────────── */
+.mock-wrap{background:rgba(4,12,28,.85);border:1px solid var(--border);border-radius:18px;padding:20px;backdrop-filter:blur(12px);}
+.mock-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.mock-hdr-left{display:flex;align-items:center;gap:10px;}
+.mock-proj{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;}
+.mock-id{font-size:10px;color:var(--muted);background:rgba(59,130,246,.1);padding:2px 8px;border-radius:4px;border:1px solid rgba(59,130,246,.18);}
+.mock-priority{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;}
+.mock-priority.high{color:#EF4444;}.mock-priority.med{color:var(--amber);}
+.mock-priority svg{width:10px;height:10px;}
+.mock-title{font-size:15px;font-weight:700;color:var(--strong);margin-bottom:10px;line-height:1.35;}
+.mock-desc{font-size:12.5px;color:var(--muted);margin-bottom:16px;line-height:1.55;}
+.mock-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.mock-status{font-size:11px;padding:4px 10px;border-radius:6px;font-weight:700;}
+.mock-status.prog{background:rgba(59,130,246,.14);color:var(--accentL);border:1px solid rgba(59,130,246,.22);}
+.mock-status.todo{background:rgba(71,85,105,.2);color:var(--muted);border:1px solid rgba(71,85,105,.25);}
+.mock-status.done{background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.2);}
+.mock-pts{font-size:11px;color:var(--muted);background:rgba(255,255,255,.05);padding:3px 8px;border-radius:5px;border:1px solid var(--border2);}
+.mock-avatars{display:flex;gap:-4px;}
+.mock-av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#fff;border:2px solid var(--bg);margin-left:-4px;}
+.mock-av:first-child{margin-left:0;}
+.mock-labels{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;}
+.mock-label{font-size:10px;padding:2px 8px;border-radius:4px;background:rgba(59,130,246,.1);color:var(--accentL);border:1px solid rgba(59,130,246,.18);}
+.mock-label.l2{background:rgba(239,68,68,.1);color:#F87171;border-color:rgba(239,68,68,.2);}
+.mock-label.l3{background:rgba(245,158,11,.1);color:var(--amber);border-color:rgba(245,158,11,.2);}
+.mock-comment{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:10px;padding:12px 14px;}
+.mock-comment-hdr{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.mock-comment-av{width:22px;height:22px;border-radius:50%;background:linear-gradient(135deg,var(--amber),#FCD34D);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:#7C2D12;}
+.mock-comment-name{font-size:11px;font-weight:700;color:var(--strong);}
+.mock-comment-time{font-size:10px;color:var(--muted);}
+.mock-comment-text{font-size:12px;color:var(--muted);}
+.mock-sprint-bar{margin-top:16px;}
+.mock-sprint-info{display:flex;justify-content:space-between;margin-bottom:6px;}
+.mock-sprint-lbl{font-size:11px;color:var(--muted);}
+.mock-sprint-val{font-size:11px;font-weight:700;color:var(--accentL);}
+.mock-bar{height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;}
+.mock-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accentL));}
+
+/* ─── MOCK: KANBAN BOARD ───────────────────────────── */
+.mock-board{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;background:rgba(4,12,28,.85);border:1px solid var(--border);border-radius:18px;padding:16px;backdrop-filter:blur(12px);}
+.kboard-col{background:rgba(8,18,40,.6);border-radius:10px;padding:12px;}
+.kboard-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.kboard-lbl{font-size:10.5px;font-weight:700;color:var(--text);}
+.kboard-cnt{font-size:10px;padding:2px 7px;border-radius:100px;background:rgba(255,255,255,.07);color:var(--muted);}
+.kcard{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;}
+.kcard:last-child{margin-bottom:0;}
+.kcard-type{font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;font-weight:600;}
+.kcard-title{font-size:12px;font-weight:600;color:var(--strong);line-height:1.35;margin-bottom:7px;}
+.kcard-foot{display:flex;align-items:center;justify-content:space-between;}
+.kcard-pts{font-size:9.5px;color:var(--muted);background:rgba(255,255,255,.05);padding:2px 6px;border-radius:4px;}
+.kcard-av{width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff;}
+.kcard-dot{width:6px;height:6px;border-radius:50%;}
+.kcard-dot.red{background:#EF4444;}.kcard-dot.amber{background:var(--amber);}.kcard-dot.green{background:var(--success);}
+
+/* ─── SPRINT WIDGET ────────────────────────────────── */
+.sprint-widget{background:rgba(4,12,28,.85);border:1px solid var(--border);border-radius:18px;padding:22px;backdrop-filter:blur(12px);}
+.sw-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.sw-badge{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--success);}
+.sw-nums{display:flex;gap:24px;margin-bottom:16px;}
+.sw-num-block .num{font-size:30px;font-weight:900;color:var(--strong);letter-spacing:-.03em;font-variant-numeric:tabular-nums;}
+.sw-num-block .lbl{font-size:10.5px;color:var(--muted);margin-top:1px;}
+.sw-bar{height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;margin-bottom:16px;}
+.sw-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accentL));border-radius:3px;}
+.sw-issues{display:flex;flex-direction:column;gap:7px;}
+.sw-issue{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--text);padding:8px 10px;background:rgba(255,255,255,.03);border-radius:7px;border:1px solid var(--border);}
+.sw-issue-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.sw-issue-title{flex:1;}
+.sw-issue-pts{font-size:10px;color:var(--muted);}
+
+/* ─── VIEWS GRID ───────────────────────────────────── */
+.views-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:48px;}
+@media(max-width:768px){.views-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:480px){.views-grid{grid-template-columns:1fr;}}
+.view-card{padding:28px 24px;background:var(--bg3);border:1px solid var(--border);border-radius:16px;transition:border-color .2s,box-shadow .2s;}
+.view-card:hover{border-color:rgba(59,130,246,.28);box-shadow:0 0 32px rgba(59,130,246,.09);}
+.view-icon{width:48px;height:48px;border-radius:12px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;margin-bottom:16px;}
+.view-icon svg{width:22px;height:22px;stroke:var(--accentL);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.view-name{font-size:16px;font-weight:800;color:var(--strong);margin-bottom:8px;}
+.view-desc{font-size:13.5px;color:var(--muted);line-height:1.58;}
+
+/* ─── PLATFORM CARDS ───────────────────────────────── */
+.plat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-top:48px;}
+@media(max-width:768px){.plat-grid{grid-template-columns:1fr;}}
+.plat-card{padding:32px 28px;background:var(--bg3);border:1px solid var(--border);border-radius:18px;backdrop-filter:blur(10px);transition:box-shadow .2s;}
+.plat-card:hover{box-shadow:0 0 40px rgba(59,130,246,.1);}
+.plat-icon{width:58px;height:58px;border-radius:16px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.15);display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+.plat-icon svg{width:28px;height:28px;}
+.plat-name{font-size:18px;font-weight:800;color:var(--strong);margin-bottom:10px;}
+.plat-desc{font-size:14px;color:var(--muted);line-height:1.62;margin-bottom:16px;}
+.plat-tags{display:flex;gap:7px;flex-wrap:wrap;}
+.live-bar{margin-top:32px;padding:16px 24px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.16);border-radius:12px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.live-bar-text{font-size:13.5px;color:var(--text);font-weight:600;flex:1;min-width:200px;}
+.live-bar-tags{display:flex;gap:8px;flex-wrap:wrap;}
+
+/* ─── SECURITY / ROLES ─────────────────────────────── */
+.sec-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:40px;align-items:start;margin-top:48px;}
+@media(max-width:768px){.sec-grid{grid-template-columns:1fr;}}
+.roles-list{display:flex;flex-direction:column;gap:10px;}
+.role-row{display:flex;align-items:center;gap:16px;padding:14px 18px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;}
+.role-badge{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:4px 12px;border-radius:100px;font-weight:700;flex-shrink:0;min-width:130px;text-align:center;}
+.rb-gold{background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.25);}
+.rb-blue{background:rgba(59,130,246,.15);color:var(--accentL);border:1px solid rgba(59,130,246,.25);}
+.rb-green{background:rgba(16,185,129,.12);color:var(--success);border:1px solid rgba(16,185,129,.2);}
+.rb-white{background:rgba(248,250,252,.07);color:var(--text);border:1px solid var(--border2);}
+.rb-muted{background:rgba(71,85,105,.14);color:var(--muted);border:1px solid rgba(71,85,105,.2);}
+.role-desc{font-size:13px;color:var(--muted);line-height:1.46;}
+.sec-cards{display:flex;flex-direction:column;gap:14px;}
+.sec-card{padding:22px;background:var(--bg3);border:1px solid var(--border);border-radius:14px;}
+.sec-card-lbl{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+.sec-card-title{font-size:15px;font-weight:700;color:var(--strong);margin-bottom:6px;}
+.sec-card-desc{font-size:13px;color:var(--muted);line-height:1.58;}
+
+/* ─── COMPARISON ───────────────────────────────────── */
+.tbl-wrap{overflow-x:auto;margin-top:48px;}
+.tbl{width:100%;border-collapse:separate;border-spacing:0;font-size:13.5px;}
+.tbl th{padding:13px 18px;text-align:left;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);background:var(--bg3);border-bottom:1px solid var(--border);}
+.tbl th:first-child{border-radius:14px 0 0 0;}.tbl th:last-child{border-radius:0 14px 0 0;}
+.tbl th.ours{color:var(--accentL);}
+.tbl td{padding:11px 18px;border-bottom:1px solid rgba(59,130,246,.06);color:var(--text);vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:last-child td:first-child{border-radius:0 0 0 14px;}.tbl tr:last-child td:last-child{border-radius:0 0 14px 0;}
+.tbl td:first-child{color:var(--muted);font-size:13px;}
+.tbl .ours-col{background:rgba(59,130,246,.05);font-weight:600;color:var(--strong);}
+.ck{color:var(--success);font-weight:700;font-size:16px;}
+.cx{color:rgba(255,255,255,.14);font-size:16px;}
+.lm{color:var(--amber);font-size:11.5px;letter-spacing:.04em;}
+
+/* ─── PRICING ──────────────────────────────────────── */
+.pricing-note{font-size:13px;color:var(--muted);margin-top:8px;margin-bottom:36px;}
+.pricing-note strong{color:var(--accentL);}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;}
+@media(max-width:768px){.pricing-grid{grid-template-columns:1fr;}}
+.price-card{background:var(--bg3);border:1px solid var(--border);border-radius:20px;padding:32px 28px;position:relative;display:flex;flex-direction:column;backdrop-filter:blur(14px);}
+.price-card.featured{border-color:rgba(59,130,246,.5);background:linear-gradient(160deg,rgba(10,22,50,.96),rgba(14,26,62,.96));box-shadow:0 0 70px rgba(59,130,246,.2),inset 0 1px 0 rgba(255,255,255,.06);}
+.price-card.featured::before{content:'Most Popular';position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,var(--accent),var(--violet));color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;padding:4px 18px;border-radius:100px;white-space:nowrap;}
+.price-tier{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;font-weight:600;}
+.price-amount{font-size:52px;font-weight:900;color:var(--strong);letter-spacing:-.05em;line-height:1;font-variant-numeric:tabular-nums;}
+.price-amount sup{font-size:22px;vertical-align:top;margin-top:10px;display:inline-block;color:var(--muted);font-weight:700;}
+.price-amount span{font-size:14px;font-weight:500;color:var(--muted);}
+.price-users{font-size:13px;color:var(--muted);margin-top:6px;}
+.price-plat{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0 20px;}
+.price-plat span{font-size:10px;padding:3px 9px;border-radius:100px;background:rgba(16,185,129,.1);color:var(--success);border:1px solid rgba(16,185,129,.18);font-weight:600;}
+.price-div{height:1px;background:var(--border);margin-bottom:20px;}
+.price-feats{display:flex;flex-direction:column;gap:10px;flex:1;}
+.pf{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);}
+.pf-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.pf-dotA{width:6px;height:6px;border-radius:50%;background:var(--amber);flex-shrink:0;}
+.pf-x{width:6px;height:6px;border-radius:50%;background:rgba(71,85,105,.35);flex-shrink:0;}
+.pf.dim{color:var(--muted);}
+.price-btn{margin-top:24px;padding:13px 0;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;text-align:center;border:1px solid var(--border2);color:var(--muted);background:transparent;transition:all .2s;letter-spacing:.02em;}
+.price-card.featured .price-btn{background:linear-gradient(90deg,var(--accent),var(--violet));border-color:transparent;color:#fff;box-shadow:0 4px 28px rgba(59,130,246,.38);}
+.price-btn:hover{border-color:var(--accent);color:var(--accentL);}
+.price-card.featured .price-btn:hover{opacity:.9;}
+.pricing-foot{margin-top:22px;text-align:center;font-size:13px;color:var(--muted);padding:16px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;line-height:1.65;}
+.pricing-foot strong{color:var(--text);}
+
+/* ─── IMPLEMENTATION ───────────────────────────────── */
+.impl-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-top:48px;}
+@media(max-width:768px){.impl-grid{grid-template-columns:repeat(2,1fr);}@media(max-width:480px){.impl-grid{grid-template-columns:1fr;}}}
+.impl-card{background:var(--bg3);border:1px solid var(--border);border-radius:16px;padding:26px 22px;position:relative;overflow:hidden;}
+.impl-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;}
+.ic1::before{background:linear-gradient(90deg,var(--accent),var(--accentL));}
+.ic2::before{background:var(--amber);}
+.ic3::before{background:var(--success);}
+.ic4::before{background:linear-gradient(90deg,var(--violet),#A78BFA);}
+.impl-week{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;font-weight:600;}
+.impl-phase{font-size:16px;font-weight:800;color:var(--strong);margin-bottom:14px;}
+.impl-items{display:flex;flex-direction:column;gap:8px;}
+.impl-item{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--muted);line-height:1.42;}
+.impl-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;margin-top:5px;}
+.ic1 .impl-dot{background:var(--accent);}
+.ic2 .impl-dot{background:var(--amber);}
+.ic3 .impl-dot{background:var(--success);}
+.ic4 .impl-dot{background:var(--violet);}
+.impl-tags{margin-top:28px;padding:14px 22px;background:var(--bg3);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.impl-tags-label{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600;white-space:nowrap;}
+
+/* ─── CTA SECTION ──────────────────────────────────── */
+#cta{position:relative;overflow:hidden;padding:120px 0;}
+.cta-glow{position:absolute;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,.13) 0%,rgba(139,92,246,.07) 40%,transparent 68%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;animation:breathe 7s ease-in-out infinite;}
+.cta-inner{text-align:center;position:relative;z-index:1;}
+.cta-logo{font-size:clamp(52px,8vw,88px);font-weight:900;letter-spacing:-.055em;line-height:.9;background:linear-gradient(135deg,#F1F5F9 0%,var(--accentL) 48%,var(--violet) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:20px;}
+.cta-sub{font-size:18px;color:var(--muted);margin-bottom:36px;line-height:1.6;}
+.cta-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:16px;}
+.cta-note{font-size:12px;color:var(--muted);opacity:.7;}
+
+/* ─── FOOTER ───────────────────────────────────────── */
+footer{border-top:1px solid var(--border);padding:36px 0;position:relative;z-index:1;}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.footer-logo{font-size:18px;font-weight:900;letter-spacing:-.04em;background:linear-gradient(135deg,var(--accentL),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:flex;align-items:center;gap:9px;}
+
+/* ─── HERO BRAND MARK ──────────────────────────────── */
+.hero-logo-wrap{display:flex;flex-direction:column;align-items:center;margin-bottom:24px;}
+.hero-logo-name{font-size:15px;letter-spacing:.32em;text-transform:uppercase;font-weight:700;background:linear-gradient(90deg,var(--accentL),var(--violet));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.footer-links{display:flex;gap:22px;flex-wrap:wrap;}
+.footer-links a{font-size:13px;color:var(--muted);text-decoration:none;transition:color .2s;}
+.footer-links a:hover{color:var(--text);}
+.footer-copy{font-size:12px;color:var(--muted);opacity:.54;}
+
+/* ─── GALLERY / SCREENSHOTS ────────────────────────── */
+.gallery-duo{display:grid;grid-template-columns:1.35fr 1fr;gap:22px;margin-top:22px;align-items:start;}
+@media(max-width:900px){.gallery-duo{grid-template-columns:1fr;}}
+
+/* browser chrome */
+.browser-frame{border:1px solid var(--border);border-radius:16px;overflow:hidden;background:#04101E;margin-top:48px;}
+.browser-frame+.gallery-duo{margin-top:22px;}
+.browser-chrome{background:#060F22;border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;gap:12px;}
+.browser-dots{display:flex;gap:6px;flex-shrink:0;}
+.bd{width:11px;height:11px;border-radius:50%;}
+.bd-r{background:#FF5F57;}.bd-y{background:#FEBC2E;}.bd-g{background:#28C840;}
+.browser-url{background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:6px;padding:4px 12px;font-size:10.5px;color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
+/* app layout */
+.app-ui{display:flex;height:310px;overflow:hidden;}
+.app-sidebar{width:52px;background:#030B18;border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:6px;flex-shrink:0;}
+.app-logo-mark{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#fff;margin-bottom:8px;letter-spacing:-.04em;}
+.app-nav-item{width:36px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:8.5px;color:var(--muted);}
+.app-nav-item.active{background:rgba(59,130,246,.15);color:var(--accentL);}
+.app-main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.app-topbar{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;background:#030C1A;flex-shrink:0;}
+.app-proj-name{font-size:13px;font-weight:700;color:var(--strong);margin-right:10px;}
+.app-sprint-badge{font-size:10px;padding:3px 9px;background:rgba(59,130,246,.12);color:var(--accentL);border-radius:100px;border:1px solid rgba(59,130,246,.2);font-weight:600;}
+.app-action-btn{font-size:10px;padding:5px 12px;background:linear-gradient(90deg,var(--accent),var(--violet));color:#fff;border-radius:6px;font-weight:700;}
+.app-board-cols{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px;flex:1;overflow:hidden;}
+.kol{background:rgba(8,18,40,.65);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:5px;overflow:hidden;}
+.kol-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;}
+.kol-name{font-size:10px;font-weight:700;color:var(--text);}
+.kol-cnt{font-size:9px;background:rgba(255,255,255,.07);color:var(--muted);padding:1px 6px;border-radius:100px;}
+.kol-card{background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:8px;}
+.kol-card.kc-active{border-color:rgba(59,130,246,.3);}
+.kol-card.kc-done{opacity:.48;}
+.kcard-badge{display:inline-block;font-size:7.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-bottom:5px;}
+.kcard-badge.bug{background:rgba(239,68,68,.12);color:#F87171;}
+.kcard-badge.story{background:rgba(59,130,246,.12);color:var(--accentL);}
+.kcard-badge.task{background:rgba(71,85,105,.2);color:var(--muted);}
+.kcard-badge.epic{background:rgba(139,92,246,.12);color:var(--violet);}
+.kcard-ttl{font-size:10.5px;font-weight:600;color:var(--strong);line-height:1.3;margin-bottom:6px;}
+.kcard-foot{display:flex;align-items:center;justify-content:space-between;}
+.kcp{font-size:9px;color:var(--muted);background:rgba(255,255,255,.05);padding:2px 5px;border-radius:4px;}
+.kcav{width:17px;height:17px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff;}
+
+/* sprint ui */
+.app-sprint-ui{padding:12px;display:flex;flex-direction:column;gap:10px;height:310px;overflow:hidden;}
+.spr-hdr{background:rgba(8,18,40,.7);border:1px solid var(--border);border-radius:10px;padding:12px;}
+.spr-name{font-size:12px;font-weight:800;color:var(--strong);margin-bottom:1px;}
+.spr-dates{font-size:9.5px;color:var(--muted);margin-bottom:7px;}
+.spr-bar{height:4px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;margin-bottom:8px;}
+.spr-fill{width:72%;height:100%;background:linear-gradient(90deg,var(--accent),var(--accentL));border-radius:2px;}
+.spr-stats{display:flex;gap:14px;}
+.spr-stat .ssn{font-size:15px;font-weight:900;color:var(--strong);letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+.spr-stat .ssl{font-size:9px;color:var(--muted);}
+.burndown-wrap{background:rgba(8,18,40,.7);border:1px solid var(--border);border-radius:10px;padding:10px 12px;flex:1;min-height:0;}
+.burndown-lbl{font-size:9.5px;font-weight:700;color:var(--text);margin-bottom:6px;letter-spacing:.04em;}
+.burndown-svg{width:100%;height:auto;display:block;}
+.si-rows{display:flex;flex-direction:column;gap:5px;}
+.si-row{display:flex;align-items:center;gap:8px;padding:6px 8px;background:rgba(8,18,40,.7);border:1px solid var(--border);border-radius:7px;}
+.si-dot-w{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.si-dot-w.done{background:var(--success);}.si-dot-w.prog{background:var(--accentL);}.si-dot-w.todo{background:var(--muted);}
+.si-ttl{flex:1;font-size:10.5px;color:var(--text);}
+.si-st{font-size:8.5px;font-weight:700;padding:2px 6px;border-radius:4px;}
+.si-done{background:rgba(16,185,129,.12);color:var(--success);}
+.si-prog{background:rgba(59,130,246,.12);color:var(--accentL);}
+.si-todo{background:rgba(71,85,105,.15);color:var(--muted);}
+
+/* phone */
+.phone-wrap{display:flex;flex-direction:column;align-items:center;}
+.phone-frame{width:210px;background:#030B18;border:2px solid rgba(255,255,255,.13);border-radius:38px;overflow:hidden;padding:10px 8px 14px;box-shadow:0 0 60px rgba(59,130,246,.14),inset 0 0 0 1px rgba(255,255,255,.055);}
+.phone-notch{width:58px;height:15px;background:#030B18;border:2px solid rgba(255,255,255,.1);border-radius:20px;margin:0 auto 8px;border-top:none;}
+.phone-screen{background:var(--bg2);border-radius:26px;overflow:hidden;display:flex;flex-direction:column;}
+.phone-topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 14px 6px;background:#030C1A;}
+.phone-back{font-size:15px;color:var(--muted);line-height:1;}
+.phone-menu{font-size:14px;color:var(--muted);}
+.phone-page-title{font-size:12.5px;font-weight:700;color:var(--strong);}
+.phone-proj-hdr{display:flex;align-items:center;gap:7px;padding:7px 12px;border-bottom:1px solid var(--border);background:#030C1A;}
+.phone-proj-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.phone-proj-nm{font-size:10.5px;font-weight:700;color:var(--strong);flex:1;}
+.phone-spr-badge{font-size:8.5px;padding:2px 7px;background:rgba(59,130,246,.12);color:var(--accentL);border-radius:100px;font-weight:700;}
+.phone-board{padding:8px;display:flex;flex-direction:column;gap:7px;flex:1;}
+.phone-col-hdr{font-size:10px;font-weight:700;color:var(--accentL);margin-bottom:6px;display:flex;align-items:center;gap:5px;}
+.ph-cnt{font-size:8.5px;background:rgba(59,130,246,.12);color:var(--accentL);padding:1px 5px;border-radius:100px;font-weight:700;}
+.phone-kcard{background:rgba(8,18,40,.88);border:1px solid var(--border);border-radius:9px;padding:9px 10px;margin-bottom:6px;}
+.phone-kcard:last-child{margin-bottom:0;}
+.pktype{display:inline-block;font-size:7px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 5px;border-radius:3px;margin-bottom:5px;}
+.pktype.bug{background:rgba(239,68,68,.12);color:#F87171;}
+.pktype.story{background:rgba(59,130,246,.12);color:var(--accentL);}
+.pktype.task{background:rgba(71,85,105,.2);color:var(--muted);}
+.pk-title{font-size:10px;font-weight:600;color:var(--strong);line-height:1.3;margin-bottom:7px;}
+.pk-foot{display:flex;align-items:center;justify-content:space-between;}
+.pk-pts{font-size:8.5px;color:var(--muted);}
+.pk-av{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:6.5px;font-weight:800;color:#fff;}
+.phone-bottom-nav{display:flex;border-top:1px solid var(--border);padding:8px 6px 10px;background:#030C1A;}
+.pbn{flex:1;text-align:center;font-size:8.5px;color:var(--muted);font-weight:500;}
+.pbn.active{color:var(--accentL);font-weight:700;}
+.gallery-caption{text-align:center;font-size:12px;color:var(--muted);margin-top:12px;}
+
+/* ─── VIDEO DEMO PLAYERS ────────────────────────────── */
+.vdemos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px;}
+@media(max-width:900px){.vdemos-grid{grid-template-columns:1fr 1fr;gap:18px;}}
+@media(max-width:560px){.vdemos-grid{grid-template-columns:1fr;}}
+.vplayer{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#030C1A;transition:box-shadow .3s,border-color .3s;}
+.vplayer:hover{border-color:rgba(59,130,246,.3);box-shadow:0 0 40px rgba(59,130,246,.1);}
+.vpc{background:#040E1C;padding:9px 12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);}
+.vpc-d{display:flex;gap:4px;}
+.vpc-d span{width:8px;height:8px;border-radius:50%;}
+.vpc-d .dr{background:#FF5F57;}.vpc-d .dy{background:#FEBC2E;}.vpc-d .dg{background:#28C840;}
+.vpc-lbl{font-size:9.5px;color:var(--muted);font-weight:600;}
+.vscreen{position:relative;height:190px;overflow:hidden;background:#010810;}
+.vctrls{padding:8px 12px;display:flex;align-items:center;gap:8px;}
+.vplaybtn{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vplaybtn svg{width:8px;height:8px;fill:#fff;margin-left:1.5px;}
+.vscrub{flex:1;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;}
+.vsf{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--violet));}
+.vtime{font-size:9px;color:var(--muted);white-space:nowrap;}
+.vfoot{padding:10px 14px;border-top:1px solid var(--border);}
+.vft{font-size:12.5px;font-weight:700;color:var(--strong);}
+.vfs{font-size:10.5px;color:var(--muted);margin-top:2px;}
+
+/* ── V1: Issue Creation ── */
+@keyframes v1modal{0%,4%{opacity:0;transform:translateY(12px) scale(.95)}11%,85%{opacity:1;transform:translateY(0) scale(1)}92%,100%{opacity:0;transform:translateY(12px) scale(.95)}}
+@keyframes v1type{0%,13%{width:0}50%,85%{width:100%}92%,100%{width:0}}
+@keyframes v1badge{0%,24%{opacity:0;transform:scale(.5)}32%,85%{opacity:1;transform:scale(1)}92%,100%{opacity:0}}
+@keyframes v1btn{0%,55%{background:rgba(59,130,246,.18);box-shadow:none;color:var(--accentL)}67%{background:var(--accent);box-shadow:0 0 20px rgba(59,130,246,.7);color:#fff}73%,85%{background:rgba(59,130,246,.18);box-shadow:none;color:var(--accentL)}92%,100%{opacity:0}}
+@keyframes v1toast{0%,66%{opacity:0;transform:translateY(8px)}73%,83%{opacity:1;transform:translateY(0)}90%,100%{opacity:0;transform:translateY(8px)}}
+@keyframes v1scr{0%{width:0}93%{width:100%}100%{width:0}}
+.v1-fill{animation:v1scr 9s linear infinite;}
+
+/* ── V2: Board Card Drag ── */
+@keyframes v2drag{0%,8%{transform:translateX(0) rotate(0) scale(1)}16%{transform:translateX(-5px) rotate(-2deg) scale(1.05)}26%{transform:translateX(84px) rotate(0) scale(1)}30%,78%{transform:translateX(84px)}86%,100%{transform:translateX(0)}}
+@keyframes v2colhl{0%,24%{background:rgba(59,130,246,0)}30%,36%{background:rgba(59,130,246,.09)}42%,100%{background:rgba(59,130,246,0)}}
+@keyframes v2bar{0%,10%{width:54%}30%,100%{width:73%}}
+@keyframes v2scr{0%{width:0}90%{width:100%}100%{width:0}}
+.v2-fill{animation:v2scr 10s linear infinite;}
+
+/* ── V3: Real-time Sync ── */
+@keyframes v3hl{0%,12%{background:transparent}23%{background:rgba(59,130,246,.18)}32%,100%{background:transparent}}
+@keyframes v3wave{0%,20%{width:0%;opacity:0}28%{width:100%;opacity:1}36%,100%{width:0%;opacity:0}}
+@keyframes v3ring{0%,28%{box-shadow:0 0 0 0 rgba(59,130,246,0)}36%{box-shadow:0 0 0 5px rgba(59,130,246,.28)}44%,100%{box-shadow:0 0 0 0 rgba(59,130,246,0)}}
+@keyframes v3status{0%,22%{color:var(--accentL);background:rgba(59,130,246,.12)}34%,100%{color:var(--success);background:rgba(16,185,129,.12)}}
+@keyframes v3scr{0%{width:0}87%{width:100%}100%{width:0}}
+.v3-fill{animation:v3scr 11s linear infinite;}
+
+/* ── V4: Sprint Planning ── */
+@keyframes v4row{0%,8%{background:transparent;border-color:var(--border)}20%{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.35)}28%,100%{background:transparent;border-color:var(--border)}}
+@keyframes v4pts{0%,15%{width:0}35%,100%{width:78%}}
+@keyframes v4badge{0%,30%{opacity:0}40%,88%{opacity:1}95%,100%{opacity:0}}
+@keyframes v4scr{0%{width:0}91%{width:100%}100%{width:0}}
+.v4-fill{animation:v4scr 12s linear infinite;}
+
+/* ── V5: Notifications / Activity ── */
+@keyframes v5notif{0%,4%{opacity:0;transform:translateY(-12px)}10%,30%{opacity:1;transform:translateY(0)}37%,100%{opacity:0;transform:translateY(-12px)}}
+@keyframes v5notif2{0%,30%{opacity:0;transform:translateY(-12px)}36%,56%{opacity:1;transform:translateY(0)}63%,100%{opacity:0;transform:translateY(-12px)}}
+@keyframes v5notif3{0%,56%{opacity:0;transform:translateY(-12px)}62%,82%{opacity:1;transform:translateY(0)}88%,100%{opacity:0;transform:translateY(-12px)}}
+@keyframes v5scr{0%{width:0}92%{width:100%}100%{width:0}}
+.v5-fill{animation:v5scr 13s linear infinite;}
+
+/* ── V6: Roadmap Epic ── */
+@keyframes v6bar1{0%,6%{width:0}20%,100%{width:68%}}
+@keyframes v6bar2{0%,18%{width:0}34%,100%{width:45%}}
+@keyframes v6bar3{0%,30%{width:0}46%,100%{width:82%}}
+@keyframes v6scr{0%{width:0}89%{width:100%}100%{width:0}}
+.v6-fill{animation:v6scr 14s linear infinite;}
+</style>
+</head>
+<body>
+
+<!-- shared SVG defs — gradient used by all logo instances -->
+<svg width="0" height="0" style="position:absolute;overflow:hidden;" aria-hidden="true">
+  <defs>
+    <linearGradient id="logo-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+    <linearGradient id="logo-grad-h" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="100%" stop-color="#8B5CF6"/>
+    </linearGradient>
+  </defs>
+</svg>
+
+<!-- ═══════════════ NAVIGATION ═══════════════ -->
+<nav class="nav">
+  <div class="nav-inner">
+    <a href="#hero" class="nav-logo">
+      <svg class="nav-logo-mark" width="30" height="22" viewBox="0 0 41 28" xmlns="http://www.w3.org/2000/svg" aria-label="Cadence logo mark">
+        <rect x="0"  y="18" width="5" height="10" rx="2.5" fill="url(#logo-grad)"/>
+        <rect x="9"  y="10" width="5" height="18" rx="2.5" fill="url(#logo-grad)"/>
+        <rect x="18" y="0"  width="5" height="28" rx="2.5" fill="url(#logo-grad)"/>
+        <rect x="27" y="10" width="5" height="18" rx="2.5" fill="url(#logo-grad)"/>
+        <rect x="36" y="18" width="5" height="10" rx="2.5" fill="url(#logo-grad)"/>
+      </svg>
+      Cadence
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#views">Views</a>
+      <a href="#platform">Platform</a>
+      <a href="#security">Security</a>
+      <a href="#pricing">Pricing</a>
+      <a href="mailto:kabeerfeb2@gmail.com">Contact</a>
+    </div>
+    <div class="nav-cta">
+      <a href="#pricing" class="btn btn-ghost btn-sm">See Pricing</a>
+      <a href="#cta" class="btn btn-primary btn-sm">Get Started</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<section id="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+  <div class="container">
+    <div class="hero-content">
+      <div class="hero-logo-wrap reveal">
+        <span class="hero-logo-name">Cadence</span>
+      </div>
+      <div class="hero-badge">
+        <span class="live-dot"></span>
+        Web &nbsp;·&nbsp; iOS &nbsp;·&nbsp; Android &nbsp;·&nbsp; Always in sync
+      </div>
+      <h1 class="hero-h1">
+        The project platform<br><span class="gr">built for organizations.</span>
+      </h1>
+      <p class="hero-sub">One subscription covers your entire organization — sprints, boards, roadmaps, and real-time collaboration — on every device your team uses.</p>
+      <div class="hero-btns">
+        <a href="#cta" class="btn btn-primary">Start Free Trial</a>
+        <a href="#features" class="btn btn-ghost">Explore Features ↓</a>
+      </div>
+      <div class="hero-plat">
+        <span class="plat-lbl">Available on</span>
+        <div class="plat-badges">
+          <div class="plat-b">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--accentL)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+            Web App
+          </div>
+          <div class="plat-b">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+            iOS App
+          </div>
+          <div class="plat-b">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Android App
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ STATS BAR ═══════════════ -->
+<div class="stats-bar">
+  <div class="container">
+    <div class="stats-inner">
+      <div class="stat-item">
+        <div class="stat-num">11</div>
+        <div class="stat-lbl">Core modules</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">6</div>
+        <div class="stat-lbl">Work views</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">5</div>
+        <div class="stat-lbl">Access roles</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">3</div>
+        <div class="stat-lbl">Platforms</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">&lt;100ms</div>
+        <div class="stat-lbl">Real-time sync</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CHALLENGE ═══════════════ -->
+<section class="section-pad" style="background:var(--bg2);">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">The Problem</span>
+      <h2 class="section-title">What <span class="gr">fragmented tools</span><br>are costing your organization</h2>
+      <p class="section-sub">Most organizations don't have a project management problem. They have a visibility and coordination problem. One platform fixes both.</p>
+    </div>
+    <div class="prob-grid">
+      <div class="prob-card reveal d1">
+        <div class="prob-num">5.4<span class="prob-unit">hrs</span></div>
+        <div class="prob-title">Lost per person, per week</div>
+        <div class="prob-desc">Context switching between disconnected tools drains capacity invisibly. Every switch costs 23 minutes of re-focus time — adding up to more than half a working day wasted, per person, every week.</div>
+      </div>
+      <div class="prob-card reveal d2">
+        <div class="prob-num">68<span class="prob-unit">%</span></div>
+        <div class="prob-title">Of projects miss their deadline</div>
+        <div class="prob-desc">Without real-time sprint tracking and burndown visibility, managers only discover they're behind when it's already too late. Proactive visibility — not reactive reports — keeps delivery on schedule.</div>
+      </div>
+      <div class="prob-card reveal d3">
+        <div class="prob-num">3.2<span class="prob-unit">x</span></div>
+        <div class="prob-title">Higher delivery risk without a single source of truth</div>
+        <div class="prob-desc">Siloed tools create blind spots. Blockers go unreported, priorities drift, and when a project slips, accountability becomes impossible to trace. A unified platform eliminates this at the source.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PLATFORM OVERVIEW ═══════════════ -->
+<section class="section-pad">
+  <div class="container">
+    <div class="reveal">
+      <span class="ey">Introducing Cadence</span>
+      <h2 class="section-title">One workspace.<br><span class="gr">Every project. Every team.</span></h2>
+      <p class="section-sub">Cadence is a full-stack project management platform sold to organizations. Your company gets a private workspace — accessible on Web, iOS, and Android — for every person you invite, under one plan.</p>
+    </div>
+    <div class="chip-row reveal">
+      <span class="chip chip-b">Sprint Management</span>
+      <span class="chip chip-b">Kanban Board</span>
+      <span class="chip chip-b">Backlog Grooming</span>
+      <span class="chip chip-b">Epic Tracking</span>
+      <span class="chip chip-b">Timeline View</span>
+      <span class="chip chip-b">Roadmap View</span>
+      <span class="chip chip-b">Calendar View</span>
+      <span class="chip chip-a">Burndown Charts</span>
+      <span class="chip chip-a">Release Management</span>
+      <span class="chip chip-a">Custom Workflows</span>
+      <span class="chip chip-a">Custom Fields</span>
+      <span class="chip chip-g">Real-time WebSocket</span>
+      <span class="chip chip-g">5-Tier RBAC</span>
+      <span class="chip chip-g">Web + iOS + Android</span>
+      <span class="chip chip-v">Velocity Tracking</span>
+      <span class="chip chip-v">Sprint Analytics</span>
+      <span class="chip chip-v">Multi-tenant</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FEATURES ═══════════════ -->
+<section id="features" style="background:var(--bg2);">
+  <div class="container">
+
+    <!-- Feature Block 1: Issue Management -->
+    <div class="feat-block">
+      <div class="reveal">
+        <span class="ey">Issue Management</span>
+        <h2 class="section-title">Every issue,<br><span class="gr">every detail tracked.</span></h2>
+        <p class="section-sub">Bugs, stories, tasks, epics, and subtasks — all in one place. Custom workflows, priority tiers, and story points so nothing slips through.</p>
+        <div class="feat-list">
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+            <div class="feat-item-text"><strong>Scrum &amp; Kanban project types</strong><span>Switch between sprint-based Scrum and continuous Kanban at any time — no history lost.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></div>
+            <div class="feat-item-text"><strong>Full issue hierarchy — epics to subtasks</strong><span>Epics group stories; stories own subtasks. Every level searchable and linked end to end.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+            <div class="feat-item-text"><strong>Custom workflows per project</strong><span>Define your own statuses and transitions. Every project follows its own process — Cadence fits you.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg></div>
+            <div class="feat-item-text"><strong>Threaded comments &amp; @mentions</strong><span>Discussion stays with the issue. @mention teammates and search full activity history for context.</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="reveal d2">
+        <div class="mock-wrap">
+          <div class="mock-header">
+            <div class="mock-hdr-left">
+              <span class="mock-proj">Design System</span>
+              <span class="mock-id">BUG-142</span>
+            </div>
+            <span class="mock-priority high"><svg viewBox="0 0 10 10" fill="currentColor"><path d="M5 1l4 8H1z"/></svg> High</span>
+          </div>
+          <div class="mock-title">Authentication fails intermittently on mobile Safari</div>
+          <div class="mock-desc">Users on iOS 17+ Safari report being logged out after ~10 minutes of inactivity. Session token refresh appears to fail silently on WebKit.</div>
+          <div class="mock-meta">
+            <span class="mock-status prog">● In Progress</span>
+            <span class="mock-pts">5 pts</span>
+            <div class="mock-avatars">
+              <div class="mock-av">JD</div>
+              <div class="mock-av">SR</div>
+            </div>
+          </div>
+          <div class="mock-labels">
+            <span class="mock-label">auth</span>
+            <span class="mock-label l2">critical</span>
+            <span class="mock-label l3">mobile</span>
+          </div>
+          <div class="mock-comment">
+            <div class="mock-comment-hdr">
+              <div class="mock-comment-av">SR</div>
+              <span class="mock-comment-name">Sarah R.</span>
+              <span class="mock-comment-time">2h ago</span>
+            </div>
+            <div class="mock-comment-text">Reproduced on iPhone 15 + Safari 17. Token refresh endpoint returns 401 on the second request. Likely a race condition in the refresh interceptor.</div>
+          </div>
+          <div class="mock-sprint-bar">
+            <div class="mock-sprint-info">
+              <span class="mock-sprint-lbl">Sprint 14 &nbsp;·&nbsp; 3 days remaining</span>
+              <span class="mock-sprint-val">72% done</span>
+            </div>
+            <div class="mock-bar"><div class="mock-bar-fill" style="width:72%"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Block 2: Sprint & Agile -->
+    <div class="feat-block reverse">
+      <div class="reveal">
+        <span class="ey">Sprint &amp; Agile</span>
+        <h2 class="section-title">Full sprint lifecycle,<br><span class="gr">start to close.</span></h2>
+        <p class="section-sub">Plan, track, and close sprints with live burndown charts, backlog grooming, and velocity analytics — all in one seamless workflow.</p>
+        <div class="feat-list">
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></div>
+            <div class="feat-item-text"><strong>One-click sprint start &amp; close</strong><span>Start with an optional end date, track daily progress, close to auto-archive completed issues.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+            <div class="feat-item-text"><strong>Live burndown charts</strong><span>Track remaining work against the ideal line — day by day. Spot drift the moment it happens.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+            <div class="feat-item-text"><strong>Backlog grooming with bulk actions</strong><span>Filter, search, and bulk-move issues between sprints in seconds. No individual opening required.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+            <div class="feat-item-text"><strong>Velocity &amp; story point analytics</strong><span>Sprint-over-sprint velocity tracked automatically — reliable capacity baseline with zero manual entry.</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="reveal d2">
+        <div class="sprint-widget">
+          <div class="sw-top">
+            <span style="font-size:13px;font-weight:700;color:var(--strong);">Sprint 14</span>
+            <div class="sw-badge"><span class="live-dot"></span> Live</div>
+          </div>
+          <div class="sw-nums">
+            <div class="sw-num-block"><div class="num">72<span style="font-size:14px;color:var(--muted)">%</span></div><div class="lbl">Complete</div></div>
+            <div class="sw-num-block"><div class="num">3<span style="font-size:14px;color:var(--muted)">d</span></div><div class="lbl">Remaining</div></div>
+            <div class="sw-num-block"><div class="num" style="background:linear-gradient(135deg,var(--success),#34D399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">42</div><div class="lbl">Pts done</div></div>
+            <div class="sw-num-block"><div class="num">16</div><div class="lbl">Pts left</div></div>
+          </div>
+          <div class="sw-bar"><div class="sw-fill" style="width:72%"></div></div>
+          <div class="sw-issues">
+            <div class="sw-issue"><span class="sw-issue-dot" style="background:var(--success)"></span><span class="sw-issue-title">Design system token audit</span><span class="sw-issue-pts">8 pts</span></div>
+            <div class="sw-issue"><span class="sw-issue-dot" style="background:var(--accentL)"></span><span class="sw-issue-title">Auth session refresh bug</span><span class="sw-issue-pts">5 pts</span></div>
+            <div class="sw-issue"><span class="sw-issue-dot" style="background:var(--accentL)"></span><span class="sw-issue-title">Dashboard performance pass</span><span class="sw-issue-pts">3 pts</span></div>
+            <div class="sw-issue"><span class="sw-issue-dot" style="background:var(--amber)"></span><span class="sw-issue-title">Mobile nav regression fix</span><span class="sw-issue-pts">3 pts</span></div>
+            <div class="sw-issue"><span class="sw-issue-dot" style="background:var(--muted)"></span><span class="sw-issue-title">API rate-limit middleware</span><span class="sw-issue-pts">5 pts</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feature Block 3: Board -->
+    <div class="feat-block">
+      <div class="reveal">
+        <span class="ey">Kanban Board</span>
+        <h2 class="section-title">Drag, drop,<br><span class="gr">and it's done.</span></h2>
+        <p class="section-sub">A live Kanban board that updates the moment anyone makes a change — no refresh, no lag, no stale data. Your team's source of truth, always current.</p>
+        <div class="feat-list">
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="16" rx="1"/></svg></div>
+            <div class="feat-item-text"><strong>Drag-and-drop across any workflow column</strong><span>Custom workflow statuses means the board matches your process exactly — not a rigid preset.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></div>
+            <div class="feat-item-text"><strong>See who's working on what, live</strong><span>Every card shows assignees, priority, and story points at a glance — no meeting needed to check status.</span></div>
+          </div>
+          <div class="feat-item">
+            <div class="feat-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+            <div class="feat-item-text"><strong>Labels, priorities &amp; release tags</strong><span>Colour-coded labels, five priority tiers, and version tags let teams filter and report across any dimension.</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="reveal d2">
+        <div class="mock-board">
+          <div class="kboard-col">
+            <div class="kboard-hdr"><span class="kboard-lbl">To Do</span><span class="kboard-cnt">4</span></div>
+            <div class="kcard"><div class="kcard-type">Story</div><div class="kcard-title">Update onboarding email sequence</div><div class="kcard-foot"><span class="kcard-pts">3 pts</span><div class="kcard-av">AM</div></div></div>
+            <div class="kcard"><div class="kcard-type">Bug</div><div class="kcard-title">CSV export drops timezone offset</div><div class="kcard-foot"><span class="kcard-pts">2 pts</span><div style="display:flex;align-items:center;gap:5px;"><span class="kcard-dot red"></span></div></div></div>
+            <div class="kcard"><div class="kcard-type">Task</div><div class="kcard-title">Write API docs for v2 endpoints</div><div class="kcard-foot"><span class="kcard-pts">5 pts</span><div class="kcard-av">LK</div></div></div>
+          </div>
+          <div class="kboard-col">
+            <div class="kboard-hdr"><span class="kboard-lbl">In Progress</span><span class="kboard-cnt">3</span></div>
+            <div class="kcard"><div class="kcard-type">Bug</div><div class="kcard-title">Auth fails on mobile Safari 17</div><div class="kcard-foot"><span class="kcard-pts">5 pts</span><div style="display:flex;align-items:center;gap:5px;"><span class="kcard-dot red"></span><div class="kcard-av">SR</div></div></div></div>
+            <div class="kcard"><div class="kcard-type">Story</div><div class="kcard-title">Dashboard performance improvements</div><div class="kcard-foot"><span class="kcard-pts">3 pts</span><div class="kcard-av">JD</div></div></div>
+            <div class="kcard"><div class="kcard-type">Task</div><div class="kcard-title">Design token audit — spacing scale</div><div class="kcard-foot"><span class="kcard-pts">8 pts</span><div class="kcard-av">TM</div></div></div>
+          </div>
+          <div class="kboard-col">
+            <div class="kboard-hdr"><span class="kboard-lbl">Done</span><span class="kboard-cnt">8</span></div>
+            <div class="kcard" style="opacity:.65;"><div class="kcard-type">Story</div><div class="kcard-title">Implement refresh token rotation</div><div class="kcard-foot"><span class="kcard-pts">8 pts</span><div style="display:flex;align-items:center;gap:5px;"><span class="kcard-dot green"></span></div></div></div>
+            <div class="kcard" style="opacity:.65;"><div class="kcard-type">Bug</div><div class="kcard-title">Fix pagination offset on reports</div><div class="kcard-foot"><span class="kcard-pts">2 pts</span><div class="kcard-av">JD</div></div></div>
+            <div class="kcard" style="opacity:.65;"><div class="kcard-type">Task</div><div class="kcard-title">Deploy staging to new region</div><div class="kcard-foot"><span class="kcard-pts">3 pts</span><div style="display:flex;align-items:center;gap:5px;"><span class="kcard-dot green"></span></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════ GALLERY / SCREENSHOTS ═══════════════ -->
+<section class="section-pad" style="background:var(--bg2);">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">See It in Action</span>
+      <h2 class="section-title">The real product.<br><span class="gr">Live and working.</span></h2>
+      <p class="section-sub">Every screen below is the actual Cadence platform — built, tested, and ready for your organization on Web, iOS, and Android.</p>
+    </div>
+
+    <!-- ── BROWSER: BOARD VIEW ── -->
+    <div class="browser-frame reveal">
+      <div class="browser-chrome">
+        <div class="browser-dots"><span class="bd bd-r"></span><span class="bd bd-y"></span><span class="bd bd-g"></span></div>
+        <div class="browser-url">cadence.app &nbsp;/&nbsp; projects &nbsp;/&nbsp; design-system &nbsp;/&nbsp; board</div>
+      </div>
+      <div class="app-ui">
+        <!-- sidebar -->
+        <div class="app-sidebar">
+          <div class="app-logo-mark">Ca</div>
+          <div class="app-nav-item active">Board</div>
+          <div class="app-nav-item">Bklg</div>
+          <div class="app-nav-item">Time</div>
+          <div class="app-nav-item">Road</div>
+          <div class="app-nav-item">Cal</div>
+          <div class="app-nav-item">Sprt</div>
+        </div>
+        <!-- main content -->
+        <div class="app-main">
+          <div class="app-topbar">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span class="app-proj-name">Design System</span>
+              <span class="app-sprint-badge">Sprint 14</span>
+              <span style="font-size:9.5px;color:var(--muted);">3 days left · 72% complete</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:9.5px;color:var(--muted);padding:4px 10px;border:1px solid var(--border);border-radius:6px;">Filter</span>
+              <span class="app-action-btn">+ Create Issue</span>
+            </div>
+          </div>
+          <div class="app-board-cols">
+            <!-- To Do -->
+            <div class="kol">
+              <div class="kol-hdr"><span class="kol-name">To Do</span><span class="kol-cnt">4</span></div>
+              <div class="kol-card"><div class="kcard-badge bug">Bug</div><div class="kcard-ttl">CSV export drops timezone offset</div><div class="kcard-foot"><span class="kcp">2</span><span class="kcav" style="background:linear-gradient(135deg,#F59E0B,#FCD34D)">AM</span></div></div>
+              <div class="kol-card"><div class="kcard-badge story">Story</div><div class="kcard-ttl">Update onboarding email sequence</div><div class="kcard-foot"><span class="kcp">3</span><span class="kcav" style="background:linear-gradient(135deg,var(--success),#34D399)">LK</span></div></div>
+              <div class="kol-card"><div class="kcard-badge task">Task</div><div class="kcard-ttl">Write API docs for v2 endpoints</div><div class="kcard-foot"><span class="kcp">5</span><span class="kcav" style="background:linear-gradient(135deg,var(--violet),#A78BFA)">RJ</span></div></div>
+            </div>
+            <!-- In Progress -->
+            <div class="kol">
+              <div class="kol-hdr"><span class="kol-name" style="color:var(--accentL);">In Progress</span><span class="kol-cnt">3</span></div>
+              <div class="kol-card kc-active"><div class="kcard-badge bug">Bug</div><div class="kcard-ttl">Auth fails on mobile Safari 17</div><div class="kcard-foot"><span class="kcp">5</span><div style="display:flex;gap:2px;"><span class="kcav" style="background:linear-gradient(135deg,var(--accent),var(--violet))">SR</span><span class="kcav" style="background:linear-gradient(135deg,var(--success),#34D399)">JD</span></div></div></div>
+              <div class="kol-card"><div class="kcard-badge story">Story</div><div class="kcard-ttl">Dashboard performance improvements</div><div class="kcard-foot"><span class="kcp">3</span><span class="kcav" style="background:linear-gradient(135deg,var(--accent),var(--accentL))">JD</span></div></div>
+              <div class="kol-card"><div class="kcard-badge task">Task</div><div class="kcard-ttl">Design token audit — spacing scale</div><div class="kcard-foot"><span class="kcp">8</span><span class="kcav" style="background:linear-gradient(135deg,#F59E0B,#FCD34D)">TM</span></div></div>
+            </div>
+            <!-- In Review -->
+            <div class="kol">
+              <div class="kol-hdr"><span class="kol-name" style="color:var(--amber);">In Review</span><span class="kol-cnt">2</span></div>
+              <div class="kol-card"><div class="kcard-badge epic">Epic</div><div class="kcard-ttl">Notification system redesign v2</div><div class="kcard-foot"><span class="kcp">13</span><span class="kcav" style="background:linear-gradient(135deg,var(--violet),#A78BFA)">PM</span></div></div>
+              <div class="kol-card"><div class="kcard-badge story">Story</div><div class="kcard-ttl">Mobile nav accessibility audit</div><div class="kcard-foot"><span class="kcp">3</span><span class="kcav" style="background:linear-gradient(135deg,var(--accent),var(--violet))">SR</span></div></div>
+            </div>
+            <!-- Done -->
+            <div class="kol">
+              <div class="kol-hdr"><span class="kol-name" style="color:var(--success);">Done</span><span class="kol-cnt">8</span></div>
+              <div class="kol-card kc-done"><div class="kcard-badge story">Story</div><div class="kcard-ttl">Refresh token rotation</div><div class="kcard-foot"><span class="kcp">8</span><span class="kcav" style="background:linear-gradient(135deg,var(--accent),var(--accentL))">JD</span></div></div>
+              <div class="kol-card kc-done"><div class="kcard-badge bug">Bug</div><div class="kcard-ttl">Fix pagination offset on reports</div><div class="kcard-foot"><span class="kcp">2</span><span class="kcav" style="background:linear-gradient(135deg,#F59E0B,#FCD34D)">AM</span></div></div>
+              <div class="kol-card kc-done"><div class="kcard-badge task">Task</div><div class="kcard-ttl">Deploy staging to new region</div><div class="kcard-foot"><span class="kcp">3</span><span class="kcav" style="background:linear-gradient(135deg,var(--violet),#A78BFA)">RJ</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="gallery-caption reveal">Kanban Board — live drag-and-drop, WebSocket sync, custom workflow columns</p>
+
+    <!-- ── BOTTOM ROW: Sprint Report + Mobile ── -->
+    <div class="gallery-duo">
+
+      <!-- Sprint Report browser -->
+      <div>
+        <div class="browser-frame reveal" style="margin-top:0;">
+          <div class="browser-chrome">
+            <div class="browser-dots"><span class="bd bd-r"></span><span class="bd bd-y"></span><span class="bd bd-g"></span></div>
+            <div class="browser-url">cadence.app &nbsp;/&nbsp; projects &nbsp;/&nbsp; design-system &nbsp;/&nbsp; sprint</div>
+          </div>
+          <div class="app-sprint-ui">
+            <div class="spr-hdr">
+              <div class="spr-name">Sprint 14 — Design System</div>
+              <div class="spr-dates">Jun 16 – Jun 30, 2026</div>
+              <div class="spr-bar"><div class="spr-fill"></div></div>
+              <div class="spr-stats">
+                <div class="spr-stat"><div class="ssn">72%</div><div class="ssl">Complete</div></div>
+                <div class="spr-stat"><div class="ssn" style="background:linear-gradient(135deg,var(--success),#34D399);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">42</div><div class="ssl">Pts done</div></div>
+                <div class="spr-stat"><div class="ssn">16</div><div class="ssl">Pts left</div></div>
+                <div class="spr-stat"><div class="ssn">3d</div><div class="ssl">Remaining</div></div>
+              </div>
+            </div>
+            <div class="burndown-wrap">
+              <div class="burndown-lbl">Burndown Chart — Ideal vs. Actual</div>
+              <svg class="burndown-svg" viewBox="0 0 340 110" xmlns="http://www.w3.org/2000/svg">
+                <line x1="0" y1="22" x2="340" y2="22" stroke="rgba(59,130,246,.08)" stroke-width="1"/>
+                <line x1="0" y1="44" x2="340" y2="44" stroke="rgba(59,130,246,.08)" stroke-width="1"/>
+                <line x1="0" y1="66" x2="340" y2="66" stroke="rgba(59,130,246,.08)" stroke-width="1"/>
+                <line x1="0" y1="88" x2="340" y2="88" stroke="rgba(59,130,246,.08)" stroke-width="1"/>
+                <line x1="10" y1="8" x2="330" y2="100" stroke="rgba(96,165,250,0.28)" stroke-width="1.5" stroke-dasharray="5,4"/>
+                <polygon points="10,8 52,18 94,30 136,36 178,46 220,60 262,73 280,79 280,106 10,106" fill="url(#bg1)" opacity="0.18"/>
+                <polyline points="10,8 52,18 94,30 136,36 178,46 220,60 262,73 280,79" fill="none" stroke="var(--accentL)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <circle cx="280" cy="79" r="4" fill="var(--accentL)" stroke="#04101E" stroke-width="2"/>
+                <defs><linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#60A5FA"/><stop offset="100%" stop-color="#60A5FA" stop-opacity="0"/></linearGradient></defs>
+              </svg>
+            </div>
+            <div class="si-rows">
+              <div class="si-row"><span class="si-dot-w done"></span><span class="si-ttl">Refresh token rotation</span><span class="si-st si-done">Done</span></div>
+              <div class="si-row"><span class="si-dot-w prog"></span><span class="si-ttl">Auth fails on Safari 17</span><span class="si-st si-prog">In Progress</span></div>
+              <div class="si-row"><span class="si-dot-w prog"></span><span class="si-ttl">Dashboard performance pass</span><span class="si-st si-prog">In Progress</span></div>
+              <div class="si-row"><span class="si-dot-w todo"></span><span class="si-ttl">API docs for v2 endpoints</span><span class="si-st si-todo">To Do</span></div>
+            </div>
+          </div>
+        </div>
+        <p class="gallery-caption reveal">Sprint Report — live burndown chart, velocity tracking, issue breakdown</p>
+      </div>
+
+      <!-- Mobile phone -->
+      <div class="phone-wrap reveal d2" style="margin-top:0;">
+        <div class="phone-frame">
+          <div class="phone-notch"></div>
+          <div class="phone-screen">
+            <div class="phone-topbar">
+              <span class="phone-back">←</span>
+              <span class="phone-page-title">Board</span>
+              <span class="phone-menu">⋯</span>
+            </div>
+            <div class="phone-proj-hdr">
+              <div class="phone-proj-dot" style="background:var(--accentL);"></div>
+              <span class="phone-proj-nm">Design System</span>
+              <span class="phone-spr-badge">Sprint 14</span>
+            </div>
+            <div class="phone-board">
+              <div class="phone-col-hdr">In Progress <span class="ph-cnt">3</span></div>
+              <div class="phone-kcard">
+                <div class="pktype bug">Bug</div>
+                <div class="pk-title">Auth fails on mobile Safari 17</div>
+                <div class="pk-foot"><span class="pk-pts">5 pts</span><span class="pk-av" style="background:linear-gradient(135deg,var(--accent),var(--violet))">SR</span></div>
+              </div>
+              <div class="phone-kcard">
+                <div class="pktype story">Story</div>
+                <div class="pk-title">Dashboard performance improvements</div>
+                <div class="pk-foot"><span class="pk-pts">3 pts</span><span class="pk-av" style="background:linear-gradient(135deg,var(--accent),var(--accentL))">JD</span></div>
+              </div>
+              <div class="phone-kcard" style="opacity:.55;">
+                <div class="pktype task">Task</div>
+                <div class="pk-title">Design token audit — spacing</div>
+                <div class="pk-foot"><span class="pk-pts">8 pts</span><span class="pk-av" style="background:linear-gradient(135deg,#F59E0B,#FCD34D)">TM</span></div>
+              </div>
+            </div>
+            <div class="phone-bottom-nav">
+              <div class="pbn active">Board</div>
+              <div class="pbn">Backlog</div>
+              <div class="pbn">Sprint</div>
+              <div class="pbn">More</div>
+            </div>
+          </div>
+        </div>
+        <p class="gallery-caption" style="margin-top:14px;">iOS &amp; Android — native mobile app</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ VIDEO DEMOS ═══════════════ -->
+<section class="section-pad" style="background:var(--bg);">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">Cadence in Motion</span>
+      <h2 class="section-title">Every workflow,<br><span class="gr">animated live.</span></h2>
+      <p class="section-sub">Watch the core features in action — six real product walkthroughs running on loop below.</p>
+    </div>
+
+    <div class="vdemos-grid">
+
+      <!-- ══ VIDEO 1: Issue Creation ══ -->
+      <div class="vplayer reveal d1">
+        <div class="vpc">
+          <div class="vpc-d"><span class="dr"></span><span class="dy"></span><span class="dg"></span></div>
+          <span class="vpc-lbl">Issue Creation — cadence.app/board</span>
+        </div>
+        <div class="vscreen">
+          <div style="position:absolute;inset:0;opacity:.16;display:flex;gap:5px;padding:8px;">
+            <div style="flex:1;background:rgba(8,18,40,.9);border:1px solid var(--border);border-radius:6px;"></div>
+            <div style="flex:1;background:rgba(8,18,40,.9);border:1px solid var(--border);border-radius:6px;"></div>
+            <div style="flex:1;background:rgba(8,18,40,.9);border:1px solid var(--border);border-radius:6px;"></div>
+          </div>
+          <div style="position:absolute;inset:0;background:rgba(1,8,16,.74);display:flex;align-items:center;justify-content:center;">
+            <div style="width:216px;background:#04101E;border:1px solid rgba(59,130,246,.28);border-radius:10px;padding:13px;box-shadow:0 24px 64px rgba(1,8,16,.95);animation:v1modal 9s ease-in-out infinite;">
+              <div style="font-size:11px;font-weight:800;color:var(--strong);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+                <span>Create Issue</span>
+                <span style="font-size:14px;color:var(--muted);line-height:1;">×</span>
+              </div>
+              <div style="background:rgba(8,18,40,.9);border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:7px;">
+                <div style="font-size:8px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em;">Title</div>
+                <div style="overflow:hidden;height:12px;"><div style="white-space:nowrap;font-size:10px;color:var(--strong);overflow:hidden;animation:v1type 9s ease-in-out infinite;width:0;">Auth fails on mobile Safari 17</div></div>
+              </div>
+              <div style="display:flex;gap:6px;margin-bottom:7px;">
+                <div style="flex:1;animation:v1badge 9s ease-in-out infinite;">
+                  <div style="font-size:7.5px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em;">Type</div>
+                  <div style="background:rgba(239,68,68,.12);color:#F87171;font-size:8.5px;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;">Bug</div>
+                </div>
+                <div style="flex:1;animation:v1badge 9s ease-in-out infinite;animation-delay:.25s;">
+                  <div style="font-size:7.5px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em;">Priority</div>
+                  <div style="background:rgba(239,68,68,.1);color:#F87171;font-size:8.5px;font-weight:700;padding:3px 8px;border-radius:4px;display:inline-block;">High</div>
+                </div>
+              </div>
+              <div style="background:rgba(8,18,40,.9);border:1px solid var(--border);border-radius:6px;padding:6px 8px;margin-bottom:9px;animation:v1badge 9s ease-in-out infinite;animation-delay:.5s;">
+                <div style="font-size:7.5px;color:var(--muted);margin-bottom:3px;text-transform:uppercase;letter-spacing:.08em;">Assignee</div>
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="width:14px;height:14px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;font-size:7px;font-weight:800;color:#fff;">SR</div>
+                  <span style="font-size:9.5px;color:var(--strong);">Sarah R.</span>
+                </div>
+              </div>
+              <div style="font-size:9.5px;font-weight:700;color:#fff;text-align:center;padding:6px 10px;border-radius:6px;cursor:pointer;animation:v1btn 9s ease-in-out infinite;">Create Issue</div>
+            </div>
+            <div style="position:absolute;bottom:12px;left:50%;transform:translateX(-50%);background:#04101E;border:1px solid rgba(16,185,129,.35);border-radius:8px;padding:7px 13px;white-space:nowrap;display:flex;align-items:center;gap:7px;animation:v1toast 9s ease-in-out infinite;">
+              <div style="width:7px;height:7px;border-radius:50%;background:var(--success);flex-shrink:0;"></div>
+              <span style="font-size:9.5px;color:var(--strong);font-weight:600;">Issue CAD-147 created</span>
+            </div>
+          </div>
+        </div>
+        <div class="vctrls">
+          <div class="vplaybtn"><svg viewBox="0 0 10 12"><path d="M2 1l7 5-7 5V1z"/></svg></div>
+          <div class="vscrub"><div class="vsf v1-fill"></div></div>
+          <span class="vtime">0:09</span>
+        </div>
+        <div class="vfoot"><div class="vft">Create &amp; Assign Issues</div><div class="vfs">Fill form → type, priority, assignee → create in one click</div></div>
+      </div>
+
+      <!-- ══ VIDEO 2: Board Card Drag ══ -->
+      <div class="vplayer reveal d2">
+        <div class="vpc">
+          <div class="vpc-d"><span class="dr"></span><span class="dy"></span><span class="dg"></span></div>
+          <span class="vpc-lbl">Kanban Board — drag &amp; drop live</span>
+        </div>
+        <div class="vscreen">
+          <div style="padding:10px;height:100%;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:9px;font-weight:800;color:var(--strong);">Sprint 14</span>
+              <div style="flex:1;height:3px;background:rgba(255,255,255,.07);border-radius:2px;overflow:hidden;">
+                <div style="height:100%;background:linear-gradient(90deg,var(--accent),var(--violet));border-radius:2px;animation:v2bar 10s ease-in-out infinite;width:54%;"></div>
+              </div>
+              <span style="font-size:8.5px;color:var(--accentL);font-weight:700;">73%</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;flex:1;position:relative;">
+              <div style="background:rgba(8,18,40,.8);border:1px solid var(--border);border-radius:7px;padding:7px;overflow:visible;position:relative;">
+                <div style="font-size:8px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">To Do <span style="background:rgba(71,85,105,.2);border-radius:8px;padding:1px 5px;font-size:7.5px;">3</span></div>
+                <div style="background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.22);border-radius:6px;padding:6px;cursor:grab;animation:v2drag 10s ease-in-out infinite;position:relative;z-index:6;">
+                  <div style="font-size:6.5px;font-weight:800;color:#F87171;background:rgba(239,68,68,.1);padding:1px 5px;border-radius:3px;margin-bottom:4px;display:inline-block;text-transform:uppercase;">Bug</div>
+                  <div style="font-size:8.5px;font-weight:600;color:var(--strong);line-height:1.3;">Safari auth failure fix</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px;">
+                    <span style="font-size:7.5px;color:var(--muted);">5 pts</span>
+                    <div style="width:13px;height:13px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--violet));display:flex;align-items:center;justify-content:center;font-size:6px;font-weight:800;color:#fff;">SR</div>
+                  </div>
+                </div>
+                <div style="background:rgba(8,18,40,.6);border:1px solid var(--border);border-radius:6px;padding:6px;margin-top:5px;opacity:.55;">
+                  <div style="font-size:6.5px;font-weight:800;color:var(--accentL);background:rgba(59,130,246,.1);padding:1px 5px;border-radius:3px;margin-bottom:3px;display:inline-block;text-transform:uppercase;">Story</div>
+                  <div style="font-size:8.5px;font-weight:600;color:var(--strong);line-height:1.3;">Email sequence</div>
+                </div>
+              </div>
+              <div style="border:1px solid var(--border);border-radius:7px;padding:7px;animation:v2colhl 10s ease-in-out infinite;">
+                <div style="font-size:8px;font-weight:700;color:var(--accentL);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">In Progress <span style="background:rgba(59,130,246,.12);border-radius:8px;padding:1px 5px;font-size:7.5px;color:var(--accentL);">2</span></div>
+                <div style="background:rgba(8,18,40,.6);border:1px solid var(--border);border-radius:6px;padding:6px;opacity:.7;">
+                  <div style="font-size:6.5px;font-weight:800;color:var(--accentL);background:rgba(59,130,246,.1);padding:1px 5px;border-radius:3px;margin-bottom:3px;display:inline-block;text-transform:uppercase;">Story</div>
+                  <div style="font-size:8.5px;font-weight:600;color:var(--strong);line-height:1.3;">Dashboard improvements</div>
+                </div>
+              </div>
+              <div style="background:rgba(8,18,40,.8);border:1px solid var(--border);border-radius:7px;padding:7px;">
+                <div style="font-size:8px;font-weight:700;color:var(--success);margin-bottom:5px;text-transform:uppercase;letter-spacing:.06em;">Done <span style="background:rgba(16,185,129,.1);border-radius:8px;padding:1px 5px;font-size:7.5px;color:var(--success);">7</span></div>
+                <div style="background:rgba(8,18,40,.6);border:1px solid var(--border);border-radius:6px;padding:6px;opacity:.4;">
+                  <div style="font-size:6.5px;font-weight:800;color:var(--success);background:rgba(16,185,129,.08);padding:1px 5px;border-radius:3px;margin-bottom:3px;display:inline-block;text-transform:uppercase;">Task</div>
+                  <div style="font-size:8.5px;font-weight:600;color:var(--strong);line-height:1.3;">Deploy to staging</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="vctrls">
+          <div class="vplaybtn"><svg viewBox="0 0 10 12"><path d="M2 1l7 5-7 5V1z"/></svg></div>
+          <div class="vscrub"><div class="vsf v2-fill"></div></div>
+          <span class="vtime">0:10</span>
+        </div>
+        <div class="vfoot"><div class="vft">Drag &amp; Drop Board</div><div class="vfs">Move cards between columns — sprint progress updates instantly</div></div>
+      </div>
+
+      <!-- ══ VIDEO 3: Real-time Sync ══ -->
+      <div class="vplayer reveal d3">
+        <div class="vpc">
+          <div class="vpc-d"><span class="dr"></span><span class="dy"></span><span class="dg"></span></div>
+          <span class="vpc-lbl">Real-time sync — Web ↔ iOS</span>
+        </div>
+        <div class="vscreen">
+          <div style="padding:10px;height:100%;display:flex;align-items:center;gap:10px;">
+            <div style="flex:1;background:#04101E;border:1px solid var(--border);border-radius:8px;overflow:hidden;align-self:stretch;display:flex;flex-direction:column;">
+              <div style="background:#040E1C;padding:5px 8px;border-bottom:1px solid var(--border);font-size:7.5px;color:var(--muted);">cadence.app · CAD-147</div>
+              <div style="padding:9px;flex:1;display:flex;flex-direction:column;gap:6px;">
+                <div style="font-size:8px;font-weight:800;color:var(--muted);">CAD-147 · Bug · High</div>
+                <div style="font-size:9.5px;font-weight:700;color:var(--strong);line-height:1.3;">Auth fails on mobile Safari 17</div>
+                <div style="display:flex;align-items:center;gap:6px;padding:5px 7px;border-radius:6px;animation:v3hl 11s ease-in-out infinite;">
+                  <span style="font-size:8px;color:var(--muted);">Status</span>
+                  <div style="font-size:8.5px;font-weight:700;padding:2px 9px;border-radius:100px;animation:v3status 11s ease-in-out infinite;color:var(--accentL);background:rgba(59,130,246,.12);">In Progress</div>
+                </div>
+                <div style="font-size:8px;color:var(--muted);margin-top:auto;">Assignee: SR · 5 story pts</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex-shrink:0;width:40px;">
+              <div style="font-size:7.5px;color:var(--accentL);font-weight:700;text-align:center;">&lt;100ms</div>
+              <div style="width:36px;height:2px;background:rgba(59,130,246,.1);border-radius:2px;overflow:hidden;">
+                <div style="height:100%;background:linear-gradient(90deg,var(--accent),var(--violet));animation:v3wave 11s ease-in-out infinite;width:0%;"></div>
+              </div>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(59,130,246,.5)" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+              <div style="font-size:7px;color:var(--muted);text-align:center;">live sync</div>
+            </div>
+            <div style="width:78px;background:#030B18;border:1.5px solid rgba(255,255,255,.13);border-radius:18px;padding:6px 5px 8px;flex-shrink:0;align-self:stretch;display:flex;flex-direction:column;animation:v3ring 11s ease-in-out infinite;">
+              <div style="width:30px;height:9px;background:#030B18;border:1.5px solid rgba(255,255,255,.1);border-radius:8px;margin:0 auto 7px;border-top:none;"></div>
+              <div style="background:#040E1C;border-radius:5px;padding:5px;margin-bottom:6px;">
+                <div style="font-size:6.5px;color:var(--muted);margin-bottom:1px;">CAD-147</div>
+                <div style="font-size:7.5px;font-weight:700;color:var(--strong);line-height:1.25;">Auth fails on Safari</div>
+              </div>
+              <div style="font-size:7px;color:var(--muted);margin-bottom:3px;padding:0 2px;">Status</div>
+              <div style="font-size:7.5px;font-weight:700;padding:2px 5px;border-radius:100px;text-align:center;animation:v3status 11s ease-in-out infinite;color:var(--accentL);background:rgba(59,130,246,.12);margin:0 2px;">In Progress</div>
+              <div style="flex:1;"></div>
+              <div style="display:flex;justify-content:space-around;border-top:1px solid var(--border);padding-top:5px;">
+                <div style="font-size:6px;color:var(--accentL);font-weight:700;">Board</div>
+                <div style="font-size:6px;color:var(--muted);">More</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="vctrls">
+          <div class="vplaybtn"><svg viewBox="0 0 10 12"><path d="M2 1l7 5-7 5V1z"/></svg></div>
+          <div class="vscrub"><div class="vsf v3-fill"></div></div>
+          <span class="vtime">0:11</span>
+        </div>
+        <div class="vfoot"><div class="vft">Real-time Cross-Platform Sync</div><div class="vfs">Web and mobile update together in under 100ms via WebSockets</div></div>
+      </div>
+
+      <!-- ══ VIDEO 4: Sprint Planning / Backlog ══ -->
+      <div class="vplayer reveal d4">
+        <div class="vpc">
+          <div class="vpc-d"><span class="dr"></span><span class="dy"></span><span class="dg"></span></div>
+          <span class="vpc-lbl">Sprint Planning — backlog view</span>
+        </div>
+        <div class="vscreen">
+          <div style="padding:10px;height:100%;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+              <span style="font-size:10px;font-weight:800;color:var(--strong);">Backlog</span>
+              <div style="display:flex;gap:5px;">
+                <span style="font-size:8px;padding:2px 8px;border:1px solid var(--border);border-radius:4px;color:var(--muted);">Filter</span>
+                <span style="font-size:8px;padding:2px 8px;background:var(--accent);color:#fff;border-radius:4px;font-weight:700;">+ Sprint</span>
+              </div>
+            </div>
+            <div style="font-size:8.5px;font-weight:700;color:var(--accentL);margin-bottom:2px;padding:4px 0;border-bottom:1px solid var(--border);">Sprint 15 — Planning (Jun 30 – Jul 13)</div>
+            <div style="display:flex;flex-direction:column;gap:5px;flex:1;overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:rgba(8,18,40,.7);border:1px solid var(--border);border-radius:7px;animation:v4row 12s ease-in-out infinite;">
+                <div style="font-size:6.5px;font-weight:800;color:var(--accentL);background:rgba(59,130,246,.1);padding:2px 6px;border-radius:3px;text-transform:uppercase;">Story</div>
+                <span style="flex:1;font-size:9px;color:var(--strong);font-weight:600;">Redesign onboarding flow</span>
+                <span style="font-size:8px;color:var(--accentL);font-weight:700;">8 pts</span>
+                <div style="width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--success),#34D399);display:flex;align-items:center;justify-content:center;font-size:5.5px;font-weight:800;color:#fff;">LK</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:rgba(8,18,40,.7);border:1px solid var(--border);border-radius:7px;animation:v4row 12s ease-in-out infinite;animation-delay:.8s;">
+                <div style="font-size:6.5px;font-weight:800;color:#F87171;background:rgba(239,68,68,.1);padding:2px 6px;border-radius:3px;text-transform:uppercase;">Bug</div>
+                <span style="flex:1;font-size:9px;color:var(--strong);font-weight:600;">Fix CSV export timezone</span>
+                <span style="font-size:8px;color:var(--accentL);font-weight:700;">3 pts</span>
+                <div style="width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--amber),#FCD34D);display:flex;align-items:center;justify-content:center;font-size:5.5px;font-weight:800;color:#fff;">AM</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:7px;padding:6px 8px;background:rgba(8,18,40,.7);border:1px solid var(--border);border-radius:7px;animation:v4row 12s ease-in-out infinite;animation-delay:1.6s;">
+                <div style="font-size:6.5px;font-weight:800;color:var(--muted);background:rgba(71,85,105,.15);padding:2px 6px;border-radius:3px;text-transform:uppercase;">Task</div>
+                <span style="flex:1;font-size:9px;color:var(--strong);font-weight:600;">Write API v2 documentation</span>
+                <span style="font-size:8px;color:var(--accentL);font-weight:700;">5 pts</span>
+                <div style="width:12px;height:12px;border-radius:50%;background:linear-gradient(135deg,var(--violet),#A78BFA);display:flex;align-items:center;justify-content:center;font-size:5.5px;font-weight:800;color:#fff;">RJ</div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;margin-top:auto;border-top:1px solid var(--border);">
+                <span style="font-size:8.5px;color:var(--muted);">3 issues selected</span>
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <span style="font-size:8.5px;font-weight:700;color:var(--accentL);">16 story pts</span>
+                  <div style="font-size:8px;padding:3px 8px;background:rgba(59,130,246,.15);color:var(--accentL);border-radius:4px;font-weight:700;animation:v4badge 12s ease-in-out infinite;">Move to Sprint →</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="vctrls">
+          <div class="vplaybtn"><svg viewBox="0 0 10 12"><path d="M2 1l7 5-7 5V1z"/></svg></div>
+          <div class="vscrub"><div class="vsf v4-fill"></div></div>
+          <span class="vtime">0:12</span>
+        </div>
+        <div class="vfoot"><div class="vft">Sprint Planning &amp; Backlog</div><div class="vfs">Select issues, assign story points, move to sprint in bulk</div></div>
+      </div>
+
+      <!-- ══ VIDEO 5: Notifications / Activity Feed ══ -->
+      <div class="vplayer reveal d5">
+        <div class="vpc">
+          <div class="vpc-d"><span class="dr"></span><span class="dy"></span><span class="dg"></span></div>
+          <span class="vpc-lbl">Activity Feed — live notifications</span>
+        </div>
+        <div class="vscreen">
+          <div style="padding:10px;height:100%;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+              <span style="font-size:10px;font-weight:800;color:var(--strong);">Notifications</span>
+              <div style="width:18px;height:18px;border-radius:50%;background:rgba(59,130,246,.18);display:flex;align-items:center;justify-content:center;">
+                <div style="font-size:8px;font-weight:800;color:var(--accentL);">3</div>
+              </div>
+            </div>
+            <!-- Notification 1 -->
+            <div style="display:flex;gap:8px;padding:8px;background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.15);border-radius:8px;animation:v5notif 13s ease-in-out infinite;opacity:0;">
+              <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--violet),#A78BFA);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;">PM</div>
+              <div>
+                <div style="font-size:9px;font-weight:700;color:var(--strong);">PM assigned <span style="color:var(--accentL);">CAD-142</span> to you</div>
+                <div style="font-size:8px;color:var(--muted);margin-top:2px;">Notification system redesign — 5 mins ago</div>
+              </div>
+            </div>
+            <!-- Notification 2 -->
+            <div style="display:flex;gap:8px;padding:8px;background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.15);border-radius:8px;animation:v5notif2 13s ease-in-out infinite;opacity:0;">
+              <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--success),#34D399);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;">LK</div>
+              <div>
+                <div style="font-size:9px;font-weight:700;color:var(--strong);">Sprint 14 marked <span style="color:var(--success);">complete</span></div>
+                <div style="font-size:8px;color:var(--muted);margin-top:2px;">42/58 story points delivered — 2 mins ago</div>
+              </div>
+            </div>
+            <!-- Notification 3 -->
+            <div style="display:flex;gap:8px;padding:8px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:8px;animation:v5notif3 13s ease-in-out infinite;opacity:0;">
+              <div style="width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--amber),#FCD34D);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;flex-shrink:0;">AM</div>
+              <div>
+                <div style="font-size:9px;font-weight:700;color:var(--strong);"><span style="color:var(--amber);">CAD-139</span> moved to In Review</div>
+                <div style="font-size:8px;color:var(--muted);margin-top:2px;">CSV export bug — just now</div>
+              </div>
+            </div>
+            <div style="margin-top:auto;text-align:center;">
+              <span style="font-size:8.5px;color:var(--muted);">Role-based — only see what's relevant to you</span>
+            </div>
+          </div>
+        </div>
+        <div class="vctrls">
+          <div class="vplaybtn"><svg viewBox="0 0 10 12"><path d="M2 1l7 5-7 5V1z"/></svg></div>
+          <div class="vscrub"><div class="vsf v5-fill"></div></div>
+          <span class="vtime">0:13</span>
+        </div>
+        <div class="vfoot"><div class="vft">Live Notifications &amp; Activity</div><div class="vfs">Real-time alerts for assignments, status changes, and sprint events</div></div>
+      </div>
+
+      <!-- ══ VIDEO 6: Roadmap / Timeline Gantt ══ -->
+      <div class="vplayer reveal d6">
+        <div class="vpc">
+          <div class="vpc-d"><span class="dr"></span><span class="dy"></span><span class="dg"></span></div>
+          <span class="vpc-lbl">Roadmap — Gantt timeline view</span>
+        </div>
+        <div class="vscreen">
+          <div style="padding:10px;height:100%;display:flex;flex-direction:column;gap:6px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:2px;">
+              <span style="font-size:10px;font-weight:800;color:var(--strong);">Roadmap</span>
+              <div style="display:flex;gap:5px;font-size:7.5px;color:var(--muted);">
+                <span style="border:1px solid var(--border);padding:2px 6px;border-radius:4px;">Q2</span>
+                <span style="border:1px solid var(--border);padding:2px 6px;border-radius:4px;">Q3</span>
+                <span style="border:1px solid var(--border);padding:2px 6px;border-radius:4px;">Q4</span>
+              </div>
+            </div>
+            <!-- month row -->
+            <div style="display:grid;grid-template-columns:90px 1fr;border-bottom:1px solid var(--border);padding-bottom:4px;margin-bottom:4px;">
+              <div></div>
+              <div style="display:flex;justify-content:space-between;padding:0 4px;">
+                <span style="font-size:7.5px;color:var(--muted);">Jun</span>
+                <span style="font-size:7.5px;color:var(--muted);">Jul</span>
+                <span style="font-size:7.5px;color:var(--muted);">Aug</span>
+                <span style="font-size:7.5px;color:var(--muted);">Sep</span>
+              </div>
+            </div>
+            <!-- epic rows -->
+            <div style="display:flex;flex-direction:column;gap:8px;flex:1;">
+              <div style="display:grid;grid-template-columns:90px 1fr;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0;"></div>
+                  <span style="font-size:8px;font-weight:700;color:var(--strong);">Auth Overhaul</span>
+                </div>
+                <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;height:20px;position:relative;overflow:hidden;">
+                  <div style="position:absolute;left:5%;top:2px;height:16px;background:linear-gradient(90deg,var(--accent),var(--accentL));border-radius:3px;animation:v6bar1 14s ease-out infinite;width:0%;max-width:68%;"></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:90px 1fr;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--violet);flex-shrink:0;"></div>
+                  <span style="font-size:8px;font-weight:700;color:var(--strong);">Design System</span>
+                </div>
+                <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;height:20px;position:relative;overflow:hidden;">
+                  <div style="position:absolute;left:32%;top:2px;height:16px;background:linear-gradient(90deg,var(--violet),#A78BFA);border-radius:3px;animation:v6bar2 14s ease-out infinite;animation-delay:.6s;width:0%;max-width:45%;"></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:90px 1fr;align-items:center;gap:8px;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--success);flex-shrink:0;"></div>
+                  <span style="font-size:8px;font-weight:700;color:var(--strong);">Mobile v2.0</span>
+                </div>
+                <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;height:20px;position:relative;overflow:hidden;">
+                  <div style="position:absolute;left:18%;top:2px;height:16px;background:linear-gradient(90deg,var(--success),#34D399);border-radius:3px;animation:v6bar3 14s ease-out infinite;animation-delay:1.2s;width:0%;max-width:82%;"></div>
+                </div>
+              </div>
+              <div style="display:grid;grid-template-columns:90px 1fr;align-items:center;gap:8px;opacity:.55;">
+                <div style="display:flex;align-items:center;gap:5px;">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--amber);flex-shrink:0;"></div>
+                  <span style="font-size:8px;font-weight:700;color:var(--strong);">API v2</span>
+                </div>
+                <div style="background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:4px;height:20px;position:relative;overflow:hidden;">
+                  <div style="position:absolute;left:55%;top:2px;height:16px;background:linear-gradient(90deg,var(--amber),#FCD34D);border-radius:3px;width:32%;"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding-top:5px;border-top:1px solid var(--border);">
+              <div style="width:8px;height:2px;background:rgba(239,68,68,.7);"></div>
+              <span style="font-size:7.5px;color:var(--muted);">Today</span>
+              <div style="display:flex;gap:8px;margin-left:auto;">
+                <div style="display:flex;align-items:center;gap:3px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--accent);"></div><span style="font-size:7px;color:var(--muted);">Sprint</span></div>
+                <div style="display:flex;align-items:center;gap:3px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--violet);"></div><span style="font-size:7px;color:var(--muted);">Epic</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="vctrls">
+          <div class="vplaybtn"><svg viewBox="0 0 10 12"><path d="M2 1l7 5-7 5V1z"/></svg></div>
+          <div class="vscrub"><div class="vsf v6-fill"></div></div>
+          <span class="vtime">0:14</span>
+        </div>
+        <div class="vfoot"><div class="vft">Roadmap &amp; Timeline Gantt</div><div class="vfs">Epic-level scheduling across quarters — perfect for leadership reviews</div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SIX VIEWS ═══════════════ -->
+<section id="views" class="section-pad">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">Work Views</span>
+      <h2 class="section-title">Six ways to see your work.<br><span class="gr">Every role covered.</span></h2>
+      <p class="section-sub">From developer to director — every role gets the right perspective on the same live data. No switching tools, no exporting, no waiting.</p>
+    </div>
+    <div class="views-grid">
+      <div class="view-card reveal d1">
+        <div class="view-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="12" rx="1"/><rect x="17" y="3" width="5" height="16" rx="1"/></svg></div>
+        <div class="view-name">Board</div>
+        <div class="view-desc">Kanban drag-and-drop across workflow columns. Cards update live as teammates make changes — no refresh ever needed.</div>
+      </div>
+      <div class="view-card reveal d2">
+        <div class="view-icon"><svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
+        <div class="view-name">Backlog</div>
+        <div class="view-desc">Prioritised flat issue list with filter by type, priority, assignee, and sprint. Bulk-move issues in a single action.</div>
+      </div>
+      <div class="view-card reveal d3">
+        <div class="view-icon"><svg viewBox="0 0 24 24"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg></div>
+        <div class="view-name">Timeline</div>
+        <div class="view-desc">Sprint Gantt view across the calendar. Spot scheduling conflicts and plan team capacity at a glance.</div>
+      </div>
+      <div class="view-card reveal d4" style="--vi-color:var(--amber);">
+        <div class="view-icon" style="background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.18);"><svg viewBox="0 0 24 24" style="stroke:var(--amber)"><line x1="3" y1="12" x2="21" y2="12"/><polyline points="8 6 3 12 8 18"/><polyline points="16 6 21 12 16 18"/></svg></div>
+        <div class="view-name">Roadmap</div>
+        <div class="view-desc">Epic-level Gantt across months and quarters. Present long-term plans to stakeholders and leadership instantly.</div>
+      </div>
+      <div class="view-card reveal d5">
+        <div class="view-icon" style="background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.18);"><svg viewBox="0 0 24 24" style="stroke:var(--success)"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+        <div class="view-name">Calendar</div>
+        <div class="view-desc">Month view of all due dates across every project. See deadline collisions before they happen — without opening individual issues.</div>
+      </div>
+      <div class="view-card reveal d6">
+        <div class="view-icon" style="background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.18);"><svg viewBox="0 0 24 24" style="stroke:var(--violet)"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+        <div class="view-name">Sprint Report</div>
+        <div class="view-desc">Burndown chart — ideal vs. actual — plus story point metrics and full issue-status breakdown per sprint. Always ready to share.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PLATFORM ═══════════════ -->
+<section id="platform" class="section-pad" style="background:var(--bg2);">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">Cross-Platform</span>
+      <h2 class="section-title">One platform.<br><span class="gr">Three surfaces. Always in sync.</span></h2>
+      <p class="section-sub">Your organization stays aligned whether at a desk, on a job site, or on the move — Web, iOS, and Android, all powered by live WebSocket sync under 100ms.</p>
+    </div>
+    <div class="plat-grid">
+      <div class="plat-card reveal d1">
+        <div class="plat-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--accentL)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+        </div>
+        <div class="plat-name">Web Application</div>
+        <div class="plat-desc">Full-featured browser experience on Chrome, Safari, Firefox, and Edge. No installation required — open your workspace from any computer, anywhere in the world. All 6 views, all features, all live.</div>
+        <div class="plat-tags"><span class="chip chip-b">All 6 views</span><span class="chip chip-b">Full feature set</span><span class="chip chip-b">Any browser</span></div>
+      </div>
+      <div class="plat-card reveal d2" style="border-color:rgba(139,92,246,.25);">
+        <div class="plat-icon" style="background:rgba(139,92,246,.1);border-color:rgba(139,92,246,.2);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--violet)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><rect x="7" y="2" width="10" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        </div>
+        <div class="plat-name">iOS App</div>
+        <div class="plat-desc">Native iPhone and iPad app with the full Cadence experience. Manage issues, move cards, comment on tasks, and view your sprint board — with native iOS performance and a polished, touch-first UI.</div>
+        <div class="plat-tags"><span class="chip chip-v">iPhone &amp; iPad</span><span class="chip chip-v">Native UI</span><span class="chip chip-v">Offline-ready</span></div>
+      </div>
+      <div class="plat-card reveal d3" style="border-color:rgba(16,185,129,.2);">
+        <div class="plat-icon" style="background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.2);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="28" height="28"><path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3"/><rect x="9" y="11" width="14" height="10" rx="2"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <div class="plat-name">Android App</div>
+        <div class="plat-desc">Native Android app for all phones and tablets. Full project management on the go — the same live data your web team sees, always current and instantly in sync with every change across your organization.</div>
+        <div class="plat-tags"><span class="chip chip-g">All Android devices</span><span class="chip chip-g">Offline-ready</span><span class="chip chip-g">Native UI</span></div>
+      </div>
+    </div>
+    <div class="live-bar reveal">
+      <div class="live-dot"></div>
+      <div class="live-bar-text">Real-time WebSocket sync — every board, backlog, and issue updates the moment a change is made, on every device, for every user, in under 100ms.</div>
+      <div class="live-bar-tags">
+        <span class="chip chip-g">Socket.io</span>
+        <span class="chip chip-b">Optimistic UI</span>
+        <span class="chip chip-a">Auto recovery</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SECURITY ═══════════════ -->
+<section id="security" class="section-pad">
+  <div class="container">
+    <div class="reveal">
+      <span class="ey">Security &amp; Access Control</span>
+      <h2 class="section-title">Five-tier access.<br><span class="gr">Zero compromise.</span></h2>
+      <p class="section-sub">Every user has exactly the permissions their role requires. Access is invite-only, auditable, and enforced at the API level — not just the UI.</p>
+    </div>
+    <div class="sec-grid">
+      <div class="roles-list reveal">
+        <div class="role-row"><span class="role-badge rb-gold">Super Admin</span><span class="role-desc">Full platform access — manages organisations, system-wide configuration, and all users across the entire instance.</span></div>
+        <div class="role-row"><span class="role-badge rb-blue">Org Admin</span><span class="role-desc">Manages all projects and members within an organisation — creates projects, invites team members, and configures org-level settings.</span></div>
+        <div class="role-row"><span class="role-badge rb-green">Project Manager</span><span class="role-desc">Full control within assigned projects — starts sprints, manages workflows, assigns issues, and configures project settings.</span></div>
+        <div class="role-row"><span class="role-badge rb-white">Member</span><span class="role-desc">Creates and updates issues, logs comments, and moves work through boards and backlogs day-to-day.</span></div>
+        <div class="role-row"><span class="role-badge rb-muted">Viewer</span><span class="role-desc">Read-only access for stakeholders and clients — complete visibility, zero risk of accidental changes.</span></div>
+      </div>
+      <div class="sec-cards reveal d2">
+        <div class="sec-card" style="border-top:2px solid var(--accent);">
+          <div class="sec-card-lbl">Architecture</div>
+          <div class="sec-card-title">Multi-tenant data isolation</div>
+          <div class="sec-card-desc">Every organisation's data is completely isolated at the database level. No cross-tenant leakage is architecturally possible — even for platform administrators.</div>
+        </div>
+        <div class="sec-card">
+          <div class="sec-card-lbl">Onboarding</div>
+          <div class="sec-card-title">Invite-only member access</div>
+          <div class="sec-card-desc">New members join only via explicit email invitation. No open registration — every user is intentional, revocable, and fully auditable at any time.</div>
+        </div>
+        <div class="sec-card">
+          <div class="sec-card-lbl">Compliance</div>
+          <div class="sec-card-title">Complete audit trail</div>
+          <div class="sec-card-desc">Every status change, comment, assignment, and permission update is logged with a timestamp and user ID — a full, queryable activity trail for compliance needs.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ COMPARISON ═══════════════ -->
+<section class="section-pad" style="background:var(--bg2);">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">Why Cadence</span>
+      <h2 class="section-title">How Cadence compares<br><span class="gr">to the alternatives</span></h2>
+      <p class="section-sub">Enterprise-grade features, per-organization pricing, and dedicated onboarding — all in one platform that's configured to fit your organization from day one.</p>
+    </div>
+    <div class="tbl-wrap reveal">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Capability</th>
+            <th class="ours">Cadence</th>
+            <th>Jira Cloud</th>
+            <th>Asana</th>
+            <th>Trello</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Custom workflows per project</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="lm">Limited</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Sprint planning &amp; live burndown</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Epic / Gantt roadmap view</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Release &amp; version management</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Custom fields per project</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Real-time WebSocket updates</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="lm">Limited</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Native iOS &amp; Android app</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td><td><span class="ck">✓</span></td></tr>
+          <tr><td>Per-organization pricing (no per-seat)</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Dedicated onboarding &amp; support</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td></tr>
+          <tr><td>Configured to your exact workflows</td><td class="ours-col"><span class="ck">✓</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td><td><span class="cx">—</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PRICING ═══════════════ -->
+<section id="pricing" class="section-pad">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">Pricing</span>
+      <h2 class="section-title">Simple,<br><span class="gr">organization-based pricing</span></h2>
+      <p class="section-sub">Your organization buys one plan. Every invited member gets full access on Web, iOS, and Android. No per-seat charges, ever.</p>
+    </div>
+    <p class="pricing-note center reveal"><strong>All plans include</strong> &nbsp;Web App &nbsp;·&nbsp; iOS App &nbsp;·&nbsp; Android App &nbsp;·&nbsp; Real-time sync &nbsp;·&nbsp; Free upgrades &nbsp;·&nbsp; Cancel any time</p>
+    <div class="pricing-grid">
+      <div class="price-card reveal d1">
+        <div class="price-tier">Starter</div>
+        <div class="price-amount"><sup>$</sup>99<span> / month</span></div>
+        <div class="price-users">Per organization &nbsp;·&nbsp; Up to 30 users</div>
+        <div class="price-plat"><span>Web</span><span>iOS</span><span>Android</span></div>
+        <div class="price-div"></div>
+        <div class="price-feats">
+          <div class="pf"><div class="pf-dot"></div>Kanban &amp; Scrum boards</div>
+          <div class="pf"><div class="pf-dot"></div>Backlog &amp; issue tracking</div>
+          <div class="pf"><div class="pf-dot"></div>Threaded comments &amp; attachments</div>
+          <div class="pf"><div class="pf-dot"></div>Calendar &amp; Timeline view</div>
+          <div class="pf"><div class="pf-dot"></div>5 active projects</div>
+          <div class="pf"><div class="pf-dot"></div>3 access roles</div>
+          <div class="pf"><div class="pf-dot"></div>Email support</div>
+          <div class="pf dim"><div class="pf-x"></div>Sprint reports &amp; burndown</div>
+          <div class="pf dim"><div class="pf-x"></div>Roadmap &amp; release management</div>
+          <div class="pf dim"><div class="pf-x"></div>Custom fields</div>
+        </div>
+        <div class="price-btn">Get Started</div>
+      </div>
+      <div class="price-card featured reveal d2">
+        <div class="price-tier">Professional</div>
+        <div class="price-amount"><sup>$</sup>249<span> / month</span></div>
+        <div class="price-users">Per organization &nbsp;·&nbsp; Up to 150 users</div>
+        <div class="price-plat"><span>Web</span><span>iOS</span><span>Android</span></div>
+        <div class="price-div"></div>
+        <div class="price-feats">
+          <div class="pf"><div class="pf-dot"></div>Everything in Starter</div>
+          <div class="pf"><div class="pf-dot"></div>Unlimited projects</div>
+          <div class="pf"><div class="pf-dot"></div>Sprint planning &amp; burndown charts</div>
+          <div class="pf"><div class="pf-dot"></div>Roadmap &amp; epic tracking</div>
+          <div class="pf"><div class="pf-dot"></div>Release management</div>
+          <div class="pf"><div class="pf-dot"></div>Custom fields per project</div>
+          <div class="pf"><div class="pf-dot"></div>5-tier role-based access</div>
+          <div class="pf"><div class="pf-dot"></div>Velocity &amp; sprint analytics</div>
+          <div class="pf"><div class="pf-dot"></div>Real-time WebSocket sync</div>
+          <div class="pf"><div class="pf-dot"></div>Priority support</div>
+        </div>
+        <div class="price-btn">Start Free Trial</div>
+      </div>
+      <div class="price-card reveal d3">
+        <div class="price-tier">Enterprise</div>
+        <div class="price-amount" style="font-size:40px;line-height:1.15;padding-top:5px;background:linear-gradient(135deg,var(--amber),#FCD34D);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">Custom</div>
+        <div class="price-users">Per organization &nbsp;·&nbsp; Unlimited users</div>
+        <div class="price-plat"><span>Web</span><span>iOS</span><span>Android</span></div>
+        <div class="price-div"></div>
+        <div class="price-feats">
+          <div class="pf"><div class="pf-dotA"></div>Everything in Professional</div>
+          <div class="pf"><div class="pf-dotA"></div>Unlimited users &amp; projects</div>
+          <div class="pf"><div class="pf-dotA"></div>Dedicated success manager</div>
+          <div class="pf"><div class="pf-dotA"></div>Custom workflow configuration</div>
+          <div class="pf"><div class="pf-dotA"></div>Hands-on team onboarding</div>
+          <div class="pf"><div class="pf-dotA"></div>Data migration assistance</div>
+          <div class="pf"><div class="pf-dotA"></div>99.9% uptime SLA</div>
+          <div class="pf"><div class="pf-dotA"></div>SSO / SAML integration</div>
+          <div class="pf"><div class="pf-dotA"></div>24/7 dedicated support</div>
+          <div class="pf"><div class="pf-dotA"></div>Custom billing &amp; invoicing</div>
+        </div>
+        <div class="price-btn" style="border-color:rgba(245,158,11,.4);color:var(--amber);">Contact Sales</div>
+      </div>
+    </div>
+    <div class="pricing-foot reveal">All pricing is <strong>per organization per month</strong> — not per seat. Every member your organization invites gets full access on Web, iOS &amp; Android under a single plan. Upgrade, downgrade, or cancel at any time. No long-term contracts required.</div>
+  </div>
+</section>
+
+<!-- ═══════════════ IMPLEMENTATION ═══════════════ -->
+<section class="section-pad" style="background:var(--bg2);">
+  <div class="container">
+    <div class="reveal center">
+      <span class="ey">Getting Started</span>
+      <h2 class="section-title">From sign-up to fully live<br><span class="gr">in four weeks.</span></h2>
+      <p class="section-sub">A dedicated implementation manager handles everything — from workspace setup and data migration to team training on Web, iOS, and Android.</p>
+    </div>
+    <div class="impl-grid">
+      <div class="impl-card ic1 reveal d1">
+        <div class="impl-week">Week 1</div>
+        <div class="impl-phase">Discovery &amp; Setup</div>
+        <div class="impl-items">
+          <div class="impl-item"><div class="impl-dot"></div>Kickoff call and team mapping</div>
+          <div class="impl-item"><div class="impl-dot"></div>Organisation and project structure setup</div>
+          <div class="impl-item"><div class="impl-dot"></div>Admin accounts provisioned</div>
+          <div class="impl-item"><div class="impl-dot"></div>Roles mapped to your org chart</div>
+          <div class="impl-item"><div class="impl-dot"></div>Web, iOS &amp; Android access live</div>
+        </div>
+      </div>
+      <div class="impl-card ic2 reveal d2">
+        <div class="impl-week">Week 2</div>
+        <div class="impl-phase">Configuration</div>
+        <div class="impl-items">
+          <div class="impl-item"><div class="impl-dot"></div>Custom workflow setup per team</div>
+          <div class="impl-item"><div class="impl-dot"></div>Custom fields and labels configured</div>
+          <div class="impl-item"><div class="impl-dot"></div>Existing project data migrated</div>
+          <div class="impl-item"><div class="impl-dot"></div>Notification and permission setup</div>
+          <div class="impl-item"><div class="impl-dot"></div>Mobile app configuration validated</div>
+        </div>
+      </div>
+      <div class="impl-card ic3 reveal d3">
+        <div class="impl-week">Week 3</div>
+        <div class="impl-phase">Pilot &amp; Training</div>
+        <div class="impl-items">
+          <div class="impl-item"><div class="impl-dot"></div>Pilot team onboarded (5–10 users)</div>
+          <div class="impl-item"><div class="impl-dot"></div>Live training by role — web &amp; mobile</div>
+          <div class="impl-item"><div class="impl-dot"></div>First sprint run end-to-end</div>
+          <div class="impl-item"><div class="impl-dot"></div>Feedback collected and actioned</div>
+          <div class="impl-item"><div class="impl-dot"></div>User documentation delivered</div>
+        </div>
+      </div>
+      <div class="impl-card ic4 reveal d4">
+        <div class="impl-week">Week 4</div>
+        <div class="impl-phase">Full Rollout</div>
+        <div class="impl-items">
+          <div class="impl-item"><div class="impl-dot"></div>All users invited and onboarded</div>
+          <div class="impl-item"><div class="impl-dot"></div>All projects migrated and live</div>
+          <div class="impl-item"><div class="impl-dot"></div>Go-live sign-off with your team</div>
+          <div class="impl-item"><div class="impl-dot"></div>30-day post-launch helpdesk</div>
+          <div class="impl-item"><div class="impl-dot"></div>Quarterly business review scheduled</div>
+        </div>
+      </div>
+    </div>
+    <div class="impl-tags reveal">
+      <span class="impl-tags-label">Enterprise includes</span>
+      <span class="chip chip-g">Dedicated implementation manager</span>
+      <span class="chip chip-g">Data migration support</span>
+      <span class="chip chip-b">Role-based training — web &amp; mobile</span>
+      <span class="chip chip-v">30-day post-launch helpdesk</span>
+      <span class="chip chip-a">Quarterly business review</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ CTA ═══════════════ -->
+<section id="cta">
+  <div class="cta-glow"></div>
+  <div class="container">
+    <div class="cta-inner reveal">
+      <div class="cta-logo">Cadence</div>
+      <p class="cta-sub">Let&rsquo;s get your organization aligned —<br>on Web, iOS, and Android.</p>
+      <div class="cta-btns">
+        <a href="#pricing" class="btn btn-primary" style="font-size:16px;padding:16px 36px;">Start Free Trial</a>
+        <a href="#features" class="btn btn-ghost" style="font-size:16px;padding:15px 36px;">Schedule a Demo</a>
+      </div>
+      <p class="cta-note">14 days free &nbsp;·&nbsp; No credit card required &nbsp;·&nbsp; Full Professional access &nbsp;·&nbsp; Cancel any time</p>
+      <p style="margin-top:18px;font-size:13.5px;color:var(--muted);">Have questions? Reach us at &nbsp;<a href="mailto:kabeerfeb2@gmail.com" style="color:var(--accentL);text-decoration:none;font-weight:600;border-bottom:1px solid rgba(96,165,250,.35);padding-bottom:1px;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--accentL)'" onmouseout="this.style.borderColor='rgba(96,165,250,.35)'">kabeerfeb2@gmail.com</a></p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <span class="footer-logo">
+        <svg width="22" height="16" viewBox="0 0 41 28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="0"  y="18" width="5" height="10" rx="2.5" fill="url(#logo-grad)"/>
+          <rect x="9"  y="10" width="5" height="18" rx="2.5" fill="url(#logo-grad)"/>
+          <rect x="18" y="0"  width="5" height="28" rx="2.5" fill="url(#logo-grad)"/>
+          <rect x="27" y="10" width="5" height="18" rx="2.5" fill="url(#logo-grad)"/>
+          <rect x="36" y="18" width="5" height="10" rx="2.5" fill="url(#logo-grad)"/>
+        </svg>
+        Cadence
+      </span>
+      <div class="footer-links">
+        <a href="#features">Features</a>
+        <a href="#views">Views</a>
+        <a href="#platform">Platform</a>
+        <a href="#security">Security</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#cta">Get Started</a>
+        <a href="mailto:kabeerfeb2@gmail.com" style="color:var(--accentL);display:flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          kabeerfeb2@gmail.com
+        </a>
+      </div>
+      <span class="footer-copy">&copy; 2026 Cadence. All rights reserved.</span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  /* ── Scroll reveal ── */
+  var els=document.querySelectorAll('.reveal');
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});
+  },{threshold:0.12});
+  els.forEach(function(el){io.observe(el);});
+
+  /* ── Nav active link ── */
+  var sections=Array.from(document.querySelectorAll('section[id]'));
+  var navLinks=Array.from(document.querySelectorAll('.nav-links a'));
+  var sio=new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        var id=e.target.id;
+        navLinks.forEach(function(a){
+          a.style.color=a.getAttribute('href')==='#'+id?'var(--strong)':'';
+        });
+      }
+    });
+  },{threshold:0.4});
+  sections.forEach(function(s){sio.observe(s);});
+
+  /* ── Nav shrink on scroll ── */
+  var nav=document.querySelector('.nav');
+  window.addEventListener('scroll',function(){
+    nav.style.borderBottomColor=window.scrollY>60?'rgba(59,130,246,0.2)':'rgba(59,130,246,0.12)';
+  },{passive:true});
+}());
+</script>
+</body>
+</html>

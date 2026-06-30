@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetProjectIssuesQuery } from '../../api/issueApi';
 import { useGetSprintsQuery } from '../../api/sprintApi';
 import { useGetProjectQuery } from '../../api/projectApi';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -85,6 +86,7 @@ export default function CalendarScreen({ route, navigation }) {
 
   const project = projectResp?.data;
   const accent  = project?.color || '#0F2557';
+  useProjectScrollbar(project?.color);
   const issues  = issuesResp?.data?.data || [];
   const sprints = sprintsResp?.data?.data || [];
 

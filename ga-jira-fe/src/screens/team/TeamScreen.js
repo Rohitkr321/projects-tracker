@@ -134,7 +134,7 @@ const TeamScreen = ({ navigation }) => {
           </TouchableOpacity>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
             <BrandLogo variant="mark" width={34} height={34} />
-            <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: '800' }}>GA Tracker</Text>
+            <Text variant="titleSmall" style={{ color: theme.colors.primary, fontWeight: '800' }}>Cadence</Text>
           </View>
           <Text variant="bodySmall" style={{ color: theme.colors.onSurfaceVariant }}>
             {users.length} members

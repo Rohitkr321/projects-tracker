@@ -17,6 +17,7 @@ import {
 import { formatDate } from '../../utils/dateUtils';
 import colors from '../../theme/colors';
 import AppToast from '../../components/common/AppToast';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 
 const NAVY = colors.brand.navy;
 
@@ -81,6 +82,7 @@ const BacklogScreen = ({ route, navigation }) => {
 
   const project = projectResp?.data || projectResp || {};
   const accent = project.color || NAVY;
+  useProjectScrollbar(project.color);
   const allIssues = issuesData?.data?.data || [];
   const sprints = (sprintsData?.data?.data || [])
     .filter((s) => s.status !== 'completed')
@@ -498,7 +500,7 @@ const BacklogScreen = ({ route, navigation }) => {
       </ScrollView>
 
       {selected.size > 0 && (
-        <View style={[styles.bulkBar, { backgroundColor: NAVY }]}>
+        <View style={[styles.bulkBar, { backgroundColor: accent }]}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={styles.bulkCountBadge}>
               <Text style={styles.bulkCountText}>{selected.size}</Text>

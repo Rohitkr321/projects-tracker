@@ -373,7 +373,7 @@ export default function ProfileScreen() {
 
           {/* ── Quick info ── */}
           <View style={leftStyles.infoBlock}>
-            <QuickInfo icon="office-building-outline" label="Organization" value="General Aeronautics" />
+            <QuickInfo icon="office-building-outline" label="Organization" value={user?.organization?.name || 'Cadence'} />
             <QuickInfo icon="calendar-check-outline" label="Member since" value={formatDate(user?.createdAt)} />
             <QuickInfo icon="clock-time-four-outline" label="Timezone" value={timezone} />
           </View>
@@ -388,7 +388,7 @@ export default function ProfileScreen() {
             <Text style={leftStyles.signOutText}>Sign Out</Text>
           </TouchableOpacity>
 
-          <Text style={leftStyles.version}>GA Tracker v1.0.0</Text>
+          <Text style={leftStyles.version}>Cadence v1.0.0</Text>
         </ScrollView>
       </View>
 
@@ -714,7 +714,7 @@ export default function ProfileScreen() {
           <>
             <SectionHeader
               title="User Manual"
-              desc="A complete guide to every feature in GA Tracker, tailored to your role."
+              desc="A complete guide to every feature in Cadence, tailored to your role."
               icon="book-open-outline"
               color={SECTION_COLORS.manual}
               theme={theme}

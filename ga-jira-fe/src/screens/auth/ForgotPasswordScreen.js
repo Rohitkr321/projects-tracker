@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import {
   Text,
@@ -22,7 +21,7 @@ import * as Yup from 'yup';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useForgotPasswordMutation } from '../../api/authApi';
 
-const LOGO = require('../../../assets/ga-logo-full.jpg');
+const BAR_COLORS = ['#60A5FA', '#6BA4F8', '#7B8EF5', '#8B7AF0', '#8B5CF6'];
 
 const validationSchema = Yup.object().shape({
   email: Yup.string().email('Invalid email address').required('Email is required'),
@@ -56,17 +55,28 @@ const ForgotPasswordScreen = ({ navigation }) => {
         keyboardShouldPersistTaps="handled"
       >
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color={theme.colors.onSurface} />
+          <MaterialCommunityIcons name="arrow-left" size={24} color="#60A5FA" />
         </TouchableOpacity>
 
         <View style={styles.header}>
-          <View style={styles.logoContainer}>
-            <Image source={LOGO} style={styles.logoImg} resizeMode="contain" />
+          {/* Cadence brand mark */}
+          <View style={styles.logoWrap}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4, marginBottom: 10 }}>
+              {[12, 22, 32, 22, 12].map((h, i) => (
+                <View
+                  key={i}
+                  style={{ width: 7, height: h, borderRadius: 3.5, backgroundColor: BAR_COLORS[i] }}
+                />
+              ))}
+            </View>
+            <Text style={styles.brandName}>Cadence</Text>
+            <Text style={styles.brandTag}>PROJECT PLATFORM</Text>
           </View>
+
           <View style={[styles.iconContainer, { backgroundColor: theme.colors.primaryContainer }]}>
             <MaterialCommunityIcons
               name="lock-reset"
-              size={40}
+              size={36}
               color={theme.colors.primary}
             />
           </View>
@@ -84,7 +94,17 @@ const ForgotPasswordScreen = ({ navigation }) => {
         </View>
 
         {!submitted ? (
-          <Surface style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]} elevation={1}>
+          <Surface
+            style={[
+              styles.card,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outlineVariant,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+              },
+            ]}
+            elevation={0}
+          >
             <Formik
               initialValues={{ email: '' }}
               validationSchema={validationSchema}
@@ -110,23 +130,31 @@ const ForgotPasswordScreen = ({ navigation }) => {
                     </HelperText>
                   </View>
 
-                  <Button
-                    mode="contained"
+                  <TouchableOpacity
                     onPress={formikSubmit}
-                    loading={isLoading}
                     disabled={isLoading}
-                    style={styles.button}
-                    contentStyle={styles.buttonContent}
-                    labelStyle={styles.buttonLabel}
+                    style={[styles.submitBtn, isLoading && { opacity: 0.7 }]}
                   >
-                    Send Reset Link
-                  </Button>
+                    <Text style={styles.submitBtnText}>
+                      {isLoading ? 'Sending…' : 'Send Reset Link'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               )}
             </Formik>
           </Surface>
         ) : (
-          <Surface style={[styles.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.outlineVariant }]} elevation={1}>
+          <Surface
+            style={[
+              styles.card,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.outlineVariant,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
+              },
+            ]}
+            elevation={0}
+          >
             <View style={styles.successContent}>
               <MaterialCommunityIcons
                 name="email-check"
@@ -140,13 +168,12 @@ const ForgotPasswordScreen = ({ navigation }) => {
               >
                 If an account exists with that email, you'll receive a password reset link shortly.
               </Text>
-              <Button
-                mode="outlined"
+              <TouchableOpacity
                 onPress={() => navigation.navigate('Login')}
-                style={styles.button}
+                style={styles.submitBtn}
               >
-                Back to Sign In
-              </Button>
+                <Text style={styles.submitBtnText}>Back to Sign In</Text>
+              </TouchableOpacity>
             </View>
           </Surface>
         )}
@@ -166,27 +193,40 @@ const ForgotPasswordScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60, justifyContent: 'center' },
-  logoContainer: { width: 220, height: 88, borderRadius: 10, backgroundColor: '#fff', borderWidth: 1, borderColor: '#B8AA6E', borderBottomWidth: 3, justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
-  logoImg: { width: 190, height: 76 },
+  scrollContent: { flexGrow: 1, padding: 24, paddingTop: 60, justifyContent: 'center', alignItems: 'center' },
   backButton: { position: 'absolute', top: 60, left: 24, zIndex: 1 },
-  header: { alignItems: 'center', marginBottom: 32, gap: 10 },
+  header: { alignItems: 'center', marginBottom: 32, gap: 10, width: '100%', maxWidth: 440 },
+
+  logoWrap: { alignItems: 'center', marginBottom: 8 },
+  brandName: { color: '#F1F5F9', fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
+  brandTag: { color: '#60A5FA', fontSize: 10, fontWeight: '800', letterSpacing: 2, textTransform: 'uppercase', marginTop: 2 },
+
   iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
   },
-  title: { fontWeight: '700', marginBottom: 8 },
+  title: { fontWeight: '800', marginBottom: 4 },
   subtitle: { textAlign: 'center', lineHeight: 22 },
-  card: { borderRadius: 8, padding: 24, marginBottom: 24, borderWidth: 1 },
+
+  card: { borderRadius: 14, padding: 28, marginBottom: 24, borderWidth: 1, width: '100%', maxWidth: 440 },
   form: { gap: 8 },
   inputGroup: { marginBottom: 8 },
-  button: { borderRadius: 8, marginTop: 8 },
-  buttonContent: { height: 48 },
-  buttonLabel: { fontSize: 16, fontWeight: '600' },
+
+  submitBtn: {
+    background: 'linear-gradient(90deg,#3B82F6,#6366F1)',
+    backgroundColor: '#3B82F6',
+    borderRadius: 10,
+    height: 52,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+    boxShadow: '0 4px 22px rgba(59,130,246,0.45)',
+  },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
+
   successContent: { alignItems: 'center', gap: 16 },
   successIcon: { marginBottom: 8 },
   successText: { textAlign: 'center', lineHeight: 22 },

@@ -39,7 +39,7 @@ const ProfileScreen = ({ navigation }) => {
 
   const pendingInvites = (invitesResp?.data || []).filter(i => !i.acceptedAt && new Date(i.expiresAt) > new Date());
 
-  const initials = user ? `${user.firstName?.[0]}${user.lastName?.[0]}` : 'GA';
+  const initials = user ? `${user.firstName?.[0]}${user.lastName?.[0]}` : 'CA';
 
   const handleGenerateInvite = async () => {
     try {
@@ -257,7 +257,7 @@ const ProfileScreen = ({ navigation }) => {
         </Card.Content>
       </Card>
 
-      <Text variant="bodySmall" style={styles.version}>GA Tracker v1.0.0 - General Aeronautics</Text>
+      <Text variant="bodySmall" style={styles.version}>Cadence v1.0.0</Text>
 
       {/* Token result dialog */}
       <Portal>

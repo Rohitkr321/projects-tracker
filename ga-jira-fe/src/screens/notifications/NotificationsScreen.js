@@ -39,9 +39,9 @@ const getIconInfo = (type) =>
   NOTIF_ICON[type] || { icon: 'bell-outline', color: colors.onSurfaceVariant, label: titleCase(type || 'Notification') };
 
 const getInitials = (actor) => {
-  if (!actor) return 'GA';
+  if (!actor) return 'CA';
   const initials = `${actor.firstName?.[0] || ''}${actor.lastName?.[0] || ''}`.toUpperCase();
-  return initials || actor.email?.substring(0, 2).toUpperCase() || 'GA';
+  return initials || actor.email?.substring(0, 2).toUpperCase() || 'CA';
 };
 
 const NotificationItem = ({ notification, onMarkRead, theme }) => {

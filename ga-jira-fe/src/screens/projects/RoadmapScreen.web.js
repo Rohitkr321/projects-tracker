@@ -4,6 +4,7 @@ import { Text, useTheme, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetEpicsQuery, useGetProjectQuery } from '../../api/projectApi';
 import { useGetSprintsQuery } from '../../api/sprintApi';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 
 const LEFT_W = 220;
 const ROW_H  = 48;
@@ -139,6 +140,7 @@ export default function RoadmapScreen({ route, navigation }) {
 
   const project = projectResp?.data;
   const accent  = project?.color || '#0F2557';
+  useProjectScrollbar(project?.color);
   const epics   = epicsResp?.data || [];
   const sprints = sprintsResp?.data?.data || [];
 

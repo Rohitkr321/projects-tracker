@@ -44,9 +44,9 @@ const avatarHue = (str = '') => {
 };
 
 const actorInitials = (actor) => {
-  if (!actor) return 'GA';
+  if (!actor) return 'CA';
   const initials = `${actor.firstName?.[0] || ''}${actor.lastName?.[0] || ''}`.toUpperCase();
-  return initials || actor.email?.substring(0, 2).toUpperCase() || 'GA';
+  return initials || actor.email?.substring(0, 2).toUpperCase() || 'CA';
 };
 
 export default function NotificationsScreen() {

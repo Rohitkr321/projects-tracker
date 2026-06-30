@@ -17,6 +17,7 @@ import {
 import { formatDate, formatRelative, getDaysRemaining, getSprintProgress, isOverdue } from '../../utils/dateUtils';
 import colors from '../../theme/colors';
 import AppToast from '../../components/common/AppToast';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 
 const NAVY = colors.brand.navy;
 const PRIORITIES = ['highest', 'high', 'medium', 'low', 'lowest'];
@@ -318,6 +319,7 @@ const BoardScreen = ({ route, navigation }) => {
   const project = projectResp?.data || projectResp || {};
   const members = membersResp?.data || [];
   const accent = project.color || NAVY;
+  useProjectScrollbar(project.color);
   const activeSprint = activeSprintResp?.data;
   const allSprints = (sprintsData?.data?.data || []).filter((s) => s.status !== 'completed');
 

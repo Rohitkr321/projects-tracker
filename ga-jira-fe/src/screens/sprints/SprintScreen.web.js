@@ -7,7 +7,9 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useGetSprintsQuery, useStartSprintMutation, useCompleteSprintMutation } from '../../api/sprintApi';
 import { useGetIssuesQuery } from '../../api/issueApi';
 import { useGetBurndownReportQuery } from '../../api/reportApi';
+import { useGetProjectQuery } from '../../api/projectApi';
 import { useAuth } from '../../hooks/useAuth';
+import { useProjectScrollbar } from '../../hooks/useProjectScrollbar';
 import LoadingScreen from '../../components/common/LoadingScreen';
 import AppToast from '../../components/common/AppToast';
 import Avatar from '../../components/common/Avatar';
@@ -68,6 +70,11 @@ const SprintScreen = ({ route, navigation }) => {
   const { data: sprintsData, isLoading, refetch } = useGetSprintsQuery({ projectId });
   const [completeSprint, { isLoading: completing }] = useCompleteSprintMutation();
   const [startSprint, { isLoading: starting }] = useStartSprintMutation();
+
+  const { data: projectResp } = useGetProjectQuery(projectId, { skip: !projectId });
+  const project = projectResp?.data;
+  useProjectScrollbar(project?.color);
+  const accent = project?.color || NAVY;
 
   const allSprints = sprintsData?.data?.data || [];
   const activeSprint = allSprints.find((s) => s.status === 'active');
@@ -150,7 +157,7 @@ const SprintScreen = ({ route, navigation }) => {
             >
               <MaterialCommunityIcons name="arrow-left" size={18} color={theme.colors.onSurfaceVariant} />
             </TouchableOpacity>
-            <View style={[styles.sprintAvatar, { backgroundColor: isActive ? NAVY : colors.onSurfaceVariant }]}>
+            <View style={[styles.sprintAvatar, { backgroundColor: isActive ? accent : colors.onSurfaceVariant }]}>
               <MaterialCommunityIcons name="lightning-bolt" size={24} color="#fff" />
             </View>
             <View style={styles.heroTextBlock}>
@@ -173,7 +180,7 @@ const SprintScreen = ({ route, navigation }) => {
                 mode="contained"
                 icon="play"
                 onPress={() => setStartDialog(focusedSprint)}
-                style={[styles.actionButton, { backgroundColor: NAVY }]}
+                style={[styles.actionButton, { backgroundColor: accent }]}
                 labelStyle={styles.containedLabel}
               >
                 Start Sprint
@@ -228,12 +235,12 @@ const SprintScreen = ({ route, navigation }) => {
                   {focusedSprint.endDate ? ` to ${formatDate(focusedSprint.endDate)}` : ''}
                 </Text>
               </View>
-              <Text style={[styles.progressValue, { color: isActive ? NAVY : colors.onSurfaceVariant }]}>
+              <Text style={[styles.progressValue, { color: isActive ? accent : colors.onSurfaceVariant }]}>
                 {Math.round(progress)}%
               </Text>
             </View>
             <View style={[styles.progressTrack, { backgroundColor: theme.colors.surfaceVariant }]}>
-              <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%`, backgroundColor: isActive ? NAVY : colors.onSurfaceVariant }]} />
+              <View style={[styles.progressFill, { width: `${Math.min(progress, 100)}%`, backgroundColor: isActive ? accent : colors.onSurfaceVariant }]} />
             </View>
           </View>
         )}
@@ -247,7 +254,7 @@ const SprintScreen = ({ route, navigation }) => {
                 icon="format-list-checks"
                 title="Sprint issues"
                 subtitle={focusedSprint ? `${sprintIssues.length} issue${sprintIssues.length !== 1 ? 's' : ''} in scope` : 'No sprint selected'}
-                tone={NAVY}
+                tone={accent}
                 theme={theme}
                 action={focusedSprint ? (
                   <Button
@@ -256,7 +263,7 @@ const SprintScreen = ({ route, navigation }) => {
                     compact
                     onPress={() => navigation.navigate('Backlog', { projectId })}
                     style={[styles.smallButton, { borderColor: theme.colors.outlineVariant }]}
-                    labelStyle={[styles.outlinedLabel, { color: NAVY }]}
+                    labelStyle={[styles.outlinedLabel, { color: accent }]}
                   >
                     Add From Backlog
                   </Button>
@@ -328,7 +335,7 @@ const SprintScreen = ({ route, navigation }) => {
                             compact
                             mode="contained"
                             onPress={(e) => { e.stopPropagation?.(); setStartDialog(sp); }}
-                            style={[styles.smallButton, { backgroundColor: NAVY }]}
+                            style={[styles.smallButton, { backgroundColor: accent }]}
                             labelStyle={styles.containedLabel}
                           >
                             Start
@@ -425,7 +432,7 @@ const SprintScreen = ({ route, navigation }) => {
                 <>
                   <Divider style={{ marginVertical: 16 }} />
                   <Text style={[styles.chartTitle, { color: theme.colors.onSurfaceVariant }]}>Burndown</Text>
-                  <BurndownChart data={burndown.data} total={burndown.total} theme={theme} />
+                  <BurndownChart data={burndown.data} total={burndown.total} theme={theme} accent={accent} />
                 </>
               )}
             </Surface>
@@ -645,7 +652,7 @@ const EmptyState = ({ icon, title, subtitle, theme, action }) => (
   </View>
 );
 
-const BurndownChart = ({ data, total }) => {
+const BurndownChart = ({ data, total, accent }) => {
   if (!data || data.length < 2) return null;
   const W = 280;
   const H = 138;
@@ -686,7 +693,7 @@ const BurndownChart = ({ data, total }) => {
       <line x1={PAD.l} y1={PAD.t + iH} x2={W - PAD.r} y2={PAD.t + iH} stroke="#CBD5E1" strokeWidth={1} />
       <polyline points={idealPts} fill="none" stroke="#94A3B8" strokeWidth={1.5} strokeDasharray="5,3" />
       <polygon points={`${toX(0)},${areaBot} ${actualPts} ${toX(n - 1)},${areaBot}`} fill="#DBEAFE" opacity="0.55" />
-      <polyline points={actualPts} fill="none" stroke={NAVY} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <polyline points={actualPts} fill="none" stroke={accent || NAVY} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
       {xLabels.map(({ i, label }) => (
         <text key={i} x={toX(i)} y={H - 6} textAnchor="middle" fontSize={9} fill="#94A3B8">{label}</text>
       ))}

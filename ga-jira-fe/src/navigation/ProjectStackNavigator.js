@@ -21,7 +21,7 @@ const Stack = createStackNavigator();
 const GAHeader = ({ tintColor, theme }) => (
   <View style={styles.headerBrand}>
     <BrandLogo variant="mark" width={34} height={34} />
-    <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>GA Tracker</Text>
+    <Text style={[styles.headerTitle, { color: theme.colors.primary }]}>Cadence</Text>
   </View>
 );
 
@@ -51,8 +51,8 @@ const ProjectStackNavigator = () => {
       <Stack.Screen name="Sprint"           component={SprintScreen} />
       <Stack.Screen name="Epics"            component={EpicsScreen} />
       <Stack.Screen name="ProjectSettings"  component={ProjectSettingsScreen} />
-      <Stack.Screen name="IssueDetail"      component={IssueDetailScreen} />
-      <Stack.Screen name="CreateIssue"      component={CreateIssueScreen} />
+      <Stack.Screen name="IssueDetail"      component={IssueDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="CreateIssue"      component={CreateIssueScreen} options={{ headerShown: false }} />
       <Stack.Screen name="IssueList"        component={IssueListScreen} />
       <Stack.Screen name="Timeline"         component={TimelineScreen} />
       <Stack.Screen name="Roadmap"          component={RoadmapScreen} />

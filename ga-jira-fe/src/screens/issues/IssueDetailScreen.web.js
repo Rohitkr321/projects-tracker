@@ -114,6 +114,7 @@ export default function IssueDetailScreen({ route, navigation }) {
 
   const { data: projectResp }      = useGetProjectQuery(projectId,          { skip: !projectId });
   useProjectScrollbar(projectResp?.data?.color);
+  const accent = projectResp?.data?.color || NAVY;
   const { data: workflowData }     = useGetProjectWorkflowQuery(projectId, { skip: !projectId });
   const { data: membersData }      = useGetProjectMembersQuery(projectId,  { skip: !projectId });
   const { data: activeSprintData } = useGetActiveSprintQuery(projectId,    { skip: !projectId });
@@ -404,11 +405,16 @@ export default function IssueDetailScreen({ route, navigation }) {
       {/* Top bar */}
       <View style={[styles.topBar, { backgroundColor: surf, borderBottomColor: border }]}>
         <View style={styles.breadcrumb}>
+          {/* Back button */}
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <MaterialCommunityIcons name="arrow-left" size={18} color={accent} />
+          </TouchableOpacity>
+          <View style={{ width: 1, height: 16, backgroundColor: border, marginHorizontal: 2 }} />
           {/* Project name (non-subtasks show project; subtasks show parent's project via parent) */}
           {issue.project && (
             <>
               <TouchableOpacity onPress={() => navigation.navigate('ProjectDetail', { projectId: issue.project.id })}>
-                <Text style={{ color: theme.colors.primary, fontSize: 13, fontWeight: '600' }}>{issue.project.name}</Text>
+                <Text style={{ color: accent, fontSize: 13, fontWeight: '700' }}>{issue.project.name}</Text>
               </TouchableOpacity>
               <MaterialCommunityIcons name="chevron-right" size={15} color={theme.colors.onSurfaceVariant} />
             </>
@@ -462,7 +468,7 @@ export default function IssueDetailScreen({ route, navigation }) {
         <ScrollView style={styles.leftScroll} contentContainerStyle={styles.leftContent} showsVerticalScrollIndicator={false}>
 
           {/* Issue header card */}
-          <View style={[styles.issueHero, { backgroundColor: surf, borderColor: border, borderTopColor: typeMeta.color }]}>
+          <View style={[styles.issueHero, { backgroundColor: surf, borderColor: border, borderTopColor: accent }]}>
             <View style={styles.heroTop}>
               <View style={[styles.issueTypeMark, { backgroundColor: typeMeta.bg }]}>
                 <MaterialCommunityIcons name={typeMeta.icon} size={26} color={typeMeta.color} />
@@ -907,7 +913,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                   <TouchableOpacity
                     onPress={handleCreateSubtask}
                     disabled={!subtaskTitle.trim() || creatingSubtask}
-                    style={[styles.sendBtn, { backgroundColor: subtaskTitle.trim() ? NAVY : border, opacity: creatingSubtask ? 0.6 : 1 }]}
+                    style={[styles.sendBtn, { backgroundColor: subtaskTitle.trim() ? accent : border, opacity: creatingSubtask ? 0.6 : 1 }]}
                   >
                     {creatingSubtask
                       ? <ActivityIndicator size={12} color="#fff" />
@@ -1014,7 +1020,7 @@ export default function IssueDetailScreen({ route, navigation }) {
                       onPress={handleComment}
                       disabled={!commentText.trim() || commenting}
                       style={[styles.sendBtn, {
-                        backgroundColor: commentText.trim() ? NAVY : theme.colors.outlineVariant,
+                        backgroundColor: commentText.trim() ? accent : theme.colors.outlineVariant,
                         opacity: commenting ? 0.6 : 1,
                       }]}
                     >

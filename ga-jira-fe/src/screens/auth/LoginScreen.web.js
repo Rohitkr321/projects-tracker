@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text, TextInput, HelperText, useTheme } from 'react-native-paper';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
@@ -7,10 +7,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useLoginMutation, useChallenge2faMutation } from '../../api/authApi';
 import { useAuth } from '../../hooks/useAuth';
 
-const NAVY  = '#0F2557';
-const GOLD  = '#B8AA6E';
-const PANEL = '#0B1A3B';
-const LOGO  = require('../../../assets/ga-logo-full.jpg');
+const NAVY  = '#0D1B36';
+const GOLD  = '#60A5FA';
+const PANEL = '#0A1528';
+const BAR_COLORS = ['#60A5FA', '#6BA4F8', '#7B8EF5', '#8B7AF0', '#8B5CF6'];
 
 const validationSchema = Yup.object().shape({
   email:    Yup.string().email('Invalid email').required('Email is required'),
@@ -24,7 +24,7 @@ const FEATURES = [
 ];
 
 const STATS = [
-  { value: 'GA Tracker',  label: 'Internal Platform' },
+  { value: 'Cadence',  label: 'Project Platform' },
   { value: 'RBAC',     label: 'Access Control'     },
   { value: 'Live',     label: 'Real-Time Sync'     },
 ];
@@ -81,23 +81,27 @@ export default function LoginScreen({ navigation }) {
 
         {/* ── Logo card ── */}
         <View style={styles.logoCard}>
-          <View style={styles.logoGoldBar} />
           <View style={styles.logoInner}>
-            <Image source={LOGO} style={styles.logoImage} resizeMode="contain" />
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 5, marginBottom: 14 }}>
+              {[12, 22, 32, 22, 12].map((h, i) => (
+                <View key={i} style={{ width: 7, height: h, borderRadius: 3.5, backgroundColor: BAR_COLORS[i] }} />
+              ))}
+            </View>
+            <Text style={styles.logoBrandName}>Cadence</Text>
           </View>
           <View style={styles.logoOrgBadge}>
             <View style={styles.logoBadgeDot} />
-            <Text style={styles.logoOrgText}>GENERAL AERONAUTICS</Text>
+            <Text style={styles.logoOrgText}>PROJECT PLATFORM</Text>
             <View style={styles.logoBadgeDot} />
           </View>
         </View>
 
-        {/* ── Gold accent rule ── */}
+        {/* ── Accent rule ── */}
         <View style={styles.goldRule} />
 
         {/* ── Tagline ── */}
         <Text style={styles.tagline}>
-          Internal task tracker for{'\n'}General Aeronautics teams.
+          The project platform built{'\n'}for your entire organization.
         </Text>
 
         {/* ── Feature list ── */}
@@ -125,7 +129,7 @@ export default function LoginScreen({ navigation }) {
           ))}
         </View>
 
-        <Text style={styles.copyright}>© 2026 General Aeronautics</Text>
+        <Text style={styles.copyright}>© 2026 Cadence</Text>
       </View>
 
       {/* ══════════════ RIGHT PANEL ══════════════ */}
@@ -138,7 +142,7 @@ export default function LoginScreen({ navigation }) {
           <Text style={[styles.formSubtitle, { color: theme.colors.onSurfaceVariant }]}>
             {twoFactorStep
               ? 'Enter the 6-digit code from your authenticator app'
-              : 'Sign in to your General Aeronautics workspace'}
+              : 'Sign in to your Cadence workspace'}
           </Text>
 
           {/* ── 2FA challenge card ── */}
@@ -253,7 +257,7 @@ export default function LoginScreen({ navigation }) {
                     onPress={() => navigation.navigate('ForgotPassword')}
                     style={styles.forgotBtn}
                   >
-                    <Text style={{ color: NAVY, fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
+                    <Text style={{ color: '#60A5FA', fontSize: 13, fontWeight: '600' }}>Forgot Password?</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
@@ -278,7 +282,7 @@ export default function LoginScreen({ navigation }) {
                       Don't have an account?{'  '}
                     </Text>
                     <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                      <Text style={{ color: NAVY, fontWeight: '700', fontSize: 13 }}>Register with invite</Text>
+                      <Text style={{ color: '#60A5FA', fontWeight: '700', fontSize: 13 }}>Register with invite</Text>
                     </TouchableOpacity>
                   </View>
                 </>
@@ -341,14 +345,10 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     boxShadow: '0 16px 48px rgba(0,0,0,0.45)',
   },
-  logoGoldBar: {
-    height: 4,
-    backgroundColor: GOLD,
-  },
   logoInner: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#0A1528',
     paddingHorizontal: 32,
-    paddingVertical: 20,
+    paddingVertical: 24,
     alignItems: 'center',
   },
   logoImage: {
@@ -370,8 +370,14 @@ const styles = StyleSheet.create({
     backgroundColor: GOLD,
     opacity: 0.7,
   },
+  logoBrandName: {
+    color: '#F1F5F9',
+    fontSize: 26,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
   logoOrgText: {
-    color: GOLD,
+    color: '#60A5FA',
     fontSize: 9,
     fontWeight: '800',
     letterSpacing: 2,
@@ -432,7 +438,7 @@ const styles = StyleSheet.create({
 
   formCard: {
     borderRadius: 16, padding: 32, borderWidth: 1,
-    boxShadow: '0 4px 24px rgba(15,37,87,0.08)',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.35)',
     marginBottom: 14,
   },
   input: { backgroundColor: 'transparent', marginBottom: -4 },
@@ -443,11 +449,13 @@ const styles = StyleSheet.create({
   forgotBtn: { alignSelf: 'flex-end', marginTop: 6, marginBottom: 18 },
 
   submitBtn: {
-    backgroundColor: NAVY, borderRadius: 10, height: 52,
+    background: 'linear-gradient(90deg,#3B82F6,#6366F1)',
+    backgroundColor: '#3B82F6',
+    borderRadius: 10, height: 52,
     justifyContent: 'center', alignItems: 'center',
-    boxShadow: '0 4px 14px rgba(15,37,87,0.30)',
+    boxShadow: '0 4px 22px rgba(59,130,246,0.45)',
   },
-  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  submitBtnText: { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
 
   dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 18 },
   divLine:    { flex: 1, height: StyleSheet.hairlineWidth },

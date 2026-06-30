@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useContext, createContext, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createDrawerNavigator } from '@react-navigation/drawer';
@@ -12,7 +12,8 @@ import { storage } from '../utils/storage';
 import { useAuth } from '../hooks/useAuth';
 import { useGetNotificationsQuery, useMarkAllNotificationsReadMutation } from '../api/notificationApi';
 
-const GA_LOGO_FULL = require('../../assets/ga-logo-full.jpg');
+// Cadence brand colours (no image needed)
+const CADENCE_BARS = ['#60A5FA', '#6BA4F8', '#7B8EF5', '#8B7AF0', '#8B5CF6'];
 
 const SHELL_BG = '#0B1425';
 const SHELL_PANEL = '#101B2F';
@@ -479,11 +480,23 @@ const WebSidebarContent = ({ state, navigation }) => {
       <View style={[styles.sidebarBrand, collapsed && styles.sidebarBrandCollapsed]}>
         {collapsed ? (
           <View style={styles.logoIconSmall}>
-            <Text style={styles.logoIconText}>GA</Text>
+            {/* collapsed: tiny 3-bar mark */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 2 }}>
+              {[6, 10, 14, 10, 6].map((h, i) => (
+                <View key={i} style={{ width: 3, height: h, borderRadius: 1.5, backgroundColor: CADENCE_BARS[i] }} />
+              ))}
+            </View>
           </View>
         ) : (
           <View style={styles.logoCard}>
-            <Image source={GA_LOGO_FULL} style={styles.logoImg} resizeMode="contain" />
+            {/* expanded: bars + wordmark */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 3, marginBottom: 8 }}>
+              {[10, 18, 26, 18, 10].map((h, i) => (
+                <View key={i} style={{ width: 5, height: h, borderRadius: 2.5, backgroundColor: CADENCE_BARS[i] }} />
+              ))}
+            </View>
+            <Text style={styles.logoWordmark}>Cadence</Text>
+            <Text style={styles.logoTagline}>Project Platform</Text>
           </View>
         )}
         <View style={styles.goldDivider} />
@@ -720,35 +733,34 @@ const styles = StyleSheet.create({
     paddingTop: 14,
   },
   logoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    borderBottomWidth: 3,
-    borderBottomColor: SHELL_GOLD,
-    boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
   },
-  logoImg: {
-    width: 172,
-    height: 58,
+  logoWordmark: {
+    color: '#F1F5F9',
+    fontSize: 17,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  logoTagline: {
+    color: '#60A5FA',
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginTop: 2,
   },
   logoIconSmall: {
     width: 36,
     height: 36,
     borderRadius: 9,
-    backgroundColor: '#fff',
+    backgroundColor: '#0A1528',
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 2,
-    borderBottomWidth: 3,
-    borderColor: SHELL_GOLD,
-  },
-  logoIconText: {
-    color: '#0B1425',
-    fontSize: 12,
-    fontWeight: '900',
+    borderWidth: 1,
+    borderColor: '#1E3358',
   },
   goldDivider: {
     alignSelf: 'stretch',
